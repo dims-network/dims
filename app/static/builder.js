@@ -210,8 +210,18 @@ function renderAnalysisTypes() {
   mk(cwBox, state.cw, !$("#t_cw").checked);
 }
 
+// Enabling an analysis selects all available data types by default (the user
+// can then deselect chips); disabling clears the selection. This way ticking
+// RQA / cross-wavelet always lands those keys in config.json.
+function syncAnalysisDefaults() {
+  const types = allDataTypes();
+  if ($("#t_rqa").checked) { if (state.rqa.size === 0) types.forEach((t) => state.rqa.add(t)); }
+  else state.rqa.clear();
+  if ($("#t_cw").checked) { if (state.cw.size === 0) types.forEach((t) => state.cw.add(t)); }
+  else state.cw.clear();
+}
 ["t_rqa", "t_cw", "t_elan"].forEach((id) =>
-  $("#" + id).addEventListener("change", renderAnalysisTypes)
+  $("#" + id).addEventListener("change", () => { syncAnalysisDefaults(); renderAnalysisTypes(); })
 );
 
 $("#next-3").addEventListener("click", async () => {
