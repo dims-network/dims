@@ -1,0 +1,34 @@
+{
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.0,
+      "speaker": "Researcher",
+      "text": "So, can you tell me what you noticed?"
+    },
+    {
+      "start": 2.0,
+      "end": 4.5,
+      "speaker": "Participant",
+      "text": "Yeah, at first the two signals drifted apart."
+    },
+    {
+      "start": 4.5,
+      "end": 6.0,
+      "speaker": "Researcher",
+      "text": "And then?"
+    },
+    {
+      "start": 6.0,
+      "end": 8.5,
+      "speaker": "Participant",
+      "text": "Around the middle they locked together \u2014 that's the coupling."
+    },
+    {
+      "start": 8.5,
+      "end": 10.0,
+      "speaker": "Researcher",
+      "text": "Great, that matches the cross-wavelet."
+    }
+  ]
+}
