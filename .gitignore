@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+
+# builder runtime state
+app/_staging/
+app/_state.json
+
+# generated dashboard projects (don't commit user output)
+output/
+*.local

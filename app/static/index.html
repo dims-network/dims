@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DIMS Dashboard Builder</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>DIMS Dashboard Builder</h1>
+    <p class="tagline">Turn your recordings into a ready-to-deploy dashboard — no code.</p>
+  </header>
+
+  <nav class="steps" id="stepnav">
+    <button class="step" data-step="1"><span>1</span> Project</button>
+    <button class="step" data-step="2"><span>2</span> Sessions &amp; files</button>
+    <button class="step" data-step="3"><span>3</span> Analyses</button>
+    <button class="step" data-step="4"><span>4</span> Build</button>
+    <button class="step" data-step="5"><span>5</span> Precompute</button>
+    <button class="step" data-step="6"><span>6</span> Preview</button>
+  </nav>
+
+  <main>
+    <!-- STEP 1 -->
+    <section class="panel" data-panel="1">
+      <h2>1 · Project</h2>
+      <label>Output folder
+        <input id="output_dir" type="text" placeholder="/path/to/my-dashboard (new or empty folder)" />
+        <small>Where your finished dashboard will be created.</small>
+      </label>
+      <fieldset class="src">
+        <legend>Template source</legend>
+        <label class="radio"><input type="radio" name="src" value="url" checked />
+          Clone from GitHub (recommended)</label>
+        <input id="src_url" type="text"
+               value="https://github.com/dims-network/DIMS_dashboard_template" />
+        <label class="radio"><input type="radio" name="src" value="local" />
+          Use a local template folder (works offline)</label>
+        <input id="src_local" type="text" placeholder="/path/to/DIMS_dashboard_template" disabled />
+      </fieldset>
+
+      <h3>Dashboard details</h3>
+      <label>Title <input id="title" type="text" placeholder="DIMS Dashboard" /></label>
+      <label>Subtitle <input id="subtitle" type="text" placeholder="Dynamic Interaction and Multimodal Signals" /></label>
+      <label>Authors <input id="authors" type="text" placeholder="Your name(s)" /></label>
+      <label>Contacts <input id="contacts" type="text" placeholder="contacts: you@example.org" /></label>
+      <label>Default window size (seconds)
+        <input id="defaultWindowSize" type="number" value="5" min="1" /></label>
+
+      <div class="actions">
+        <button class="primary" id="btn-create">Create project &rarr;</button>
+      </div>
+      <div class="msg" id="msg-1"></div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="panel" data-panel="2" hidden>
+      <h2>2 · Sessions &amp; files</h2>
+      <p class="hint">Drag your files here. The builder figures out what each one is:
+        <code>.mp4</code> video, <code>.csv</code> time-series, <code>*_transcript.json</code>
+        transcript, <code>.eaf</code> ELAN. Group files that belong together under the
+        same <strong>Session ID</strong>.</p>
+      <div id="dropzone" class="dropzone">
+        <p>Drop files here, or <label class="link">browse<input id="filepick" type="file" multiple hidden /></label></p>
+      </div>
+      <div id="filelist"></div>
+      <div class="actions">
+        <button id="back-2" class="ghost">&larr; Back</button>
+        <button class="primary" id="next-2">Next &rarr;</button>
+      </div>
+      <div class="msg" id="msg-2"></div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="panel" data-panel="3" hidden>
+      <h2>3 · Optional analyses</h2>
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_rqa" /> <strong>RQA</strong> — Recurrence Quantification Analysis</label>
+        <p class="hint">Reveals repeating patterns within a single signal over time. Pick which data types to compute it for.</p>
+        <div id="rqa_types" class="chips"></div>
+      </div>
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_cw" /> <strong>Cross-wavelet</strong> — coupling between two signals</label>
+        <p class="hint">Compares pairs of signals across time and frequency. Needs <strong>at least 2</strong> data types.</p>
+        <div id="cw_types" class="chips"></div>
+      </div>
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_elan" /> <strong>ELAN annotations</strong></label>
+        <p class="hint">Show qualitative annotations from ELAN <code>.eaf</code> files alongside the signals.</p>
+      </div>
+      <div class="actions">
+        <button id="back-3" class="ghost">&larr; Back</button>
+        <button class="primary" id="next-3">Next &rarr;</button>
+      </div>
+      <div class="msg" id="msg-3"></div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="panel" data-panel="4" hidden>
+      <h2>4 · Build</h2>
+      <p class="hint">Review, then build. Files are copied into the template's exact layout and
+        <code>config.json</code> is written.</p>
+      <div id="validation"></div>
+      <pre id="config-preview" class="codebox"></pre>
+      <div class="actions">
+        <button id="back-4" class="ghost">&larr; Back</button>
+        <button class="primary" id="btn-build">Build project</button>
+      </div>
+      <div class="msg" id="msg-4"></div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="panel" data-panel="5" hidden>
+      <h2>5 · Precompute</h2>
+      <p class="hint">Creates a project-local Python environment and runs the analyses you enabled.
+        This can take a few minutes the first time.</p>
+      <div class="actions">
+        <button class="primary" id="btn-precompute">Run precompute</button>
+        <button id="skip-5" class="ghost">Skip &rarr;</button>
+      </div>
+      <pre id="precompute-log" class="codebox log"></pre>
+      <div class="msg" id="msg-5"></div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="panel" data-panel="6" hidden>
+      <h2>6 · Preview &amp; Deploy</h2>
+      <div class="actions">
+        <button class="primary" id="btn-preview">Open dashboard preview</button>
+      </div>
+      <div class="msg" id="msg-6"></div>
+      <h3>Deploy</h3>
+      <p class="hint">Your project folder is ready to deploy to any static host that supports
+        HTTP Range requests (for video seeking). Copy-paste:</p>
+      <pre class="codebox" id="deploy-cmds"></pre>
+    </section>
+  </main>
+
+  <script src="/static/builder.js"></script>
+</body>
+</html>
