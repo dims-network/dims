@@ -12,20 +12,22 @@ produces a ready-to-deploy dashboard folder.
 
 ## Quick start
 
-**macOS / Linux**
-
-```bash
-./run.sh
-```
-
+**macOS** — double-click `run.command`
+**Linux** — `./run.sh`
 **Windows** — double-click `run.bat`
 
-Or manually:
+Or manually (also the simplest way to avoid the macOS prompt below):
 
 ```bash
 pip install -r requirements.txt
 python builder.py
 ```
+
+> **macOS, first run only:** if you downloaded the ZIP you may see *“Apple could not
+> verify ‘run.command’ is free of malware.”* Click **Done**, then go to
+> **System Settings → Privacy & Security**, scroll to **Security**, and click
+> **Open Anyway**. This is macOS flagging any downloaded unsigned script; it happens
+> once. (Running `python builder.py` in a terminal skips it entirely.)
 
 Your browser opens to the wizard. Follow the 6 steps:
 
