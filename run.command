@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One-click launcher (Linux / macOS CLI): installs dependencies, then starts
-# the builder. On macOS, double-click run.command instead.
+# macOS double-click launcher: installs dependencies, then starts the builder.
+# (Finder runs .command files in Terminal; double-click this one.)
 set -e
 cd "$(dirname "$0")"
 

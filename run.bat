@@ -1,10 +1,18 @@
 @echo off
-REM Double-click launcher (Windows): install deps then start the builder.
+REM One-click launcher (Windows): installs dependencies, then starts the builder.
 cd /d "%~dp0"
 
-set PY=python
-echo Installing builder dependencies...
-%PY% -m pip install -r requirements.txt
+where python >nul 2>nul
+if errorlevel 1 (
+  echo.
+  echo Python 3 is not installed.
+  echo Install it ^(free^) from https://www.python.org/downloads/ then run this again.
+  pause
+  exit /b 1
+)
+
+echo Installing builder dependencies ^(first run only^)...
+python -m pip install -r requirements.txt
 echo Starting DIMS Dashboard Builder...
-%PY% builder.py
+python builder.py
 pause

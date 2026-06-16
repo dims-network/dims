@@ -31,12 +31,15 @@
       </label>
       <fieldset class="src">
         <legend>Template source</legend>
-        <label class="radio"><input type="radio" name="src" value="url" checked />
-          Clone from GitHub (recommended)</label>
+        <label class="radio"><input type="radio" name="src" value="bundled" checked />
+          Use the built-in template (recommended — no git or internet needed)</label>
+        <small class="src-note">The DIMS dashboard code ships inside this builder.</small>
+        <label class="radio"><input type="radio" name="src" value="url" />
+          Clone the latest from GitHub (requires git)</label>
         <input id="src_url" type="text"
-               value="https://github.com/dims-network/DIMS_dashboard_template" />
+               value="https://github.com/dims-network/DIMS_dashboard_template" disabled />
         <label class="radio"><input type="radio" name="src" value="local" />
-          Use a local template folder (works offline)</label>
+          Use a local template folder</label>
         <input id="src_local" type="text" placeholder="/path/to/DIMS_dashboard_template" disabled />
       </fieldset>
 

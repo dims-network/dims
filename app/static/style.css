@@ -54,6 +54,7 @@ fieldset.src { border: 1px solid var(--border); border-radius: 8px; margin: 16px
 legend { padding: 0 6px; color: var(--muted); }
 label.radio { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
 label.radio input { width: auto; margin: 0; }
+.src-note { display: block; color: var(--muted); font-size: 12px; margin: 0 0 6px 24px; }
 
 .actions { display: flex; gap: 10px; margin-top: 22px; align-items: center; }
 button {

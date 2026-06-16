@@ -1,0 +1,12 @@
+{
+    "videoIDs": [],
+    "dataTypes": {},
+    "include_RQA": [],
+    "include_crosswavelet": [],
+    "include_elan": false,
+    "defaultWindowSize": 5,
+    "title": "DIMS Dashboard",
+    "subtitle": "Dynamic Interaction and Multimodal Signals",
+    "authors": "Your name(s)",
+    "contacts": "contacts: your@email"
+}

@@ -26,6 +26,12 @@ CONFIG_KEYS = [
 
 DEFAULT_TEMPLATE_URL = "https://github.com/dims-network/DIMS_dashboard_template"
 
+# The builder ships with a full copy of the DIMS dashboard template, so a
+# non-technical user needs neither git nor an internet connection to build a
+# dashboard. This bundled copy is the default source. `template/` sits next to
+# the `app/` package at the repo root.
+BUNDLED_TEMPLATE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "template")
+
 # Markers that a directory really is the DIMS template scaffold.
 TEMPLATE_MARKERS = ["config.json", "serve.py", "opt", "assets"]
 
@@ -53,11 +59,23 @@ def is_template_dir(path: str) -> bool:
 def acquire_template(output_dir: str, source: str) -> None:
     """Populate `output_dir` with the template scaffold.
 
-    `source` may be a git URL (cloned) or a local template path (copied,
-    excluding .git/). Raises ProjectError on failure.
+    `source` may be:
+      * empty / "bundled"  → copy the template bundled with the builder (default;
+                             no git, no network — the non-coder path);
+      * a git URL          → cloned (to fetch the latest template);
+      * a local path       → copied (excluding .git/).
+    Raises ProjectError on failure.
     """
     output_dir = os.path.abspath(os.path.expanduser(output_dir))
-    source = (source or DEFAULT_TEMPLATE_URL).strip()
+    source = (source or "bundled").strip()
+    if source.lower() == "bundled":
+        source = BUNDLED_TEMPLATE
+        if not is_template_dir(source):
+            raise ProjectError(
+                "The built-in template is missing from this builder install "
+                f"(expected at {source}). Reinstall the builder, or choose a "
+                "different template source."
+            )
 
     if os.path.exists(output_dir) and os.listdir(output_dir):
         if is_template_dir(output_dir):

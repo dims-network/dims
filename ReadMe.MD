@@ -29,9 +29,10 @@ python builder.py
 
 Your browser opens to the wizard. Follow the 6 steps:
 
-1. **Project** — pick an output folder and the template source (defaults to cloning
-   the official template from GitHub; you can point it at a local template folder
-   to work offline). Set the title, authors, etc.
+1. **Project** — pick an output folder. The DIMS dashboard template is **built into
+   the builder**, so it's used by default — no git, no internet required. (Advanced:
+   you can instead clone the latest from GitHub or point at a local template folder.)
+   Set the title, authors, etc.
 2. **Sessions & files** — drag in your files. The builder figures out what each one
    is (`.mp4` video, `.csv` time-series, `_transcript.json` transcript, `.eaf` ELAN),
    groups them under a session/video ID, and checks them as you go.
@@ -45,8 +46,9 @@ Your browser opens to the wizard. Follow the 6 steps:
 ## Requirements
 
 - Python 3.9+
-- `git` (only if you let the builder clone the template from GitHub; not needed if
-  you point it at a local template folder)
+- That's it for the default path — the template ships inside the builder
+  (`template/`), so **git is not required**. (`git` is only needed if you choose the
+  optional "clone the latest from GitHub" template source.)
 
 ## What the builder produces
 
