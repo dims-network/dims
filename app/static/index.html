@@ -15,10 +15,11 @@
   <nav class="steps" id="stepnav">
     <button class="step" data-step="1"><span>1</span> Project</button>
     <button class="step" data-step="2"><span>2</span> Sessions &amp; files</button>
-    <button class="step" data-step="3"><span>3</span> Analyses</button>
-    <button class="step" data-step="4"><span>4</span> Build</button>
-    <button class="step" data-step="5"><span>5</span> Precompute</button>
-    <button class="step" data-step="6"><span>6</span> Preview</button>
+    <button class="step" data-step="3"><span>3</span> Align</button>
+    <button class="step" data-step="4"><span>4</span> Analyses</button>
+    <button class="step" data-step="5"><span>5</span> Build</button>
+    <button class="step" data-step="6"><span>6</span> Precompute</button>
+    <button class="step" data-step="7"><span>7</span> Preview</button>
   </nav>
 
   <main>
@@ -75,9 +76,25 @@
       <div class="msg" id="msg-2"></div>
     </section>
 
-    <!-- STEP 3 -->
+    <!-- STEP 3 — Align -->
     <section class="panel" data-panel="3" hidden>
-      <h2>3 · Optional analyses</h2>
+      <h2>3 · Align video &amp; data</h2>
+      <p class="hint">When a session's video and time-series have different lengths, the
+        dashboard shows dead space. For each session you can <strong>trim the video</strong>
+        to a window you pick, or <strong>pad the time-series with zeros</strong> at the start
+        and/or end. The bars below preview the result against a shared playback timeline;
+        edits are non-destructive — your original files are never modified.</p>
+      <div id="align-list"></div>
+      <div class="actions">
+        <button id="back-3" class="ghost">&larr; Back</button>
+        <button class="primary" id="next-3">Next &rarr;</button>
+      </div>
+      <div class="msg" id="msg-3"></div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="panel" data-panel="4" hidden>
+      <h2>4 · Optional analyses</h2>
       <div class="analysis">
         <label class="toggle"><input type="checkbox" id="t_rqa" /> <strong>RQA</strong> — Recurrence Quantification Analysis</label>
         <p class="hint">Reveals repeating patterns within a single signal over time. Pick which data types to compute it for.</p>
@@ -93,46 +110,46 @@
         <p class="hint">Show qualitative annotations from ELAN <code>.eaf</code> files alongside the signals.</p>
       </div>
       <div class="actions">
-        <button id="back-3" class="ghost">&larr; Back</button>
-        <button class="primary" id="next-3">Next &rarr;</button>
-      </div>
-      <div class="msg" id="msg-3"></div>
-    </section>
-
-    <!-- STEP 4 -->
-    <section class="panel" data-panel="4" hidden>
-      <h2>4 · Build</h2>
-      <p class="hint">Review, then build. Files are copied into the template's exact layout and
-        <code>config.json</code> is written.</p>
-      <div id="validation"></div>
-      <pre id="config-preview" class="codebox"></pre>
-      <div class="actions">
         <button id="back-4" class="ghost">&larr; Back</button>
-        <button class="primary" id="btn-build">Build project</button>
+        <button class="primary" id="next-4">Next &rarr;</button>
       </div>
       <div class="msg" id="msg-4"></div>
     </section>
 
     <!-- STEP 5 -->
     <section class="panel" data-panel="5" hidden>
-      <h2>5 · Precompute</h2>
-      <p class="hint">Creates a project-local Python environment and runs the analyses you enabled.
-        This can take a few minutes the first time.</p>
+      <h2>5 · Build</h2>
+      <p class="hint">Review, then build. Files are copied into the template's exact layout and
+        <code>config.json</code> is written.</p>
+      <div id="validation"></div>
+      <pre id="config-preview" class="codebox"></pre>
       <div class="actions">
-        <button class="primary" id="btn-precompute">Run precompute</button>
-        <button id="skip-5" class="ghost">Skip &rarr;</button>
+        <button id="back-5" class="ghost">&larr; Back</button>
+        <button class="primary" id="btn-build">Build project</button>
       </div>
-      <pre id="precompute-log" class="codebox log"></pre>
       <div class="msg" id="msg-5"></div>
     </section>
 
     <!-- STEP 6 -->
     <section class="panel" data-panel="6" hidden>
-      <h2>6 · Preview &amp; Deploy</h2>
+      <h2>6 · Precompute</h2>
+      <p class="hint">Creates a project-local Python environment and runs the analyses you enabled.
+        This can take a few minutes the first time.</p>
+      <div class="actions">
+        <button class="primary" id="btn-precompute">Run precompute</button>
+        <button id="skip-6" class="ghost">Skip &rarr;</button>
+      </div>
+      <pre id="precompute-log" class="codebox log"></pre>
+      <div class="msg" id="msg-6"></div>
+    </section>
+
+    <!-- STEP 7 -->
+    <section class="panel" data-panel="7" hidden>
+      <h2>7 · Preview &amp; Deploy</h2>
       <div class="actions">
         <button class="primary" id="btn-preview">Open dashboard preview</button>
       </div>
-      <div class="msg" id="msg-6"></div>
+      <div class="msg" id="msg-7"></div>
       <h3>Deploy</h3>
       <p class="hint">Your project folder is ready to deploy to any static host that supports
         HTTP Range requests (for video seeking). Copy-paste:</p>
