@@ -8,9 +8,9 @@ import csv
 import os
 import uuid
 
-from flask import Flask, Response, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
-from . import precompute, project, validate
+from . import media, precompute, project, validate
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
@@ -150,6 +150,70 @@ def create_app():
                 pass
         return jsonify(ok=True)
 
+    @app.get("/api/staged/<fid>")
+    def api_staged(fid):
+        """Serve a staged upload (range-enabled) for the align step's previews:
+        the video element seeks into it, and CSVs are fetched to look up values."""
+        entry = state["staged"].get(fid)
+        if not entry or not os.path.exists(entry["path"]):
+            return jsonify(error="Unknown file id."), 404
+        mime = {"video": "video/mp4", "timeseries": "text/csv"}.get(entry["role"])
+        return send_file(entry["path"], mimetype=mime, conditional=True)
+
+    @app.get("/api/sessions")
+    def api_sessions():
+        return jsonify(sessions=_session_summary(),
+                       ffmpeg_available=media.ffmpeg_exe() is not None)
+
+    # Trim/pad are stored as *specs* on the staged entries and only applied to
+    # copies at build time. The uploaded originals are never modified, so edits
+    # are non-destructive and freely re-adjustable.
+    @app.post("/api/trim_video")
+    def api_trim_video():
+        data = request.get_json(force=True)
+        vid = data.get("videoID")
+        video = next((e for e in state["staged"].values()
+                      if e["role"] == "video" and e.get("videoID") == vid), None)
+        if not video:
+            return jsonify(error=f"No video found for session '{vid}'."), 404
+        if data.get("clear"):
+            video.pop("trim", None)
+            return jsonify(ok=True, sessions=_session_summary(),
+                           ffmpeg_available=media.ffmpeg_exe() is not None)
+        try:
+            start = float(data.get("start", 0))
+            end = float(data.get("end", 0))
+        except (TypeError, ValueError):
+            return jsonify(error="Trim start/end must be numbers."), 400
+        if end <= start:
+            return jsonify(error="Trim window end must be after start."), 400
+        if not media.ffmpeg_exe():
+            return jsonify(error="ffmpeg is unavailable; run: pip install imageio-ffmpeg"), 400
+        video["trim"] = {"start": start, "end": end}
+        return jsonify(ok=True, sessions=_session_summary(),
+                       ffmpeg_available=media.ffmpeg_exe() is not None)
+
+    @app.post("/api/pad_timeseries")
+    def api_pad_timeseries():
+        data = request.get_json(force=True)
+        vid = data.get("videoID")
+        series = [e for e in state["staged"].values()
+                  if e["role"] == "timeseries" and e.get("videoID") == vid]
+        if not series:
+            return jsonify(error=f"No time-series CSVs found for session '{vid}'."), 404
+        try:
+            pad_start = max(0.0, float(data.get("pad_start", 0)))
+            pad_end = max(0.0, float(data.get("pad_end", 0)))
+        except (TypeError, ValueError):
+            return jsonify(error="Padding amounts must be numbers."), 400
+        for e in series:
+            if pad_start <= 0 and pad_end <= 0:
+                e.pop("pad", None)
+            else:
+                e["pad"] = {"start": pad_start, "end": pad_end}
+        return jsonify(ok=True, sessions=_session_summary(),
+                       ffmpeg_available=media.ffmpeg_exe() is not None)
+
     @app.route("/api/config", methods=["GET", "POST"])
     def api_config():
         if request.method == "POST":
@@ -188,6 +252,16 @@ def create_app():
                 continue
             rel = project.place_asset(state["output_dir"], e["path"],
                                       e["role"], e["videoID"], e.get("dataType", ""))
+            # Apply any align spec to the *placed copy* — the staged original is
+            # left untouched, so the user keeps their pristine source files.
+            dest = os.path.join(state["output_dir"], rel)
+            try:
+                if e["role"] == "video" and e.get("trim"):
+                    media.trim_video(dest, e["trim"]["start"], e["trim"]["end"])
+                elif e["role"] == "timeseries" and e.get("pad"):
+                    media.pad_timeseries(dest, e["pad"]["start"], e["pad"]["end"])
+            except (RuntimeError, ValueError) as exc:
+                return jsonify(error=f"Aligning '{rel}': {exc}"), 400
             placed.append(rel)
 
         project.write_config(state["output_dir"], cfg)
@@ -222,6 +296,35 @@ def create_app():
         return jsonify(ok=True, url=url)
 
     # --- helpers ---
+    def _session_summary():
+        """Per-session video & time-series geometry for the align step.
+
+        Groups staged files by videoID; for each session reports the video with
+        its *original* duration and any trim spec, and every time-series CSV with
+        its original Time bounds and any pad spec. Durations are the originals —
+        the frontend computes the effective (trimmed/padded) extents for preview.
+        """
+        sessions = {}
+        order = []
+        for e in state["staged"].values():
+            vid = e.get("videoID")
+            if not vid:
+                continue
+            if vid not in sessions:
+                sessions[vid] = {"videoID": vid, "video": None, "series": []}
+                order.append(vid)
+            s = sessions[vid]
+            if e["role"] == "video" and s["video"] is None:
+                s["video"] = {"id": e["id"], "name": e["name"],
+                              "duration": media.video_duration(e["path"]),
+                              "trim": e.get("trim")}
+            elif e["role"] == "timeseries":
+                s["series"].append({"id": e["id"], "name": e["name"],
+                                    "dataType": e.get("dataType", ""),
+                                    "bounds": media.series_bounds(e["path"]),
+                                    "pad": e.get("pad")})
+        return [sessions[v] for v in order]
+
     def _assemble_config():
         """Derive videoIDs/dataTypes from staged files, merged with metadata + toggles."""
         cfg = dict(state["config"])

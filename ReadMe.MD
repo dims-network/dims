@@ -29,7 +29,7 @@ python builder.py
 > **Open Anyway**. This is macOS flagging any downloaded unsigned script; it happens
 > once. (Running `python builder.py` in a terminal skips it entirely.)
 
-Your browser opens to the wizard. Follow the 6 steps:
+Your browser opens to the wizard. Follow the 7 steps:
 
 1. **Project** — pick an output folder. The DIMS dashboard template is **built into
    the builder**, so it's used by default — no git, no internet required. (Advanced:
@@ -38,11 +38,18 @@ Your browser opens to the wizard. Follow the 6 steps:
 2. **Sessions & files** — drag in your files. The builder figures out what each one
    is (`.mp4` video, `.csv` time-series, `_transcript.json` transcript, `.eaf` ELAN),
    groups them under a session/video ID, and checks them as you go.
-3. **Optional analyses** — turn on RQA and/or cross-wavelet and ELAN annotations.
-4. **Build** — files are copied into place and `config.json` is written.
-5. **Precompute** — the builder creates a project-local Python environment and runs
+3. **Align video & data** — when a session's video and time-series have different
+   lengths the dashboard shows dead space. Per session, a shared-timeline preview shows
+   the video track above each time-series track, and you can either *trim the video* to a
+   window you pick with a dual-handle range slider, or *zero-pad the time-series* with
+   zeros at the start and/or end. Edits are **non-destructive** — your original files are
+   never modified; the trim/pad is applied only to the copies written at build time.
+   (Trimming uses the `ffmpeg` that ships via `imageio-ffmpeg` — no system install needed.)
+4. **Optional analyses** — turn on RQA and/or cross-wavelet and ELAN annotations.
+5. **Build** — files are copied into place and `config.json` is written.
+6. **Precompute** — the builder creates a project-local Python environment and runs
    the analysis scripts. Progress streams live.
-6. **Preview / Deploy** — opens your dashboard locally and shows copy-paste commands
+7. **Preview / Deploy** — opens your dashboard locally and shows copy-paste commands
    to deploy it to GitHub Pages / Netlify / Vercel.
 
 ## Requirements
