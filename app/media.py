@@ -193,3 +193,63 @@ def pad_timeseries(csv_path, pad_start, pad_end):
         writer.writerows(tail)
 
     return (tail[-1][t_idx] if tail else (shifted[-1][t_idx] if shifted else "0"))
+
+
+_SLUG_RE = re.compile(r"[^0-9A-Za-z]+")
+
+
+def slug(name):
+    """Make a column name safe to use as a dataType / filename token."""
+    s = _SLUG_RE.sub("_", str(name).strip()).strip("_")
+    return s or "col"
+
+
+def split_timeseries_csv(src_path, staging_dir, fid_prefix, base):
+    """Split a multi-column time-series CSV into one CSV per value column.
+
+    Each output keeps the `Time` column plus a single value column and is written
+    to `staging_dir` as `{fid}__{base}_{slug(column)}.csv`. Returns a list of
+    {"id", "path", "name", "column", "dataType"} — one per value column — or an
+    empty list if the CSV has no `Time` column or fewer than 2 value columns
+    (i.e. nothing to split).
+    """
+    import uuid
+
+    with open(src_path, newline="") as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+        rows = [r for r in reader if r]
+    if not header:
+        return []
+    cols = [c.strip() for c in header]
+    if "Time" not in cols:
+        return []
+    t_idx = cols.index("Time")
+    value_idxs = [i for i, c in enumerate(cols) if i != t_idx and c]
+    if len(value_idxs) < 2:
+        return []  # single value column (or none) — handled as a normal upload
+
+    out = []
+    used = set()
+    for vi in value_idxs:
+        col = cols[vi]
+        dt = slug(col)
+        # Keep dataTypes distinct if two columns slug to the same token.
+        cand, n = dt, 2
+        while cand in used:
+            cand = f"{dt}_{n}"; n += 1
+        dt = cand
+        used.add(dt)
+
+        fid = uuid.uuid4().hex
+        name = f"{base}_{dt}.csv"
+        path = os.path.join(staging_dir, f"{fid}__{name}")
+        with open(path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["Time", col])
+            for r in rows:
+                if len(r) <= max(t_idx, vi):
+                    continue
+                w.writerow([r[t_idx], r[vi]])
+        out.append({"id": fid, "path": path, "name": name, "column": col, "dataType": dt})
+    return out

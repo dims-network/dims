@@ -115,6 +115,32 @@ def create_app():
 
         role = infer_role(safe_name)
         vid, dt = _suggest_ids(safe_name, role)
+
+        # A time-series CSV with Time + several value columns is auto-split into
+        # one single-column CSV per value column (the template's one-column-per-
+        # dataType convention). Each split becomes its own staged file.
+        fields = ("id", "name", "role", "videoID", "dataType", "columns", "issues")
+        if role == "timeseries":
+            base = os.path.splitext(safe_name)[0]
+            splits = media.split_timeseries_csv(staged_path, STAGING_DIR, fid, base)
+            if splits:
+                out_files = []
+                for s in splits:
+                    e = {
+                        "id": s["id"], "name": s["name"], "path": s["path"],
+                        "role": "timeseries", "videoID": base, "dataType": s["dataType"],
+                        "columns": ["Time", s["column"]],
+                    }
+                    e["issues"] = validate.validate_file("timeseries", s["path"])
+                    state["staged"][s["id"]] = e
+                    out_files.append({k: e[k] for k in fields})
+                # The original multi-column upload is not staged (only its splits).
+                try:
+                    os.remove(staged_path)
+                except OSError:
+                    pass
+                return jsonify(files=out_files)
+
         entry = {
             "id": fid, "name": safe_name, "path": staged_path,
             "role": role, "videoID": vid, "dataType": dt,
@@ -122,8 +148,7 @@ def create_app():
         }
         entry["issues"] = validate.validate_file(role, staged_path)
         state["staged"][fid] = entry
-        return jsonify(file={k: entry[k] for k in
-                             ("id", "name", "role", "videoID", "dataType", "columns", "issues")})
+        return jsonify(files=[{k: entry[k] for k in fields}], file={k: entry[k] for k in fields})
 
     @app.post("/api/assign")
     def api_assign():
@@ -274,11 +299,12 @@ def create_app():
         cfg = _assemble_config()
         do_rqa = bool(cfg.get("include_RQA"))
         do_cw = bool(cfg.get("include_crosswavelet"))
+        do_crqa = bool(cfg.get("include_cRQA"))
         proj = state["output_dir"]
 
         def generate():
             try:
-                for line in precompute.run_precompute(proj, do_rqa, do_cw):
+                for line in precompute.run_precompute(proj, do_rqa, do_cw, do_crqa):
                     yield line
             except Exception as e:  # noqa: BLE001
                 yield f"\n__ERROR__: {e}\n"
@@ -344,6 +370,7 @@ def create_app():
         cfg["dataTypes"] = data_types
         cfg.setdefault("include_RQA", state["config"].get("include_RQA", []))
         cfg.setdefault("include_crosswavelet", state["config"].get("include_crosswavelet", []))
+        cfg.setdefault("include_cRQA", state["config"].get("include_cRQA", []))
         cfg.setdefault("include_elan", state["config"].get("include_elan", False))
         cfg.setdefault("defaultWindowSize", state["config"].get("defaultWindowSize", 5))
         for k in ("title", "subtitle", "authors", "contacts"):
