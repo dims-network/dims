@@ -1,5 +1,0 @@
-json
-scipy==1.26.4
-matplotlib
-pandas
-pycwt
