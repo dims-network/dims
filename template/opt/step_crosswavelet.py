@@ -104,7 +104,9 @@ def load_and_prepare_timeseries(video_id, data_type, detrend=DETREND_DATA):
     
     # Load data
     df = pd.read_csv(csv_path)
-    
+    # Accept the time column under any casing/whitespace -> canonical 'Time'.
+    df = df.rename(columns={c: 'Time' for c in df.columns if str(c).strip().lower() == 'time'})
+
     # Get time column
     if 'Time' not in df.columns:
         if VERBOSE:

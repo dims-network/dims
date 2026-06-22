@@ -139,6 +139,8 @@ def calculate_window_metrics(matrix, dt, min_line=2):
 def _load_series(path):
     """Read a {value, Time} CSV; return (time, value) arrays sorted by time, NaNs dropped."""
     df = pd.read_csv(path)
+    # Accept the time column under any casing/whitespace -> canonical 'Time'.
+    df = df.rename(columns={c: 'Time' for c in df.columns if str(c).strip().lower() == 'time'})
     if 'Time' not in df.columns:
         print(f"  [Error] '{path}' has no 'Time' column.")
         return None, None

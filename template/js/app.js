@@ -1652,11 +1652,23 @@ if (arrowData.x.length > 0) {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const text = await response.text();
-            return Papa.parse(text, {
+            const res = Papa.parse(text, {
                 header: true,
                 dynamicTyping: true,
                 skipEmptyLines: true
             });
+            // Accept the time column under any casing/whitespace (e.g. "time",
+            // "TIME", " Time ") by normalizing it to the canonical "Time" key the
+            // rest of the dashboard reads.
+            const fields = (res.meta && res.meta.fields) || [];
+            const timeField = fields.find(f => String(f).trim().toLowerCase() === 'time');
+            if (timeField && timeField !== 'Time') {
+                res.data.forEach(row => {
+                    row.Time = row[timeField];
+                    delete row[timeField];
+                });
+            }
+            return res;
         } catch (error) {
             console.warn(`Failed to load CSV: ${url}`, error);
             return null;
