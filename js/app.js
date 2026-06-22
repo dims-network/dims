@@ -1,5 +1,22 @@
 // DIMS Dashboard - Main Application Logic with Cross-Wavelet Support
 
+// Theme is driven entirely by CSS custom properties (see css/theme.css).
+// Charts read the active theme's tokens at render time, so adding/changing a
+// theme means editing CSS only.
+const THEMES = ['aurora', 'midnight'];
+
+function readTheme() {
+    const s = getComputedStyle(document.documentElement);
+    const v = n => s.getPropertyValue(n).trim();
+    return {
+        paper: v('--panel'), plot: v('--panel2'), grid: v('--line'),
+        font: v('--text'), text: v('--text'), muted: v('--muted'),
+        trace: v('--text'), accent: v('--accent'),
+        highlight: v('--accent'), highlightFill: v('--accent-soft')
+    };
+}
+let THEME = readTheme();
+
 class DIMSApp {
     constructor() {
         this.config = null;
@@ -30,6 +47,7 @@ class DIMSApp {
             this.showStatus('Setting up interface...');
             
             // Setup UI
+            this.setupTheme();
             this.setupHeader();
             this.setupTabs();
             this.setupControls();
@@ -55,6 +73,17 @@ class DIMSApp {
         const hasCRQA = this.config.include_cRQA && this.config.include_cRQA.length > 0;
         const hasELAN = !!this.config.include_elan;
 
+        // Wrap the time slider (and the tab bar, below) in one sticky toolbar so
+        // they pin to the top of the page together while scrolling.
+        const sliderContainer = document.querySelector('.slider-container');
+        let stickyBar = document.getElementById('stickyBar');
+        if (sliderContainer && !stickyBar) {
+            stickyBar = document.createElement('div');
+            stickyBar.id = 'stickyBar';
+            sliderContainer.parentNode.insertBefore(stickyBar, sliderContainer);
+            stickyBar.appendChild(sliderContainer);
+        }
+
         // If no optional tabs, hide tab container
         if (!hasRQA && !hasCrossWavelet && !hasCRQA && !hasELAN) {
             const tabContainer = document.getElementById('tabContainer');
@@ -70,68 +99,35 @@ class DIMSApp {
             tabContainer = document.createElement('div');
             tabContainer.id = 'tabContainer';
             
-            let tabHTML = `<div class="tabs" style="margin: 20px 0; border-bottom: 2px solid #444;">
-                <button class="tab-button active" data-tab="timeseries" style="
-                    padding: 10px 20px;
-                    background: #333;
-                    color: white;
-                    border: none;
-                    margin-right: 5px;
-                    cursor: pointer;
-                    border-bottom: 3px solid #007bff;
-                ">Time Series</button>`;
-            
+            // Tab colors come from css/theme.css (.tab-button / .active)
+            let tabHTML = `<div class="tabs">
+                <button class="tab-button active" data-tab="timeseries">Time Series</button>`;
+
             if (hasRQA) {
-                tabHTML += `<button class="tab-button" data-tab="rqa" style="
-                    padding: 10px 20px;
-                    background: #222;
-                    color: white;
-                    border: none;
-                    margin-right: 5px;
-                    cursor: pointer;
-                    border-bottom: 3px solid transparent;
-                ">RQA Plots</button>`;
+                tabHTML += `<button class="tab-button" data-tab="rqa">RQA Plots</button>`;
             }
-            
+
             if (hasCrossWavelet) {
-                tabHTML += `<button class="tab-button" data-tab="crosswavelet" style="
-                    padding: 10px 20px;
-                    background: #222;
-                    color: white;
-                    border: none;
-                    margin-right: 5px;
-                    cursor: pointer;
-                    border-bottom: 3px solid transparent;
-                ">Cross-Wavelet</button>`;
+                tabHTML += `<button class="tab-button" data-tab="crosswavelet">Cross-Wavelet</button>`;
             }
-            
+
             if (hasCRQA) {
-                tabHTML += `<button class="tab-button" data-tab="crqa" style="
-                    padding: 10px 20px;
-                    background: #222;
-                    color: white;
-                    border: none;
-                    margin-right: 5px;
-                    cursor: pointer;
-                    border-bottom: 3px solid transparent;
-                ">Cross-RQA</button>`;
+                tabHTML += `<button class="tab-button" data-tab="crqa">Cross-RQA</button>`;
             }
 
             if (hasELAN) {
-                tabHTML += `<button class="tab-button" data-tab="elan" style="
-                    padding: 10px 20px;
-                    background: #222;
-                    color: white;
-                    border: none;
-                    margin-right: 5px;
-                    cursor: pointer;
-                    border-bottom: 3px solid transparent;
-                ">ELAN Annotations</button>`;
+                tabHTML += `<button class="tab-button" data-tab="elan">ELAN Annotations</button>`;
             }
 
             tabHTML += `</div>`;
             tabContainer.innerHTML = tabHTML;
-            plotContainer.parentNode.insertBefore(tabContainer, plotContainer);
+            // Put the tab bar inside the sticky toolbar (just under the slider);
+            // fall back to placing it above the plot if the bar isn't present.
+            if (stickyBar) {
+                stickyBar.appendChild(tabContainer);
+            } else {
+                plotContainer.parentNode.insertBefore(tabContainer, plotContainer);
+            }
 
             // Create RQA container if needed
             if (hasRQA) {
@@ -139,7 +135,7 @@ class DIMSApp {
                 rqaContainer.id = 'rqaContainer';
                 rqaContainer.style.display = 'none';
                 rqaContainer.style.minHeight = '800px';
-                rqaContainer.style.backgroundColor = '#111';
+                rqaContainer.className = 'plot-pane';
                 rqaContainer.style.padding = '20px';
                 plotContainer.parentNode.insertBefore(rqaContainer, plotContainer.nextSibling);
             }
@@ -150,7 +146,7 @@ class DIMSApp {
                 cwContainer.id = 'crossWaveletContainer';
                 cwContainer.style.display = 'none';
                 cwContainer.style.minHeight = '800px';
-                cwContainer.style.backgroundColor = '#111';
+                cwContainer.className = 'plot-pane';
                 cwContainer.style.padding = '20px';
                 plotContainer.parentNode.insertBefore(cwContainer, plotContainer.nextSibling);
             }
@@ -161,7 +157,7 @@ class DIMSApp {
                 crqaContainer.id = 'crqaContainer';
                 crqaContainer.style.display = 'none';
                 crqaContainer.style.minHeight = '800px';
-                crqaContainer.style.backgroundColor = '#111';
+                crqaContainer.className = 'plot-pane';
                 crqaContainer.style.padding = '20px';
                 plotContainer.parentNode.insertBefore(crqaContainer, plotContainer.nextSibling);
             }
@@ -172,7 +168,7 @@ class DIMSApp {
                 elanContainer.id = 'elanContainer';
                 elanContainer.style.display = 'none';
                 elanContainer.style.minHeight = '600px';
-                elanContainer.style.backgroundColor = '#111';
+                elanContainer.className = 'plot-pane';
                 elanContainer.style.padding = '20px';
                 plotContainer.parentNode.insertBefore(elanContainer, plotContainer.nextSibling);
             }
@@ -191,18 +187,10 @@ class DIMSApp {
     switchTab(tabName) {
         this.currentTab = tabName;
         
-        // Update button styles
+        // Toggle the active class; colors come from css/theme.css
         const tabButtons = document.querySelectorAll('.tab-button');
         tabButtons.forEach(button => {
-            if (button.dataset.tab === tabName) {
-                button.style.background = '#333';
-                button.style.borderBottom = '3px solid #007bff';
-                button.classList.add('active');
-            } else {
-                button.style.background = '#222';
-                button.style.borderBottom = '3px solid transparent';
-                button.classList.remove('active');
-            }
+            button.classList.toggle('active', button.dataset.tab === tabName);
         });
         
         // Hide all containers, then show the selected one
@@ -313,7 +301,7 @@ class DIMSApp {
             const plotDiv = document.createElement('div');
             plotDiv.id = `cw-plot-${index}`;
             plotDiv.style.height = '800px'; // Increased for 4-panel layout
-            plotDiv.style.backgroundColor = '#222';
+            plotDiv.style.backgroundColor = THEME.paper;
             plotDiv.style.padding = '10px';
             plotDiv.style.borderRadius = '5px';
             
@@ -539,7 +527,7 @@ class DIMSApp {
             textfont: {
                 family: 'Arial',
                 size: 16,
-                color: 'white'
+                color: THEME.font
             },
             textposition: 'middle center',
             xaxis: 'x',
@@ -628,7 +616,7 @@ if (arrowData.x.length > 0) {
                 type: 'scatter',
                 mode: 'none',
                 fill: 'toself',
-                fillcolor: 'rgba(0, 0, 0, 0.3)',
+                fillcolor: 'rgba(0, 0, 0, 0.08)',
                 line: { width: 0 },
                 xaxis: 'x',
                 yaxis: 'y',
@@ -643,7 +631,7 @@ if (arrowData.x.length > 0) {
                 y: coiLog2,
                 type: 'scatter',
                 mode: 'lines',
-                line: { color: 'white', width: 2, dash: 'dash' },
+                line: { color: THEME.trace, width: 2, dash: 'dash' },
                 xaxis: 'x',
                 yaxis: 'y',
                 name: 'COI',
@@ -660,7 +648,7 @@ if (arrowData.x.length > 0) {
                 y: log2Period,
                 type: 'scatter',
                 mode: 'lines',
-                line: { color: 'white', width: 2 },
+                line: { color: THEME.trace, width: 2 },
                 name: 'Global XWT Power',
                 xaxis: 'x2',
                 yaxis: 'y2',
@@ -677,7 +665,7 @@ if (arrowData.x.length > 0) {
                 y: vis.scale_avg_power,
                 type: 'scatter',
                 mode: 'lines',
-                line: { color: 'white', width: 2 },
+                line: { color: THEME.trace, width: 2 },
                 name: 'Scale-Avg XWT Power',
                 xaxis: 'x3',
                 yaxis: 'y3',
@@ -708,11 +696,11 @@ if (arrowData.x.length > 0) {
                 `<sub style="font-size: 9px;">Phase arrows (in 95% ridges): ` +
                 `→ in-phase (0°) | ↗ ${dataType1} leads 45° | ↑ ${dataType1} leads 90° | ↖ ${dataType1} leads 135° | ` +
                 `← anti-phase (180°) | ↙ ${dataType2} leads 135° | ↓ ${dataType2} leads 90° | ↘ ${dataType2} leads 45°</sub>`,
-            font: { color: 'white', size: 14 }
+            font: { color: THEME.font, size: 14 }
         },
-            paper_bgcolor: '#222',
-            plot_bgcolor: '#333',
-            font: { color: 'white', size: 10 },
+            paper_bgcolor: THEME.paper,
+            plot_bgcolor: THEME.plot,
+            font: { color: THEME.font, size: 10 },
             showlegend: true,
             legend: {
                 x: 0.75,
@@ -727,14 +715,14 @@ if (arrowData.x.length > 0) {
                 anchor: 'y4',
                 title: '',
                 showticklabels: false,
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             yaxis4: {
                 domain: [0.78, 0.95],
                 anchor: 'x4',
                 title: 'Normalized',
                 titlefont: { size: 10 },
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             
             // PANEL B: Cross-wavelet power spectrum (middle-left)
@@ -743,7 +731,7 @@ if (arrowData.x.length > 0) {
                 anchor: 'y',
                 title: '',
                 showticklabels: false,
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             yaxis: {
                 domain: [0.38, 0.72],
@@ -752,7 +740,7 @@ if (arrowData.x.length > 0) {
                 tickmode: 'array',
                 tickvals: periodTicks,
                 ticktext: periodTickLabels,
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             
             // PANEL C: Global spectrum (middle-right)
@@ -761,7 +749,7 @@ if (arrowData.x.length > 0) {
                 anchor: 'y2',
                 title: 'Power',
                 titlefont: { size: 10 },
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             yaxis2: {
                 domain: [0.38, 0.72],
@@ -771,7 +759,7 @@ if (arrowData.x.length > 0) {
                 tickmode: 'array',
                 tickvals: periodTicks,
                 ticktext: periodTickLabels,
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             
             // PANEL D: Scale-averaged power (bottom)
@@ -779,7 +767,7 @@ if (arrowData.x.length > 0) {
                 domain: [0.08, 0.70],
                 anchor: 'y3',
                 title: 'Time (s)',
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             yaxis3: {
                 domain: [0.05, 0.30],
@@ -788,7 +776,7 @@ if (arrowData.x.length > 0) {
                     text: `${pairData.scale_avg_band ? pairData.scale_avg_band[0].toFixed(1) + '–' + pairData.scale_avg_band[1].toFixed(1) : '2–8'}s avg`,
                     font: { size: 10 }
                 },
-                gridcolor: '#444'
+                gridcolor: THEME.grid
             },
             
             margin: { t: 70, r: 30, b: 50, l: 60 },
@@ -812,14 +800,14 @@ if (arrowData.x.length > 0) {
                     type: 'line',
                     x0: startTime, x1: startTime,
                     y0: 0, y1: 1,
-                    line: { color: 'yellow', width: 2 },
+                    line: { color: THEME.highlight, width: 2 },
                     xref: 'x4', yref: 'y4 domain'
                 },
                 {
                     type: 'line',
                     x0: endTime, x1: endTime,
                     y0: 0, y1: 1,
-                    line: { color: 'yellow', width: 2 },
+                    line: { color: THEME.highlight, width: 2 },
                     xref: 'x4', yref: 'y4 domain'
                 },
                 // Highlight box on time series
@@ -827,7 +815,7 @@ if (arrowData.x.length > 0) {
                     type: 'rect',
                     x0: startTime, x1: endTime,
                     y0: 0, y1: 1,
-                    fillcolor: 'yellow',
+                    fillcolor: THEME.highlight,
                     opacity: 0.15,
                     line: { width: 0 },
                     xref: 'x4', yref: 'y4 domain'
@@ -837,14 +825,14 @@ if (arrowData.x.length > 0) {
                     type: 'line',
                     x0: startTime, x1: startTime,
                     y0: minLog2Period, y1: maxLog2Period,
-                    line: { color: 'yellow', width: 2 },
+                    line: { color: THEME.highlight, width: 2 },
                     xref: 'x', yref: 'y'
                 },
                 {
                     type: 'line',
                     x0: endTime, x1: endTime,
                     y0: minLog2Period, y1: maxLog2Period,
-                    line: { color: 'yellow', width: 2 },
+                    line: { color: THEME.highlight, width: 2 },
                     xref: 'x', yref: 'y'
                 },
                 // Highlight box on XWT spectrum
@@ -852,7 +840,7 @@ if (arrowData.x.length > 0) {
                     type: 'rect',
                     x0: startTime, x1: endTime,
                     y0: minLog2Period, y1: maxLog2Period,
-                    fillcolor: 'yellow',
+                    fillcolor: THEME.highlight,
                     opacity: 0.15,
                     line: { width: 0 },
                     xref: 'x', yref: 'y'
@@ -862,14 +850,14 @@ if (arrowData.x.length > 0) {
                     type: 'line',
                     x0: startTime, x1: startTime,
                     y0: 0, y1: 1,
-                    line: { color: 'yellow', width: 2 },
+                    line: { color: THEME.highlight, width: 2 },
                     xref: 'x3', yref: 'y3 domain'
                 },
                 {
                     type: 'line',
                     x0: endTime, x1: endTime,
                     y0: 0, y1: 1,
-                    line: { color: 'yellow', width: 2 },
+                    line: { color: THEME.highlight, width: 2 },
                     xref: 'x3', yref: 'y3 domain'
                 },
                 // Highlight box on scale-averaged plot
@@ -877,7 +865,7 @@ if (arrowData.x.length > 0) {
                     type: 'rect',
                     x0: startTime, x1: endTime,
                     y0: 0, y1: 1,
-                    fillcolor: 'yellow',
+                    fillcolor: THEME.highlight,
                     opacity: 0.15,
                     line: { width: 0 },
                     xref: 'x3', yref: 'y3 domain'
@@ -947,9 +935,8 @@ if (arrowData.x.length > 0) {
         }
     }
 
-    // ---- Shared windowed-metric charts (used by both RQA and cRQA tabs) -----
-    // Each metric (RR / DET / LAM / L_MAX) gets its own chart, stacked one below
-    // another, with the same yellow window-highlight as the recurrence plots.
+    // Metric strip specs shared by the RQA and cRQA recurrence figures:
+    // [key, title, color, y-axis label].
     _metricSpecs() {
         return [
             ['RR', 'Recurrence Rate (RR)', '#4fc3f7', 'RR'],
@@ -957,67 +944,6 @@ if (arrowData.x.length > 0) {
             ['LAM', 'Laminarity (LAM)', '#ffb74d', 'LAM'],
             ['L_MAX', 'Longest diagonal line (L_MAX)', '#e57373', 'seconds'],
         ];
-    }
-
-    appendMetricDivs(parentEl, idPrefix) {
-        this._metricSpecs().forEach(([key]) => {
-            const d = document.createElement('div');
-            d.id = `${idPrefix}-${key}`;
-            d.style.height = '200px';
-            d.style.backgroundColor = '#222';
-            d.style.padding = '10px';
-            d.style.borderRadius = '5px';
-            d.style.marginTop = '12px';
-            parentEl.appendChild(d);
-        });
-    }
-
-    plotWindowedMetrics(idPrefix, wm) {
-        const hasData = wm && wm.time && wm.time.length > 0;
-        this._metricSpecs().forEach(([key, title, color, yTitle]) => {
-            const id = `${idPrefix}-${key}`;
-            const el = document.getElementById(id);
-            if (!el) return;
-            if (!hasData) {
-                el.innerHTML = '<div style="color:#aaa;padding:20px;">No windowed metrics available.</div>';
-                return;
-            }
-            this.plotSingleMetric(id, title, wm.time, wm[key], color, yTitle);
-        });
-    }
-
-    plotSingleMetric(containerId, title, time, values, color, yTitle) {
-        if (!window.Plotly) return;
-        const traces = [{
-            x: time, y: values, type: 'scatter', mode: 'lines+markers',
-            line: { color, width: 1.5 }, marker: { color, size: 3 },
-            hovertemplate: '%{x:.1f}s: %{y:.3f}<extra></extra>'
-        }];
-        const layout = {
-            title: { text: title, font: { color: 'white', size: 13 } },
-            paper_bgcolor: '#222', plot_bgcolor: '#333', font: { color: 'white' },
-            xaxis: { title: 'Time (s)', gridcolor: '#444' },
-            yaxis: { title: yTitle, gridcolor: '#444', rangemode: 'tozero' },
-            margin: { t: 32, r: 20, b: 38, l: 55 },
-            hovermode: 'x'
-        };
-        // Yellow window-slider highlight, identical to the recurrence plots.
-        if (this.lastClickedPoint !== null) {
-            const windowSize = parseInt(document.getElementById('windowSize').value) || 5;
-            const x0 = this.lastClickedPoint - windowSize / 2;
-            const x1 = this.lastClickedPoint + windowSize / 2;
-            layout.shapes = [
-                { type: 'rect', xref: 'x', yref: 'paper', x0, x1, y0: 0, y1: 1,
-                  fillcolor: 'yellow', opacity: 0.18, line: { width: 0 } },
-                { type: 'line', xref: 'x', yref: 'paper',
-                  x0: this.lastClickedPoint, x1: this.lastClickedPoint, y0: 0, y1: 1,
-                  line: { color: 'yellow', width: 1.5 } }
-            ];
-        }
-        Plotly.newPlot(containerId, traces, layout, { responsive: true });
-        document.getElementById(containerId).on('plotly_click', (data) => {
-            if (data.points && data.points.length > 0) this.handleTimeClick(data.points[0].x);
-        });
     }
 
     displayCRQAPlots() {
@@ -1046,25 +972,19 @@ if (arrowData.x.length > 0) {
 
             const rpDiv = document.createElement('div');
             rpDiv.id = `crqa-plot-${index}`;
-            rpDiv.style.height = '520px';
-            rpDiv.style.backgroundColor = '#222';
+            rpDiv.style.backgroundColor = THEME.paper;
             rpDiv.style.padding = '10px';
             rpDiv.style.borderRadius = '5px';
             block.appendChild(rpDiv);
-
-            // Windowed metrics: one chart per metric, stacked below the RP.
-            this.appendMetricDivs(block, `crqa-wm-${index}`);
-
             container.appendChild(block);
 
-            plotConfigs.push({ rpId: rpDiv.id, wmPrefix: `crqa-wm-${index}`, pairKey, pairData });
+            plotConfigs.push({ rpId: rpDiv.id, pairKey, pairData });
         });
 
         setTimeout(() => {
             plotConfigs.forEach(cfg => {
                 try {
                     this.createCRQAPlot(cfg.rpId, cfg.pairData);
-                    this.plotWindowedMetrics(cfg.wmPrefix, cfg.pairData.windowed_metrics);
                 } catch (error) {
                     console.error(`Error creating cRQA plot for ${cfg.pairKey}:`, error);
                     const el = document.getElementById(cfg.rpId);
@@ -1081,7 +1001,6 @@ if (arrowData.x.length > 0) {
         Object.entries(this.crqaData.crqa_data).forEach(([pairKey, pairData], index) => {
             if (document.getElementById(`crqa-plot-${index}`)) {
                 this.createCRQAPlot(`crqa-plot-${index}`, pairData);
-                this.plotWindowedMetrics(`crqa-wm-${index}`, pairData.windowed_metrics);
             }
         });
     }
@@ -1121,99 +1040,17 @@ if (arrowData.x.length > 0) {
         const colorX = colorFor(names[0]) || '#e15759';
         const colorY = colorFor(names[1]) || '#4e79a7';
 
-        // Three subplots, mirroring createRQAPlot: the cross-recurrence matrix with
-        // series 1 as a horizontal marginal along the top and series 2 as a rotated
-        // vertical marginal down the left.
-        const traces = [
-            // Main cross-recurrence heatmap
-            {
-                x: time,
-                y: time,
-                z: matrix,
-                type: 'heatmap',
-                colorscale: [[0, 'white'], [1, 'black']],
-                showscale: false,
-                xaxis: 'x',
-                yaxis: 'y',
-                hovertemplate: `${names[0]} time: %{x:.1f}s<br>${names[1]} time: %{y:.1f}s<extra></extra>`
-            },
-            // Top marginal: series 1 (x-axis signal)
-            {
-                x: time,
-                y: vis.data_x,
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: colorX, width: 2 },
-                xaxis: 'x2',
-                yaxis: 'y2',
-                hovertemplate: `Time: %{x:.1f}s<br>${names[0]}: %{y:.2f}<extra></extra>`
-            },
-            // Left marginal: series 2 (y-axis signal, rotated)
-            {
-                x: vis.data_y,
-                y: time,
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: colorY, width: 2 },
-                xaxis: 'x3',
-                yaxis: 'y3',
-                hovertemplate: `${names[1]}: %{x:.2f}<br>Time: %{y:.1f}s<extra></extra>`
-            }
-        ];
-
-        const layout = {
-            title: {
-                text: `Cross-Recurrence Plot<br><sub>${names[0]} ↔ ${names[1]} — Global RR: ${(pairData.global_recurrence_rate * 100).toFixed(2)}%, Threshold: ${pairData.threshold.toFixed(4)}</sub>`,
-                font: { color: 'white', size: 16 }
-            },
-            paper_bgcolor: '#222',
-            plot_bgcolor: '#333',
-            font: { color: 'white' },
-            grid: {
-                rows: 2,
-                columns: 2,
-                pattern: 'independent',
-                roworder: 'bottom to top'
-            },
-            xaxis: { domain: [0.15, 0.95], anchor: 'y', title: `${names[0]} time (s)`, gridcolor: '#444' },
-            yaxis: { domain: [0, 0.8], anchor: 'x', title: `${names[1]} time (s)`, gridcolor: '#444' },
-            xaxis2: { domain: [0.15, 0.95], anchor: 'y2', title: '', showticklabels: false, gridcolor: '#444' },
-            yaxis2: { domain: [0.85, 1], anchor: 'x2', title: names[0], gridcolor: '#444' },
-            xaxis3: { domain: [0, 0.1], anchor: 'y3', title: names[1], gridcolor: '#444', autorange: 'reversed' },
-            yaxis3: { domain: [0, 0.8], anchor: 'x3', title: '', showticklabels: false, gridcolor: '#444' },
-            margin: { t: 80, r: 50, b: 80, l: 80 },
-            hovermode: 'closest'
-        };
-
-        // Yellow window-slider highlight on the main subplot (both series share the
-        // common time grid, so the selected window is a band on each axis plus a box).
-        if (this.lastClickedPoint !== null) {
-            const windowSize = parseInt(document.getElementById('windowSize').value) || 5;
-            const t0 = time[0], t1 = time[time.length - 1];
-            const startTime = Math.max(t0, this.lastClickedPoint - windowSize / 2);
-            const endTime = Math.min(t1, this.lastClickedPoint + windowSize / 2);
-            layout.shapes = [
-                { type: 'line', x0: startTime, x1: startTime, y0: t0, y1: t1, line: { color: 'yellow', width: 2 }, xref: 'x', yref: 'y' },
-                { type: 'line', x0: endTime, x1: endTime, y0: t0, y1: t1, line: { color: 'yellow', width: 2 }, xref: 'x', yref: 'y' },
-                { type: 'line', x0: t0, x1: t1, y0: startTime, y1: startTime, line: { color: 'yellow', width: 2 }, xref: 'x', yref: 'y' },
-                { type: 'line', x0: t0, x1: t1, y0: endTime, y1: endTime, line: { color: 'yellow', width: 2 }, xref: 'x', yref: 'y' },
-                { type: 'rect', x0: startTime, x1: endTime, y0: startTime, y1: endTime,
-                  fillcolor: 'yellow', opacity: 0.1, line: { width: 0 }, xref: 'x', yref: 'y' }
-            ];
-        }
-
-        Plotly.newPlot(containerId, traces, layout, { responsive: true });
-
-        // Clicking the main plot selects a time point (x = series-1 time) like the RQA tab.
-        document.getElementById(containerId).on('plotly_click', (data) => {
-            if (data.points && data.points.length > 0) {
-                const point = data.points[0];
-                if (point.xaxis && point.xaxis._id === 'x' && point.yaxis._id === 'y') {
-                    this.handleTimeClick(point.x);
-                    setTimeout(() => this.updateCRQAHighlights(), 100);
-                }
-            }
-        });
+        // One figure: cross-recurrence matrix with series 1 as the top marginal,
+        // series 2 as the rotated left marginal, and the windowed metric strips
+        // below — all sharing the time x-axis.
+        this._renderRecurrenceFigure(containerId, {
+            titleText: `Cross-Recurrence Plot<br><sub>${names[0]} ↔ ${names[1]} — Global RR: ${(pairData.global_recurrence_rate * 100).toFixed(2)}%, Threshold: ${pairData.threshold.toFixed(4)}</sub>`,
+            time, matrix,
+            topSeries: { values: vis.data_x, color: colorX },
+            leftSeries: { values: vis.data_y, color: colorY },
+            xTitle: `${names[0]} time (s)`, yTitle: `${names[1]} time (s)`,
+            wm: pairData.windowed_metrics
+        }, () => this.updateCRQAHighlights());
     }
 
     async loadRQAData(videoID) {
@@ -1277,8 +1114,8 @@ if (arrowData.x.length > 0) {
         
         container.innerHTML = '<h2 style="color: white; margin-bottom: 20px;">Recurrence Quantification Analysis</h2>';
 
-        // One vertical block per data type: the recurrence plot, then its windowed
-        // metric charts (RR / DET / LAM / L_MAX) stacked below it.
+        // One vertical block per data type: a single figure with the recurrence
+        // plot and its windowed metric strips (RR / DET / LAM / L_MAX) below it.
         const plotConfigs = [];
         Object.entries(this.rqaData.rqa_data).forEach(([dataType, plotData], index) => {
             const block = document.createElement('div');
@@ -1286,21 +1123,13 @@ if (arrowData.x.length > 0) {
 
             const plotDiv = document.createElement('div');
             plotDiv.id = `rqa-plot-${index}`;
-            plotDiv.style.height = '500px';
-            plotDiv.style.backgroundColor = '#222';
+            plotDiv.style.backgroundColor = THEME.paper;
             plotDiv.style.padding = '10px';
             plotDiv.style.borderRadius = '5px';
             block.appendChild(plotDiv);
-
-            this.appendMetricDivs(block, `rqa-wm-${index}`);
             container.appendChild(block);
 
-            plotConfigs.push({
-                containerId: plotDiv.id,
-                wmPrefix: `rqa-wm-${index}`,
-                dataType: dataType,
-                plotData: plotData
-            });
+            plotConfigs.push({ containerId: plotDiv.id, dataType, plotData });
         });
 
         // Now create all plots after DOM is updated
@@ -1308,7 +1137,6 @@ if (arrowData.x.length > 0) {
             plotConfigs.forEach(config => {
                 try {
                     this.createRQAPlot(config.containerId, config.dataType, config.plotData);
-                    this.plotWindowedMetrics(config.wmPrefix, config.plotData.windowed_metrics);
                 } catch (error) {
                     console.error(`Error creating RQA plot for ${config.dataType}:`, error);
                     const plotDiv = document.getElementById(config.containerId);
@@ -1322,237 +1150,164 @@ if (arrowData.x.length > 0) {
         }, 100); // Give DOM time to update
     }
 
-    createRQAPlot(containerId, dataType, plotData) {
-        // Check if Plotly is loaded
-        if (!window.Plotly) {
-            throw new Error('Plotly library not loaded. Make sure to include Plotly in your HTML.');
+    // Single figure: the square recurrence plot with a top raw-series marginal,
+    // a left rotated-series marginal, and the windowed-metric strips stacked
+    // below — all sharing one time x-axis so they stay perfectly aligned.
+    // `rerender` is called after a time selection to redraw the window.
+    _renderRecurrenceFigure(containerId, opts, rerender) {
+        const el = document.getElementById(containerId);
+        if (!el || !window.Plotly) return;
+        const { titleText, time, matrix, topSeries, leftSeries, xTitle, yTitle, wm } = opts;
+        const t0 = time[0], t1 = time[time.length - 1];
+
+        const hasMetrics = !!(wm && wm.time && wm.time.length > 0);
+        const metrics = hasMetrics ? this._metricSpecs() : []; // [key,title,color,yLabel]
+        const nMet = metrics.length;
+
+        // ---- pixel layout so the heatmap is a true square ----
+        const PAD = 20, L = 80, R = 50, T = 70, B = 55, SHRINK = 0.85;
+        const availW = (el.clientWidth || 900) - PAD - L - R;
+        const Wp = Math.max(300, Math.round(availW * SHRINK));
+        const W = Wp + L + R;
+        const xMain = [0.15, 0.95];
+        const S = (xMain[1] - xMain[0]) * Wp;     // square side (px)
+        const tsH = 60, g1 = 16, gm = 50, msH = 95, mg = 26;
+        const metricsBlock = nMet > 0 ? gm + nMet * msH + (nMet - 1) * mg : 0;
+        const Hp = tsH + g1 + S + metricsBlock;
+        const H = Hp + T + B;
+        el.style.height = (H + PAD) + 'px';
+        const fy = px => px / Hp;
+
+        // vertical domains from the bottom up: metrics, heatmap, top series
+        let yb = 0;
+        const metDomain = {};
+        for (let i = nMet - 1; i >= 0; i--) {     // bottom-up => RR ends up on top
+            metDomain[metrics[i][0]] = [fy(yb), fy(yb + msH)];
+            yb += msH + mg;
         }
-        
-        // Verify container exists
-        const container = document.getElementById(containerId);
-        if (!container) {
-            throw new Error(`Container ${containerId} not found in DOM`);
-        }
-        
-        // Validate plot data
-        if (!plotData.visualization) {
-            throw new Error('Missing visualization data');
-        }
-        
-        const vis = plotData.visualization;
-        
-        // Validate required fields
-        if (!vis.time || !vis.data || !vis.matrix_size || !vis.sparse_matrix) {
-            throw new Error('Missing required visualization fields');
-        }
-        
-        console.log(`Creating RQA plot for ${dataType} with matrix size ${vis.matrix_size}`);
-        
-        // Find the color for this dataType from the main timeseries
-        let dataColor = 'blue'; // default
-        if (this.currentData) {
-            const dataIndex = this.currentData.findIndex(dataset => dataset.name === dataType);
-            if (dataIndex !== -1) {
-                // Use the same HSL color calculation as in plotTimeseries
-                dataColor = `hsl(${dataIndex * 360 / this.currentData.length}, 70%, 50%)`;
-            }
-        }
-        
-        // Sort time and data arrays together to prevent wrapping
-        const timeDataPairs = vis.time.map((t, i) => ({ time: t, data: vis.data[i] }));
-        timeDataPairs.sort((a, b) => a.time - b.time);
-        const sortedTime = timeDataPairs.map(pair => pair.time);
-        const sortedData = timeDataPairs.map(pair => pair.data);
-        
-        // Convert sparse matrix to dense for heatmap
-        const matrix = new Array(vis.matrix_size).fill(null).map(() => 
-            new Array(vis.matrix_size).fill(0)
-        );
-        
-        // Fill in the recurrence points
-        vis.sparse_matrix.forEach(([row, col]) => {
-            if (row < vis.matrix_size && col < vis.matrix_size) {
-                matrix[row][col] = 1;
-            }
-        });
-        
-        // Create traces
+        if (nMet > 0) yb += gm - mg;
+        const mapDomain = [fy(yb), fy(yb + S)];
+        yb += S + g1;
+        const topDomain = [fy(yb), fy(yb + tsH)];
+
+        // ---- traces ----
         const traces = [
-            // Main RQA heatmap
-            {
-                x: sortedTime,
-                y: sortedTime,
-                z: matrix,
-                type: 'heatmap',
-                colorscale: [[0, 'white'], [1, 'black']],
-                showscale: false,
-                xaxis: 'x',
-                yaxis: 'y',
-                hovertemplate: 'Time X: %{x:.1f}s<br>Time Y: %{y:.1f}s<extra></extra>'
-            },
-            // X-axis timeseries
-            {
-                x: sortedTime,
-                y: sortedData,
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: dataColor, width: 2 },
-                xaxis: 'x2',
-                yaxis: 'y2',
-                hovertemplate: 'Time: %{x:.1f}s<br>Value: %{y:.2f}<extra></extra>'
-            },
-            // Y-axis timeseries (rotated)
-            {
-                x: sortedData,
-                y: sortedTime,
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: dataColor, width: 2 },
-                xaxis: 'x3',
-                yaxis: 'y3',
-                hovertemplate: 'Value: %{x:.2f}<br>Time: %{y:.1f}s<extra></extra>'
-            }
+            { x: time, y: time, z: matrix, type: 'heatmap',
+              colorscale: [[0, 'white'], [1, 'black']], showscale: false,
+              xaxis: 'x', yaxis: 'y',
+              hovertemplate: `${xTitle}: %{x:.1f}s<br>${yTitle}: %{y:.1f}s<extra></extra>` },
+            { x: time, y: topSeries.values, type: 'scatter', mode: 'lines',
+              line: { color: topSeries.color, width: 2 }, xaxis: 'x2', yaxis: 'y2',
+              hovertemplate: 'Time: %{x:.1f}s<br>Value: %{y:.2f}<extra></extra>' },
+            { x: leftSeries.values, y: time, type: 'scatter', mode: 'lines',
+              line: { color: leftSeries.color, width: 2 }, xaxis: 'x3', yaxis: 'y',
+              hovertemplate: 'Value: %{x:.2f}<br>Time: %{y:.1f}s<extra></extra>' }
         ];
-        
-        // Create layout with subplots
+
+        // ---- layout / axes ----
         const layout = {
-            title: {
-                text: `${dataType}<br><sub>Recurrence Rate: ${(plotData.recurrence_rate * 100).toFixed(2)}%, Threshold: ${plotData.threshold.toFixed(4)}</sub>`,
-                font: { color: 'white', size: 16 }
-            },
-            paper_bgcolor: '#222',
-            plot_bgcolor: '#333',
-            font: { color: 'white' },
-            grid: {
-                rows: 2,
-                columns: 2,
-                pattern: 'independent',
-                roworder: 'bottom to top'
-            },
-            xaxis: {
-                domain: [0.15, 0.95],
-                anchor: 'y',
-                title: 'Time (s)',
-                gridcolor: '#444'
-            },
-            yaxis: {
-                domain: [0, 0.8],
-                anchor: 'x',
-                title: 'Time (s)',
-                gridcolor: '#444'
-            },
-            xaxis2: {
-                domain: [0.15, 0.95],
-                anchor: 'y2',
-                title: 'Time (s)',
-                gridcolor: '#444'
-            },
-            yaxis2: {
-                domain: [0.85, 1],
-                anchor: 'x2',
-                title: 'Value',
-                gridcolor: '#444'
-            },
-            xaxis3: {
-                domain: [0, 0.1],
-                anchor: 'y3',
-                title: 'Value',
-                gridcolor: '#444',
-                autorange: 'reversed'
-            },
-            yaxis3: {
-                domain: [0, 0.8],
-                anchor: 'x3',
-                title: '',
-                showticklabels: false,
-                gridcolor: '#444'
-            },
-            margin: { t: 80, r: 50, b: 80, l: 80 },
-            hovermode: 'closest'
+            title: { text: titleText, font: { color: THEME.font, size: 16 } },
+            width: W, height: H,
+            paper_bgcolor: THEME.paper, plot_bgcolor: THEME.plot,
+            font: { color: THEME.font },
+            margin: { t: T, r: R, b: B, l: L },
+            hovermode: 'closest', showlegend: false,
+            xaxis: { domain: xMain, anchor: 'y', range: [t0, t1], gridcolor: THEME.grid,
+                     showticklabels: nMet === 0, title: nMet === 0 ? xTitle : '' },
+            yaxis: { domain: mapDomain, anchor: 'x', title: yTitle, gridcolor: THEME.grid },
+            xaxis2: { domain: xMain, anchor: 'y2', matches: 'x', showticklabels: false, gridcolor: THEME.grid },
+            yaxis2: { domain: topDomain, anchor: 'x2', title: 'Value', gridcolor: THEME.grid },
+            xaxis3: { domain: [0, 0.10], anchor: 'y', title: 'Value', autorange: 'reversed', gridcolor: THEME.grid }
         };
-        
-        // Add highlight shape if there's a selected time
+
+        // metric strips share the time x-axis (matches: 'x') => always aligned
+        metrics.forEach(([key, , color, yLabel], i) => {
+            const n = i + 4;
+            const isBottom = i === nMet - 1;
+            traces.push({
+                x: wm.time, y: wm[key], type: 'scatter', mode: 'lines+markers',
+                line: { color, width: 1.5 }, marker: { color, size: 3 },
+                xaxis: `x${n}`, yaxis: `y${n}`,
+                hovertemplate: `${key} %{x:.1f}s: %{y:.3f}<extra></extra>`
+            });
+            layout[`xaxis${n}`] = { domain: xMain, anchor: `y${n}`, matches: 'x',
+                gridcolor: THEME.grid, showticklabels: isBottom, title: isBottom ? xTitle : '' };
+            layout[`yaxis${n}`] = { domain: metDomain[key], anchor: `x${n}`,
+                title: yLabel || key, gridcolor: THEME.grid, rangemode: 'tozero' };
+        });
+
+        // ---- window highlight ----
         if (this.lastClickedPoint !== null) {
             const windowSize = parseInt(document.getElementById('windowSize').value) || 5;
-            const startTime = Math.max(sortedTime[0], this.lastClickedPoint - windowSize / 2);
-            const endTime = Math.min(sortedTime[sortedTime.length - 1], this.lastClickedPoint + windowSize / 2);
-            
+            const start = Math.max(t0, this.lastClickedPoint - windowSize / 2);
+            const end = Math.min(t1, this.lastClickedPoint + windowSize / 2);
             layout.shapes = [
-                // Vertical lines on main plot
-                {
-                    type: 'line',
-                    x0: startTime, x1: startTime,
-                    y0: sortedTime[0], y1: sortedTime[sortedTime.length - 1],
-                    line: { color: 'yellow', width: 2 },
-                    xref: 'x', yref: 'y'
-                },
-                {
-                    type: 'line',
-                    x0: endTime, x1: endTime,
-                    y0: sortedTime[0], y1: sortedTime[sortedTime.length - 1],
-                    line: { color: 'yellow', width: 2 },
-                    xref: 'x', yref: 'y'
-                },
-                // Horizontal lines on main plot
-                {
-                    type: 'line',
-                    x0: sortedTime[0], x1: sortedTime[sortedTime.length - 1],
-                    y0: startTime, y1: startTime,
-                    line: { color: 'yellow', width: 2 },
-                    xref: 'x', yref: 'y'
-                },
-                {
-                    type: 'line',
-                    x0: sortedTime[0], x1: sortedTime[sortedTime.length - 1],
-                    y0: endTime, y1: endTime,
-                    line: { color: 'yellow', width: 2 },
-                    xref: 'x', yref: 'y'
-                },
-                // Highlight box
-                {
-                    type: 'rect',
-                    x0: startTime, x1: endTime,
-                    y0: startTime, y1: endTime,
-                    fillcolor: 'yellow',
-                    opacity: 0.1,
-                    line: { width: 0 },
-                    xref: 'x', yref: 'y'
-                }
+                // vertical window band across heatmap, top series and all metrics
+                { type: 'rect', xref: 'x', yref: 'paper', x0: start, x1: end, y0: 0, y1: 1,
+                  fillcolor: THEME.highlight, opacity: 0.12, line: { width: 0 } },
+                { type: 'line', xref: 'x', yref: 'paper',
+                  x0: this.lastClickedPoint, x1: this.lastClickedPoint, y0: 0, y1: 1,
+                  line: { color: THEME.highlight, width: 1.5 } },
+                // horizontal window band on the heatmap and the left series
+                { type: 'rect', xref: 'x', yref: 'y', x0: t0, x1: t1, y0: start, y1: end,
+                  fillcolor: THEME.highlight, opacity: 0.10, line: { width: 0 } },
+                { type: 'rect', xref: 'x3 domain', yref: 'y', x0: 0, x1: 1, y0: start, y1: end,
+                  fillcolor: THEME.highlight, opacity: 0.12, line: { width: 0 } }
             ];
         }
-        
-        console.log(`Calling Plotly.newPlot for ${containerId}`);
-        Plotly.newPlot(containerId, traces, layout, { responsive: true });
-        
-        // Add click handler
-        document.getElementById(containerId).on('plotly_click', (data) => {
-            if (data.points && data.points.length > 0) {
-                const point = data.points[0];
-                
-                // Check which subplot was clicked
-                if (point.xaxis && point.xaxis._id === 'x' && point.yaxis._id === 'y') {
-                    // Main RQA plot clicked
-                    const clickedTime = point.x;
-                    console.log(`RQA clicked at time: ${clickedTime.toFixed(2)}s`);
-                    
-                    // Update video and timeseries
-                    this.handleTimeClick(clickedTime);
-                    
-                    // Update all RQA plots to show highlight
-                    setTimeout(() => this.updateRQAHighlights(), 100);
-                }
+
+        Plotly.newPlot(containerId, traces, layout, { responsive: false });
+        el.on('plotly_click', (data) => {
+            if (!data.points || !data.points.length) return;
+            const p = data.points[0];
+            // any time-based subplot (everything except the rotated left series x3)
+            if (p.xaxis && p.xaxis._id !== 'x3') {
+                this.handleTimeClick(p.x);
+                if (rerender) setTimeout(rerender, 100);
             }
         });
     }
 
+    createRQAPlot(containerId, dataType, plotData) {
+        const vis = plotData && plotData.visualization;
+        if (!vis || !vis.time || !vis.data || !vis.matrix_size || !vis.sparse_matrix) {
+            throw new Error('Missing required visualization fields');
+        }
+
+        // Per-dataType color, matching the main timeseries (same HSL scheme).
+        let dataColor = '#4e79a7';
+        if (this.currentData) {
+            const i = this.currentData.findIndex(d => d.name === dataType);
+            if (i !== -1) dataColor = `hsl(${i * 360 / this.currentData.length}, 70%, 50%)`;
+        }
+
+        // Sort time/data together to prevent wrapping.
+        const pairs = vis.time.map((t, i) => ({ t, d: vis.data[i] })).sort((a, b) => a.t - b.t);
+        const time = pairs.map(p => p.t);
+        const data = pairs.map(p => p.d);
+
+        // Dense matrix from the sparse recurrence points.
+        const matrix = new Array(vis.matrix_size).fill(null).map(() => new Array(vis.matrix_size).fill(0));
+        vis.sparse_matrix.forEach(([row, col]) => {
+            if (row < vis.matrix_size && col < vis.matrix_size) matrix[row][col] = 1;
+        });
+
+        this._renderRecurrenceFigure(containerId, {
+            titleText: `${dataType}<br><sub>Recurrence Rate: ${(plotData.recurrence_rate * 100).toFixed(2)}%, Threshold: ${plotData.threshold.toFixed(4)}</sub>`,
+            time, matrix,
+            topSeries: { values: data, color: dataColor },
+            leftSeries: { values: data, color: dataColor },
+            xTitle: 'Time (s)', yTitle: 'Time (s)',
+            wm: plotData.windowed_metrics
+        }, () => this.updateRQAHighlights());
+    }
+
     updateRQAHighlights() {
-        // Re-render all RQA plots and their metric charts with updated highlights
+        // Re-render all RQA figures (recurrence plot + metrics) with the window.
         if (this.rqaData && this.rqaData.rqa_data) {
             Object.entries(this.rqaData.rqa_data).forEach(([dataType, plotData], index) => {
-                const containerId = `rqa-plot-${index}`;
-                if (document.getElementById(containerId)) {
-                    this.createRQAPlot(containerId, dataType, plotData);
-                    this.plotWindowedMetrics(`rqa-wm-${index}`, plotData.windowed_metrics);
+                if (document.getElementById(`rqa-plot-${index}`)) {
+                    this.createRQAPlot(`rqa-plot-${index}`, dataType, plotData);
                 }
             });
         }
@@ -1560,12 +1315,11 @@ if (arrowData.x.length > 0) {
 
     setupHeader() {
         try {
-            const titleEl = document.getElementById('title');
             const subtitleEl = document.getElementById('subtitle');
             const authorsEl = document.getElementById('authors');
             const contactsEl = document.getElementById('contacts');
-            
-            if (titleEl) titleEl.textContent = this.config.title || 'DIMS Dashboard';
+
+            // Title now lives in the logo image; keep subtitle/authors/contacts.
             if (subtitleEl) subtitleEl.textContent = this.config.subtitle || '';
             if (authorsEl) authorsEl.textContent = this.config.authors || '';
             if (contactsEl) contactsEl.textContent = this.config.contacts || '';
@@ -1614,6 +1368,49 @@ if (arrowData.x.length > 0) {
                 this.handleTimeClick(this.lastClickedPoint);
             }
         });
+    }
+
+    // ---- Theming (all colors live in css/theme.css) ----
+    setupTheme() {
+        let saved = localStorage.getItem('dims-theme');
+        if (!THEMES.includes(saved)) saved = 'aurora';
+
+        const select = document.getElementById('themeSelect');
+        if (select) {
+            select.value = saved;
+            select.addEventListener('change', (e) => this.applyTheme(e.target.value));
+        }
+
+        // Apply before the first render so charts read the right tokens.
+        this.applyTheme(saved, false);
+    }
+
+    applyTheme(name, rerender = true) {
+        if (!THEMES.includes(name)) name = 'aurora';
+        document.documentElement.dataset.theme = name;
+        localStorage.setItem('dims-theme', name);
+        THEME = readTheme();
+
+        const logo = document.getElementById('logo');
+        if (logo) {
+            const variant = name === 'aurora' ? 'light' : 'dark';
+            logo.src = `assets/branding/dims-logo-${variant}.png`;
+        }
+
+        if (rerender) this.rerenderAll();
+    }
+
+    // Redraw everything with the active theme. Clears per-tab caches so each
+    // tab is freshly drawn (reading the new THEME) when shown.
+    rerenderAll() {
+        const vid = this.currentVideoID;
+        if (!vid) return;
+        const tab = this.currentTab;
+        this.rqaData = null;
+        this.crossWaveletData = null;
+        this.crqaData = null;
+        this.elanData = null;
+        Promise.resolve(this.loadVideoData(vid)).then(() => this.switchTab(tab));
     }
 
     async loadJSON(url) {
@@ -1774,12 +1571,12 @@ if (arrowData.x.length > 0) {
         slider.value = minTime;
         slider.step = 0.1;
         slider.style.width = '100%';
-        slider.style.background = '#444';
+        slider.style.background = THEME.grid;
         
         const valueDisplay = document.createElement('div');
         valueDisplay.style.textAlign = 'center';
         valueDisplay.style.marginTop = '10px';
-        valueDisplay.style.color = '#888';
+        valueDisplay.style.color = THEME.muted;
         
         const updateDisplay = () => {
             valueDisplay.textContent = `Time: ${parseFloat(slider.value).toFixed(1)}s / ${maxTime.toFixed(1)}s`;
@@ -1855,7 +1652,7 @@ if (arrowData.x.length > 0) {
                 xanchor: 'left',
                 yanchor: 'top',
                 showarrow: false,
-                font: { color: 'white', size: 12 }
+                font: { color: THEME.font, size: 12 }
             });
         });
         
@@ -1863,15 +1660,15 @@ if (arrowData.x.length > 0) {
         const layout = {
             title: {
                 text: `ROI Synchrony Over Time for Video ${this.currentVideoID}`,
-                font: { color: 'white' }
+                font: { color: THEME.font }
             },
-            paper_bgcolor: '#111',
-            plot_bgcolor: '#222',
-            font: { color: 'white' },
+            paper_bgcolor: THEME.paper,
+            plot_bgcolor: THEME.plot,
+            font: { color: THEME.font },
             xaxis: {
                 title: 'Time (s)',
-                color: 'white',
-                gridcolor: '#444'
+                color: THEME.font,
+                gridcolor: THEME.grid
             },
             annotations: annotations,
             height: 800,
@@ -1884,8 +1681,8 @@ if (arrowData.x.length > 0) {
             const yAxisKey = i === 0 ? 'yaxis' : `yaxis${i + 1}`;
             layout[yAxisKey] = {
                 title: '',
-                color: 'white',
-                gridcolor: '#444',
+                color: THEME.font,
+                gridcolor: THEME.grid,
                 domain: [1 - (i + 1) / datasets.length + 0.02, 1 - i / datasets.length - 0.02]
             };
         });
@@ -1903,8 +1700,8 @@ if (arrowData.x.length > 0) {
                 y0: 0,
                 y1: 1,
                 yref: `y${i + 1} domain`,
-                fillcolor: 'rgba(255, 255, 255, 0.3)',
-                line: { color: 'white', width: 2 }
+                fillcolor: THEME.highlightFill,
+                line: { color: THEME.highlight, width: 2 }
             }));
         }
         
@@ -2156,21 +1953,21 @@ if (arrowData.x.length > 0) {
             const color = COLORS[i % COLORS.length];
             const checked = this.elanSelectedTiers.has(tier.tierID) ? 'checked' : '';
             return `
-                <label style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='#2a2a2a'" onmouseout="this.style.background='transparent'">
+                <label style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='${THEME.plot}'" onmouseout="this.style.background='transparent'">
                     <input type="checkbox" data-tier="${tier.tierID}" ${checked}
                         style="width:13px;height:13px;accent-color:${color};cursor:pointer;flex-shrink:0;">
                     <span style="display:inline-block;width:11px;height:11px;background:${color};border-radius:2px;flex-shrink:0;"></span>
-                    <span style="color:#ddd;font-size:12px;" title="${tier.tierID}">${tier.tierID}</span>
+                    <span style="color:${THEME.text};font-size:12px;" title="${tier.tierID}">${tier.tierID}</span>
                 </label>`;
         }).join('');
 
         container.innerHTML = `
-            <h2 style="color:white;margin-bottom:12px;">ELAN Annotations</h2>
-            <div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px 10px;margin-bottom:12px;">
+            <h2 style="color:${THEME.text};margin-bottom:12px;">ELAN Annotations</h2>
+            <div style="background:${THEME.plot};border:1px solid ${THEME.grid};border-radius:6px;padding:8px 10px;margin-bottom:12px;">
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-                    <span style="color:#aaa;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Tiers</span>
-                    <button id="elanSelectAll" style="font-size:10px;color:#888;background:none;border:none;cursor:pointer;padding:0;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#888'">all</button>
-                    <button id="elanSelectNone" style="font-size:10px;color:#888;background:none;border:none;cursor:pointer;padding:0;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#888'">none</button>
+                    <span style="color:${THEME.muted};font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Tiers</span>
+                    <button id="elanSelectAll" style="font-size:10px;color:${THEME.muted};background:none;border:none;cursor:pointer;padding:0;" onmouseover="this.style.color='${THEME.text}'" onmouseout="this.style.color='${THEME.muted}'">all</button>
+                    <button id="elanSelectNone" style="font-size:10px;color:${THEME.muted};background:none;border:none;cursor:pointer;padding:0;" onmouseover="this.style.color='${THEME.text}'" onmouseout="this.style.color='${THEME.muted}'">none</button>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:2px;">${checkboxItems}</div>
             </div>
@@ -2258,17 +2055,17 @@ if (arrowData.x.length > 0) {
             const half = windowSize / 2;
             shapes.push(
                 { type: 'rect', x0: t - half, x1: t + half, y0: 0, y1: N,
-                  fillcolor: 'rgba(255,255,80,0.1)', line: { width: 0 }, xref: 'x', yref: 'y' },
+                  fillcolor: THEME.highlightFill, line: { width: 0 }, xref: 'x', yref: 'y' },
                 { type: 'line', x0: t, x1: t, y0: 0, y1: N,
-                  line: { color: 'yellow', width: 2, dash: 'dot' }, xref: 'x', yref: 'y' }
+                  line: { color: THEME.highlight, width: 2, dash: 'dot' }, xref: 'x', yref: 'y' }
             );
         }
 
         const layout = {
-            paper_bgcolor: '#111', plot_bgcolor: '#1a1a1a', font: { color: 'white' },
+            paper_bgcolor: THEME.paper, plot_bgcolor: THEME.plot, font: { color: THEME.font },
             margin: { t: 20, r: 20, b: 50, l: leftMargin },
             xaxis: {
-                title: 'Time (s)', color: 'white', gridcolor: '#333', zeroline: false,
+                title: 'Time (s)', color: THEME.font, gridcolor: THEME.grid, zeroline: false,
                 range: this.mergedData
                     ? [0, Math.max(...this.mergedData.map(d => d.Time))]
                     : undefined
@@ -2276,8 +2073,8 @@ if (arrowData.x.length > 0) {
             yaxis: {
                 tickvals: tiers.map((_, i) => i + 0.5),
                 ticktext: tiers.map(t => t.tierID),
-                tickfont: { color: 'white', size: 10 },
-                gridcolor: '#2a2a2a',
+                tickfont: { color: THEME.font, size: 10 },
+                gridcolor: THEME.grid,
                 range: [0, N],
                 zeroline: false
             },

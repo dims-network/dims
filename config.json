@@ -1,20 +1,48 @@
 {
   "videoIDs": [
+    "session2",
     "session1"
   ],
   "dataTypes": {
+    "session2": [
+      "bodysync",
+      "neuralsync",
+      "gaze"
+    ],
     "session1": [
       "bodysync",
       "neuralsync"
     ]
   },
-  "include_RQA": [],
-  "include_crosswavelet": [],
-  "include_cRQA": [],
-  "include_elan": false,
-  "defaultWindowSize": 5,
+  "include_RQA": [
+    "bodysync",
+    "neuralsync",
+    "gaze"
+  ],
+  "include_crosswavelet": [
+    [
+      "bodysync",
+      "neuralsync"
+    ],
+    [
+      "bodysync",
+      "gaze"
+    ],
+    [
+      "neuralsync",
+      "gaze"
+    ]
+  ],
+  "include_cRQA": [
+    [
+      "bodysync",
+      "neuralsync"
+    ]
+  ],
+  "include_elan": true,
+  "defaultWindowSize": 1,
   "title": "",
   "subtitle": "",
-  "authors": "",
+  "authors": "Michał Weiss",
   "contacts": ""
 }
