@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 
 # The 10 keys the template's config.json consumes (and only these — nothing
 # ORTHO-specific). See plan "Grounding".
@@ -36,6 +37,15 @@ BUNDLED_TEMPLATE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 # Markers that a directory really is the DIMS template scaffold.
 TEMPLATE_MARKERS = ["config.json", "serve.py", "opt", "assets"]
 
+# Template files that are *code* (analysis scripts in opt/, the frontend, the
+# deploy workflow). These are refreshed into an existing project on every acquire
+# so a project built from an older template picks up new scripts (e.g. a newly
+# added opt/step_cRQA.py) and frontend fixes. Everything else in the project —
+# config.json and the user's assets/ — is data and is left untouched.
+TEMPLATE_CODE = ("opt", "js", "css", "index.html", "serve.py", ".github", "ReadMe.MD")
+
+_IGNORE = shutil.ignore_patterns(".git", "__pycache__", ".venv", "node_modules")
+
 # Role -> (subdirectory under assets/, filename builder taking videoID & dataType)
 ASSET_LAYOUT = {
     "video": ("videos", lambda vid, dt: f"{vid}.mp4"),
@@ -57,6 +67,49 @@ def is_template_dir(path: str) -> bool:
     return all(os.path.exists(os.path.join(path, m)) for m in TEMPLATE_MARKERS)
 
 
+def _copy_into(src_item: str, dest_item: str) -> None:
+    """Copy a file or directory tree from `src_item` onto `dest_item` (merging
+    directories, overwriting files)."""
+    if os.path.isdir(src_item):
+        shutil.copytree(src_item, dest_item, dirs_exist_ok=True, ignore=_IGNORE)
+    else:
+        shutil.copyfile(src_item, dest_item)
+
+
+def _resolve_local_template(source: str):
+    """Return (local_dir, cleanup) for a template `source`.
+
+    A git URL is shallow-cloned into a temp dir (cleanup removes it); a local
+    path or the bundled template is returned as-is (cleanup is a no-op). Raises
+    ProjectError if the resolved directory isn't a DIMS template.
+    """
+    if _looks_like_url(source):
+        tmp = tempfile.mkdtemp(prefix="dims_template_")
+        try:
+            subprocess.run(
+                ["git", "clone", "--depth", "1", source, tmp],
+                check=True, capture_output=True, text=True,
+            )
+        except FileNotFoundError:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise ProjectError("git is not installed; use a local template path instead.")
+        except subprocess.CalledProcessError as e:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise ProjectError(f"git clone failed: {e.stderr.strip() or e}")
+        shutil.rmtree(os.path.join(tmp, ".git"), ignore_errors=True)
+        if not is_template_dir(tmp):
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise ProjectError("Cloned template is missing expected files (config.json/serve.py/opt/assets).")
+        return tmp, lambda: shutil.rmtree(tmp, ignore_errors=True)
+
+    src = os.path.abspath(os.path.expanduser(source))
+    if not os.path.isdir(src):
+        raise ProjectError(f"Template path not found: {src}")
+    if not is_template_dir(src):
+        raise ProjectError(f"'{src}' does not look like a DIMS template (missing config/opt/assets).")
+    return src, (lambda: None)
+
+
 def acquire_template(output_dir: str, source: str) -> None:
     """Populate `output_dir` with the template scaffold.
 
@@ -65,7 +118,11 @@ def acquire_template(output_dir: str, source: str) -> None:
                              no git, no network — the non-coder path);
       * a git URL          → cloned (to fetch the latest template);
       * a local path       → copied (excluding .git/).
-    Raises ProjectError on failure.
+
+    If `output_dir` is already a DIMS project, the template's *code* (opt/ scripts
+    and frontend — see TEMPLATE_CODE) is refreshed from `source` so updated
+    analysis steps reach existing projects, while the user's config.json and
+    assets/ are preserved. Raises ProjectError on failure.
     """
     output_dir = os.path.abspath(os.path.expanduser(output_dir))
     source = (source or "bundled").strip()
@@ -78,38 +135,27 @@ def acquire_template(output_dir: str, source: str) -> None:
                 "different template source."
             )
 
-    if os.path.exists(output_dir) and os.listdir(output_dir):
-        if is_template_dir(output_dir):
-            return  # already acquired — idempotent
+    exists = os.path.exists(output_dir) and bool(os.listdir(output_dir))
+    if exists and not is_template_dir(output_dir):
         raise ProjectError(
             f"Output folder '{output_dir}' is not empty and is not a DIMS template. "
             "Choose an empty folder or an already-acquired project."
         )
 
-    os.makedirs(output_dir, exist_ok=True)
-
-    if _looks_like_url(source):
-        try:
-            subprocess.run(
-                ["git", "clone", "--depth", "1", source, output_dir],
-                check=True, capture_output=True, text=True,
-            )
-        except FileNotFoundError:
-            raise ProjectError("git is not installed; use a local template path instead.")
-        except subprocess.CalledProcessError as e:
-            raise ProjectError(f"git clone failed: {e.stderr.strip() or e}")
-        # Drop the .git so the generated project is a fresh, deployable tree.
-        shutil.rmtree(os.path.join(output_dir, ".git"), ignore_errors=True)
-    else:
-        src = os.path.abspath(os.path.expanduser(source))
-        if not os.path.isdir(src):
-            raise ProjectError(f"Template path not found: {src}")
-        if not is_template_dir(src):
-            raise ProjectError(f"'{src}' does not look like a DIMS template (missing config/opt/assets).")
-        shutil.copytree(
-            src, output_dir, dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns(".git", "__pycache__", ".venv", "node_modules"),
-        )
+    local_src, cleanup = _resolve_local_template(source)
+    try:
+        if exists:
+            # Already a project: refresh template code (opt/ scripts, frontend),
+            # leaving the user's config.json and assets/ untouched.
+            for item in TEMPLATE_CODE:
+                s = os.path.join(local_src, item)
+                if os.path.exists(s):
+                    _copy_into(s, os.path.join(output_dir, item))
+        else:
+            os.makedirs(output_dir, exist_ok=True)
+            shutil.copytree(local_src, output_dir, dirs_exist_ok=True, ignore=_IGNORE)
+    finally:
+        cleanup()
 
     if not is_template_dir(output_dir):
         raise ProjectError("Acquired template is missing expected files (config.json/serve.py/opt/assets).")

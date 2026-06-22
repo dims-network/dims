@@ -10,4 +10,5 @@ app/_state.json
 
 # generated dashboard projects (don't commit user output)
 output/
+test/
 *.local
