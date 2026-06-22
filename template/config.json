@@ -1,0 +1,20 @@
+{
+  "videoIDs": [
+    "session1"
+  ],
+  "dataTypes": {
+    "session1": [
+      "bodysync",
+      "neuralsync"
+    ]
+  },
+  "include_RQA": [],
+  "include_crosswavelet": [],
+  "include_cRQA": [],
+  "include_elan": false,
+  "defaultWindowSize": 5,
+  "title": "",
+  "subtitle": "",
+  "authors": "",
+  "contacts": ""
+}

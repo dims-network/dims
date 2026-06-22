@@ -1,0 +1,10 @@
+.claude/
+CLAUDE.md
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+.venv/
+
+# builder-generated artifact (cleaned requirements written into a project's opt/)
+opt/_requirements.builder.txt
