@@ -17,6 +17,18 @@ import tempfile
 # Parses the "  Duration: 00:00:10.00, start: ..." line ffmpeg prints to stderr.
 _DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
 
+
+def time_key(columns):
+    """Return the column that is the time axis, matched case-insensitively and
+    ignoring surrounding whitespace (e.g. 'time', 'TIME', ' Time '), or None.
+
+    The dashboard's canonical name is 'Time'; this lets users hand us any casing.
+    """
+    for c in columns or []:
+        if c is not None and str(c).strip().lower() == "time":
+            return c
+    return None
+
 _ffmpeg_exe_cache = []  # [path] or [None]; one-element memo
 
 
@@ -61,11 +73,12 @@ def _read_times(csv_path):
     """Yield the float values of the `Time` column, skipping unparseable rows."""
     with open(csv_path, newline="") as f:
         reader = csv.DictReader(f)
-        if not reader.fieldnames or "Time" not in reader.fieldnames:
+        tkey = time_key(reader.fieldnames)
+        if not tkey:
             return
         for row in reader:
             try:
-                yield float(row["Time"])
+                yield float(row[tkey])
             except (TypeError, ValueError):
                 continue
 
@@ -142,7 +155,8 @@ def pad_timeseries(csv_path, pad_start, pad_end):
         reader = csv.reader(f)
         header = next(reader, None)
         rows = [r for r in reader if r]
-    if not header or "Time" not in header:
+    tkey = time_key(header)
+    if not tkey:
         raise ValueError("CSV has no 'Time' column to pad against.")
 
     bounds = series_bounds(csv_path)
@@ -152,7 +166,7 @@ def pad_timeseries(csv_path, pad_start, pad_end):
     if step <= 0:
         raise ValueError("Could not infer a sample interval from the Time column.")
 
-    t_idx = header.index("Time")
+    t_idx = header.index(tkey)
     n_cols = len(header)
 
     def zero_row(t):
@@ -185,9 +199,13 @@ def pad_timeseries(csv_path, pad_start, pad_end):
         n_end = int(round(pad_end / step))
         tail = [zero_row(last_time + i * step) for i in range(1, n_end + 1)]
 
+    # Write back with the canonical 'Time' header so the output is consistent.
+    out_header = list(header)
+    out_header[t_idx] = "Time"
+
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(header)
+        writer.writerow(out_header)
         writer.writerows(lead)
         writer.writerows(shifted)
         writer.writerows(tail)
@@ -222,9 +240,10 @@ def split_timeseries_csv(src_path, staging_dir, fid_prefix, base):
     if not header:
         return []
     cols = [c.strip() for c in header]
-    if "Time" not in cols:
+    tkey = time_key(cols)
+    if not tkey:
         return []
-    t_idx = cols.index("Time")
+    t_idx = cols.index(tkey)
     value_idxs = [i for i, c in enumerate(cols) if i != t_idx and c]
     if len(value_idxs) < 2:
         return []  # single value column (or none) — handled as a normal upload

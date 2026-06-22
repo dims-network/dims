@@ -33,9 +33,11 @@ def validate_csv(path: str) -> list:
             except StopIteration:
                 return [_err("CSV is empty (no header row).")]
             cols = [c.strip() for c in header]
-            if "Time" not in cols:
-                issues.append(_err("CSV must contain a 'Time' column (case-sensitive)."))
-            measurement_cols = [c for c in cols if c and c != "Time"]
+            # The time column is matched case-insensitively (e.g. 'time', 'TIME').
+            time_col = next((c for c in cols if c.lower() == "time"), None)
+            if not time_col:
+                issues.append(_err("CSV must contain a 'Time' column."))
+            measurement_cols = [c for c in cols if c and c != time_col]
             if not measurement_cols:
                 issues.append(_err("CSV must contain at least one measurement column besides 'Time'."))
             # at least one data row?

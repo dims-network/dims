@@ -191,7 +191,8 @@ function seriesTotal(ser, pad) {     // span after padding
 function parseCsvLookup(text) {
   const lines = text.trim().split(/\r?\n/);
   const header = lines[0].split(",").map((h) => h.trim());
-  const tIdx = header.indexOf("Time");
+  // Time column matched case-insensitively (e.g. "time", "TIME").
+  const tIdx = header.findIndex((h) => h.toLowerCase() === "time");
   const cols = header.map((h, i) => ({ h, i })).filter((x) => x.h && x.i !== tIdx);
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
