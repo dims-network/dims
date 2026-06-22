@@ -155,7 +155,27 @@ def load_and_prepare_timeseries(video_id, data_type, detrend=DETREND_DATA):
     
     return data_normalized, time_clean, dt, std, var
 
-def compute_cross_wavelet_standard(data1, data2, time, dt, 
+def _ar1_alpha(data):
+    """Lag-1 autocorrelation (AR1 coefficient) for the red-noise significance test.
+
+    pycwt's wavelet.ar1() raises a Warning when a series is short or strongly
+    trended ("Cannot place an upperbound on the unbiased AR(1)"). Fall back to a
+    plain lag-1 autocorrelation in that case so significance testing still runs
+    instead of crashing the whole step.
+    """
+    try:
+        return wavelet.ar1(data)[0]
+    except Exception:  # noqa: BLE001 — pycwt raises a bare Warning here
+        x = np.asarray(data, dtype=float)
+        x = x - np.mean(x)
+        denom = np.sum(x * x)
+        if denom <= 0:
+            return 0.0
+        alpha = float(np.sum(x[:-1] * x[1:]) / denom)
+        # Keep it in a sane red-noise range (avoid >=1, which breaks significance).
+        return min(max(alpha, 0.0), 0.95)
+
+def compute_cross_wavelet_standard(data1, data2, time, dt,
                                    mother=MOTHER_WAVELET, omega0=OMEGA0,
                                    dj=DJ, s0=None, J=None):
     """
@@ -200,8 +220,8 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     
     # Calculate lag-1 autocorrelation for AR1 noise model
     if USE_AR1_NOISE:
-        alpha1, _, _ = wavelet.ar1(data1)
-        alpha2, _, _ = wavelet.ar1(data2)
+        alpha1 = _ar1_alpha(data1)
+        alpha2 = _ar1_alpha(data2)
     else:
         alpha1 = alpha2 = 0.0  # White noise
     
@@ -513,7 +533,9 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
     
     # Apply edge taper if requested
     if EDGE_TAPER:
-        window = signal.windows.tukey(len(time_common), alpha=TAPER_ALPHA)
+        # scipy>=1.13 moved tukey to scipy.signal.windows; fall back for older versions.
+        tukey = getattr(signal, "tukey", None) or signal.windows.tukey
+        window = tukey(len(time_common), alpha=TAPER_ALPHA)
         data1_interp = data1_interp * window
         data2_interp = data2_interp * window
         if DEBUG_MODE and VERBOSE:
@@ -639,10 +661,25 @@ def main():
             print("No cross-wavelet analysis requested in config")
         return
     
-    cwt_data_types = config['include_crosswavelet']
-    
-    if len(cwt_data_types) < 2:
-        print("Error: Need at least 2 data types for cross-wavelet analysis")
+    # include_crosswavelet may be either:
+    #   * a list of explicit [type1, type2] pairs (new, lets the user pick exactly
+    #     which pairs to compute), or
+    #   * a legacy flat list of data types, expanded to all unique pairs below.
+    raw_cwt = config['include_crosswavelet']
+    if all(isinstance(item, (list, tuple)) and len(item) == 2 for item in raw_cwt):
+        base_pairs = [(t1, t2) for t1, t2 in raw_cwt]
+    else:
+        flat_types = [t for t in raw_cwt if isinstance(t, str)]
+        if len(flat_types) < 2:
+            print("Error: Need at least 2 data types for cross-wavelet analysis")
+            return
+        base_pairs = []
+        for i in range(len(flat_types)):
+            for j in range(i + 1, len(flat_types)):
+                base_pairs.append((flat_types[i], flat_types[j]))
+
+    if not base_pairs:
+        print("Error: No valid cross-wavelet pairs found")
         return
     
     # Create output directory
@@ -676,14 +713,12 @@ def main():
         # Process all pairs
         cwt_results = {}
         
-        # Determine which pairs to compute (only between different data types)
+        # Pairs to compute (optionally adding the reverse of each for symmetry).
         pairs_to_compute = []
-        for i in range(len(cwt_data_types)):
-            for j in range(i + 1, len(cwt_data_types)):
-                pairs_to_compute.append((cwt_data_types[i], cwt_data_types[j]))
-                # If symmetric pairs requested, also add reverse
-                if SYMMETRIC_PAIRS:
-                    pairs_to_compute.append((cwt_data_types[j], cwt_data_types[i]))
+        for data_type1, data_type2 in base_pairs:
+            pairs_to_compute.append((data_type1, data_type2))
+            if SYMMETRIC_PAIRS:
+                pairs_to_compute.append((data_type2, data_type1))
         
         if VERBOSE:
             print(f"Computing {len(pairs_to_compute)} pair(s)")
@@ -708,7 +743,7 @@ def main():
                 output_data = {
                     'video_id': video_id,
                     'crosswavelet_pairs': cwt_results,
-                    'data_types': cwt_data_types,
+                    'data_types': sorted({t for pair in base_pairs for t in pair}),
                     'config': {
                         'mother_wavelet': MOTHER_WAVELET,
                         'omega0': OMEGA0 if MOTHER_WAVELET.lower() == 'morlet' else None,

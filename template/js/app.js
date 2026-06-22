@@ -10,6 +10,7 @@ class DIMSApp {
         this.timeSlider = null;
         this.rqaData = null;
         this.crossWaveletData = null;
+        this.crqaData = null;
         this.elanData = null;
         this.elanSelectedTiers = null;
         this.currentTab = 'timeseries';
@@ -51,10 +52,11 @@ class DIMSApp {
     setupTabs() {
         const hasRQA = this.config.include_RQA && this.config.include_RQA.length > 0;
         const hasCrossWavelet = this.config.include_crosswavelet && this.config.include_crosswavelet.length >= 2;
+        const hasCRQA = this.config.include_cRQA && this.config.include_cRQA.length > 0;
         const hasELAN = !!this.config.include_elan;
 
         // If no optional tabs, hide tab container
-        if (!hasRQA && !hasCrossWavelet && !hasELAN) {
+        if (!hasRQA && !hasCrossWavelet && !hasCRQA && !hasELAN) {
             const tabContainer = document.getElementById('tabContainer');
             if (tabContainer) tabContainer.style.display = 'none';
             return;
@@ -103,6 +105,18 @@ class DIMSApp {
                 ">Cross-Wavelet</button>`;
             }
             
+            if (hasCRQA) {
+                tabHTML += `<button class="tab-button" data-tab="crqa" style="
+                    padding: 10px 20px;
+                    background: #222;
+                    color: white;
+                    border: none;
+                    margin-right: 5px;
+                    cursor: pointer;
+                    border-bottom: 3px solid transparent;
+                ">Cross-RQA</button>`;
+            }
+
             if (hasELAN) {
                 tabHTML += `<button class="tab-button" data-tab="elan" style="
                     padding: 10px 20px;
@@ -139,6 +153,17 @@ class DIMSApp {
                 cwContainer.style.backgroundColor = '#111';
                 cwContainer.style.padding = '20px';
                 plotContainer.parentNode.insertBefore(cwContainer, plotContainer.nextSibling);
+            }
+
+            // Create Cross-RQA container if needed
+            if (hasCRQA) {
+                const crqaContainer = document.createElement('div');
+                crqaContainer.id = 'crqaContainer';
+                crqaContainer.style.display = 'none';
+                crqaContainer.style.minHeight = '800px';
+                crqaContainer.style.backgroundColor = '#111';
+                crqaContainer.style.padding = '20px';
+                plotContainer.parentNode.insertBefore(crqaContainer, plotContainer.nextSibling);
             }
 
             // Create ELAN container if needed
@@ -181,7 +206,7 @@ class DIMSApp {
         });
         
         // Hide all containers, then show the selected one
-        ['plotContainer', 'rqaContainer', 'crossWaveletContainer', 'elanContainer'].forEach(id => {
+        ['plotContainer', 'rqaContainer', 'crossWaveletContainer', 'crqaContainer', 'elanContainer'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
@@ -206,6 +231,14 @@ class DIMSApp {
                 this.loadCrossWaveletData(this.currentVideoID);
             } else if (this.crossWaveletData && this.lastClickedPoint !== null) {
                 this.updateCrossWaveletHighlights();
+            }
+        } else if (tabName === 'crqa') {
+            const crqaContainer = document.getElementById('crqaContainer');
+            if (crqaContainer) crqaContainer.style.display = 'block';
+            if (this.currentVideoID && !this.crqaData) {
+                this.loadCRQAData(this.currentVideoID);
+            } else if (this.crqaData) {
+                this.displayCRQAPlots();
             }
         } else if (tabName === 'elan') {
             const elanContainer = document.getElementById('elanContainer');
@@ -885,6 +918,245 @@ if (arrowData.x.length > 0) {
         }
     }
 
+    async loadCRQAData(videoID) {
+        this.showStatus('Loading cross-RQA data...');
+
+        try {
+            const dataPath = `assets/crqa/${videoID}_crqa_data.json`;
+            console.log('Loading cross-RQA data from:', dataPath);
+
+            const crqaData = await this.loadJSON(dataPath);
+
+            if (!crqaData) {
+                this.showError('Cross-RQA data not found. Run the Python step_cRQA.py script first.');
+                return;
+            }
+
+            if (!crqaData.crqa_data || Object.keys(crqaData.crqa_data).length === 0) {
+                this.showError('Cross-RQA data is empty or invalid format.');
+                console.error('Invalid cross-RQA data structure:', crqaData);
+                return;
+            }
+
+            this.crqaData = crqaData;
+            this.displayCRQAPlots();
+
+        } catch (error) {
+            console.error('Error loading cross-RQA data:', error);
+            this.showError(`Failed to load cross-RQA data: ${error.message}`);
+        }
+    }
+
+    // ---- Shared windowed-metric charts (used by both RQA and cRQA tabs) -----
+    // Each metric (RR / DET / LAM / L_MAX) gets its own chart, stacked one below
+    // another, with the same yellow window-highlight as the recurrence plots.
+    _metricSpecs() {
+        return [
+            ['RR', 'Recurrence Rate (RR)', '#4fc3f7', 'RR'],
+            ['DET', 'Determinism (DET)', '#81c784', 'DET'],
+            ['LAM', 'Laminarity (LAM)', '#ffb74d', 'LAM'],
+            ['L_MAX', 'Longest diagonal line (L_MAX)', '#e57373', 'seconds'],
+        ];
+    }
+
+    appendMetricDivs(parentEl, idPrefix) {
+        this._metricSpecs().forEach(([key]) => {
+            const d = document.createElement('div');
+            d.id = `${idPrefix}-${key}`;
+            d.style.height = '200px';
+            d.style.backgroundColor = '#222';
+            d.style.padding = '10px';
+            d.style.borderRadius = '5px';
+            d.style.marginTop = '12px';
+            parentEl.appendChild(d);
+        });
+    }
+
+    plotWindowedMetrics(idPrefix, wm) {
+        const hasData = wm && wm.time && wm.time.length > 0;
+        this._metricSpecs().forEach(([key, title, color, yTitle]) => {
+            const id = `${idPrefix}-${key}`;
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (!hasData) {
+                el.innerHTML = '<div style="color:#aaa;padding:20px;">No windowed metrics available.</div>';
+                return;
+            }
+            this.plotSingleMetric(id, title, wm.time, wm[key], color, yTitle);
+        });
+    }
+
+    plotSingleMetric(containerId, title, time, values, color, yTitle) {
+        if (!window.Plotly) return;
+        const traces = [{
+            x: time, y: values, type: 'scatter', mode: 'lines+markers',
+            line: { color, width: 1.5 }, marker: { color, size: 3 },
+            hovertemplate: '%{x:.1f}s: %{y:.3f}<extra></extra>'
+        }];
+        const layout = {
+            title: { text: title, font: { color: 'white', size: 13 } },
+            paper_bgcolor: '#222', plot_bgcolor: '#333', font: { color: 'white' },
+            xaxis: { title: 'Time (s)', gridcolor: '#444' },
+            yaxis: { title: yTitle, gridcolor: '#444', rangemode: 'tozero' },
+            margin: { t: 32, r: 20, b: 38, l: 55 },
+            hovermode: 'x'
+        };
+        // Yellow window-slider highlight, identical to the recurrence plots.
+        if (this.lastClickedPoint !== null) {
+            const windowSize = parseInt(document.getElementById('windowSize').value) || 5;
+            const x0 = this.lastClickedPoint - windowSize / 2;
+            const x1 = this.lastClickedPoint + windowSize / 2;
+            layout.shapes = [
+                { type: 'rect', xref: 'x', yref: 'paper', x0, x1, y0: 0, y1: 1,
+                  fillcolor: 'yellow', opacity: 0.18, line: { width: 0 } },
+                { type: 'line', xref: 'x', yref: 'paper',
+                  x0: this.lastClickedPoint, x1: this.lastClickedPoint, y0: 0, y1: 1,
+                  line: { color: 'yellow', width: 1.5 } }
+            ];
+        }
+        Plotly.newPlot(containerId, traces, layout, { responsive: true });
+        document.getElementById(containerId).on('plotly_click', (data) => {
+            if (data.points && data.points.length > 0) this.handleTimeClick(data.points[0].x);
+        });
+    }
+
+    displayCRQAPlots() {
+        const container = document.getElementById('crqaContainer');
+        if (!container || !this.crqaData) {
+            console.error('Cross-RQA container or data missing');
+            return;
+        }
+
+        container.innerHTML = '<h2 style="color: white; margin-bottom: 20px;">Cross-Recurrence Quantification Analysis</h2>';
+
+        const plotConfigs = [];
+        Object.entries(this.crqaData.crqa_data).forEach(([pairKey, pairData], index) => {
+            // Per-pair block: full recurrence plot + windowed metrics chart.
+            const block = document.createElement('div');
+            block.style.marginBottom = '40px';
+
+            const heading = document.createElement('h3');
+            heading.style.color = 'white';
+            const names = pairData.series_names || pairKey.split('_vs_');
+            heading.innerHTML = `${names[0]} &harr; ${names[1]} ` +
+                `<span style="color:#aaa;font-size:0.8em;">` +
+                `(Global RR: ${(pairData.global_recurrence_rate * 100).toFixed(2)}%, ` +
+                `Threshold: ${pairData.threshold.toFixed(4)})</span>`;
+            block.appendChild(heading);
+
+            const rpDiv = document.createElement('div');
+            rpDiv.id = `crqa-plot-${index}`;
+            rpDiv.style.height = '520px';
+            rpDiv.style.backgroundColor = '#222';
+            rpDiv.style.padding = '10px';
+            rpDiv.style.borderRadius = '5px';
+            block.appendChild(rpDiv);
+
+            // Windowed metrics: one chart per metric, stacked below the RP.
+            this.appendMetricDivs(block, `crqa-wm-${index}`);
+
+            container.appendChild(block);
+
+            plotConfigs.push({ rpId: rpDiv.id, wmPrefix: `crqa-wm-${index}`, pairKey, pairData });
+        });
+
+        setTimeout(() => {
+            plotConfigs.forEach(cfg => {
+                try {
+                    this.createCRQAPlot(cfg.rpId, cfg.pairData);
+                    this.plotWindowedMetrics(cfg.wmPrefix, cfg.pairData.windowed_metrics);
+                } catch (error) {
+                    console.error(`Error creating cRQA plot for ${cfg.pairKey}:`, error);
+                    const el = document.getElementById(cfg.rpId);
+                    if (el) el.innerHTML = `<div style="color: red; padding: 20px;">Error creating plot: ${error.message}</div>`;
+                }
+            });
+            this.showStatus('Cross-RQA plots loaded.');
+        }, 100);
+    }
+
+    updateCRQAHighlights() {
+        // Re-render the recurrence plots and metric charts with the current window.
+        if (!this.crqaData || !this.crqaData.crqa_data) return;
+        Object.entries(this.crqaData.crqa_data).forEach(([pairKey, pairData], index) => {
+            if (document.getElementById(`crqa-plot-${index}`)) {
+                this.createCRQAPlot(`crqa-plot-${index}`, pairData);
+                this.plotWindowedMetrics(`crqa-wm-${index}`, pairData.windowed_metrics);
+            }
+        });
+    }
+
+    createCRQAPlot(containerId, pairData) {
+        if (!window.Plotly) {
+            throw new Error('Plotly library not loaded.');
+        }
+        const vis = pairData.visualization;
+        if (!vis || !vis.time || !vis.matrix_size || !vis.sparse_matrix) {
+            throw new Error('Missing required cRQA visualization fields');
+        }
+        const names = pairData.series_names || ['series 1', 'series 2'];
+
+        // Sort the common time axis (it is uniform, but keep parity with RQA logic).
+        const time = vis.time;
+
+        // Build a dense matrix from the (complete) sparse recurrence plot.
+        const size = vis.matrix_size;
+        const matrix = new Array(size).fill(null).map(() => new Array(size).fill(0));
+        vis.sparse_matrix.forEach(([row, col]) => {
+            if (row < size && col < size) {
+                matrix[row][col] = 1;
+            }
+        });
+
+        const traces = [{
+            x: time,
+            y: time,
+            z: matrix,
+            type: 'heatmap',
+            colorscale: [[0, 'white'], [1, 'black']],
+            showscale: false,
+            hovertemplate: `${names[0]} time: %{x:.1f}s<br>${names[1]} time: %{y:.1f}s<extra></extra>`
+        }];
+
+        const layout = {
+            title: { text: 'Cross-Recurrence Plot', font: { color: 'white', size: 16 } },
+            paper_bgcolor: '#222',
+            plot_bgcolor: '#333',
+            font: { color: 'white' },
+            xaxis: { title: `${names[0]} time (s)`, gridcolor: '#444', constrain: 'domain' },
+            yaxis: { title: `${names[1]} time (s)`, gridcolor: '#444', scaleanchor: 'x', scaleratio: 1 },
+            margin: { t: 50, r: 30, b: 60, l: 70 },
+            hovermode: 'closest'
+        };
+
+        // Yellow window-slider highlight (both series share the common time grid,
+        // so the selected window is a band on each axis plus a box, as in RQA).
+        if (this.lastClickedPoint !== null) {
+            const windowSize = parseInt(document.getElementById('windowSize').value) || 5;
+            const t0 = time[0], t1 = time[time.length - 1];
+            const startTime = Math.max(t0, this.lastClickedPoint - windowSize / 2);
+            const endTime = Math.min(t1, this.lastClickedPoint + windowSize / 2);
+            layout.shapes = [
+                { type: 'line', x0: startTime, x1: startTime, y0: t0, y1: t1, line: { color: 'yellow', width: 2 } },
+                { type: 'line', x0: endTime, x1: endTime, y0: t0, y1: t1, line: { color: 'yellow', width: 2 } },
+                { type: 'line', x0: t0, x1: t1, y0: startTime, y1: startTime, line: { color: 'yellow', width: 2 } },
+                { type: 'line', x0: t0, x1: t1, y0: endTime, y1: endTime, line: { color: 'yellow', width: 2 } },
+                { type: 'rect', x0: startTime, x1: endTime, y0: startTime, y1: endTime,
+                  fillcolor: 'yellow', opacity: 0.1, line: { width: 0 } }
+            ];
+        }
+
+        Plotly.newPlot(containerId, traces, layout, { responsive: true });
+
+        // Clicking the plot selects a time point (x = series-1 time) like the RQA tab.
+        document.getElementById(containerId).on('plotly_click', (data) => {
+            if (data.points && data.points.length > 0) {
+                this.handleTimeClick(data.points[0].x);
+                setTimeout(() => this.updateCRQAHighlights(), 100);
+            }
+        });
+    }
+
     async loadRQAData(videoID) {
         this.showStatus('Loading RQA data...');
         
@@ -945,44 +1217,39 @@ if (arrowData.x.length > 0) {
         console.log('Displaying RQA plots for:', this.rqaData);
         
         container.innerHTML = '<h2 style="color: white; margin-bottom: 20px;">Recurrence Quantification Analysis</h2>';
-        
-        // Create grid for RQA plots
-        const grid = document.createElement('div');
-        grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-        grid.style.gap = '20px';
-        
-        // Create all plot containers first
+
+        // One vertical block per data type: the recurrence plot, then its windowed
+        // metric charts (RR / DET / LAM / L_MAX) stacked below it.
         const plotConfigs = [];
         Object.entries(this.rqaData.rqa_data).forEach(([dataType, plotData], index) => {
-            console.log(`Creating RQA plot container ${index} for ${dataType}`);
-            
+            const block = document.createElement('div');
+            block.style.marginBottom = '40px';
+
             const plotDiv = document.createElement('div');
             plotDiv.id = `rqa-plot-${index}`;
             plotDiv.style.height = '500px';
             plotDiv.style.backgroundColor = '#222';
             plotDiv.style.padding = '10px';
             plotDiv.style.borderRadius = '5px';
-            
-            grid.appendChild(plotDiv);
-            
-            // Store config for later plotting
+            block.appendChild(plotDiv);
+
+            this.appendMetricDivs(block, `rqa-wm-${index}`);
+            container.appendChild(block);
+
             plotConfigs.push({
                 containerId: plotDiv.id,
+                wmPrefix: `rqa-wm-${index}`,
                 dataType: dataType,
                 plotData: plotData
             });
         });
-        
-        // Add grid to container
-        container.appendChild(grid);
-        
+
         // Now create all plots after DOM is updated
         setTimeout(() => {
             plotConfigs.forEach(config => {
                 try {
-                    console.log(`Creating RQA plot for ${config.dataType} in ${config.containerId}`);
                     this.createRQAPlot(config.containerId, config.dataType, config.plotData);
+                    this.plotWindowedMetrics(config.wmPrefix, config.plotData.windowed_metrics);
                 } catch (error) {
                     console.error(`Error creating RQA plot for ${config.dataType}:`, error);
                     const plotDiv = document.getElementById(config.containerId);
@@ -991,7 +1258,7 @@ if (arrowData.x.length > 0) {
                     }
                 }
             });
-            
+
             this.showStatus('RQA plots loaded. Click on any plot to select a time point.');
         }, 100); // Give DOM time to update
     }
@@ -1220,12 +1487,13 @@ if (arrowData.x.length > 0) {
     }
 
     updateRQAHighlights() {
-        // Re-render all RQA plots with updated highlights
+        // Re-render all RQA plots and their metric charts with updated highlights
         if (this.rqaData && this.rqaData.rqa_data) {
             Object.entries(this.rqaData.rqa_data).forEach(([dataType, plotData], index) => {
                 const containerId = `rqa-plot-${index}`;
                 if (document.getElementById(containerId)) {
                     this.createRQAPlot(containerId, dataType, plotData);
+                    this.plotWindowedMetrics(`rqa-wm-${index}`, plotData.windowed_metrics);
                 }
             });
         }
@@ -1598,6 +1866,8 @@ if (arrowData.x.length > 0) {
             this.updateRQAHighlights();
         } else if (this.currentTab === 'crosswavelet' && this.crossWaveletData) {
             this.updateCrossWaveletHighlights();
+        } else if (this.currentTab === 'crqa' && this.crqaData) {
+            this.updateCRQAHighlights();
         } else if (this.currentTab === 'elan' && this.elanData) {
             this.updateELANHighlight();
         }
@@ -1668,6 +1938,7 @@ if (arrowData.x.length > 0) {
             this.currentVideoID = videoID;
             this.rqaData = null;
             this.crossWaveletData = null;
+            this.crqaData = null;
             this.elanData = null;
             this.elanSelectedTiers = null;
             

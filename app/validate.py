@@ -163,11 +163,28 @@ def validate_config(cfg: dict, staged: list) -> list:
         if dt not in all_csv_types:
             issues.append(_err(f"RQA is enabled for '{dt}' but no time-series CSV provides it."))
 
-    cw = cfg.get("include_crosswavelet") or []
-    for dt in cw:
-        if dt not in all_csv_types:
-            issues.append(_err(f"Cross-wavelet is enabled for '{dt}' but no time-series CSV provides it."))
-    if cw and len(set(cw)) < 2:
-        issues.append(_err("Cross-wavelet needs at least 2 data types (it compares pairs)."))
+    def _validate_pairs(label, value):
+        """Validate a pair-based analysis config (list of [t1,t2] pairs). Also
+        accepts a legacy flat list of >=2 data types (cross-wavelet only)."""
+        value = value or []
+        if value and all(isinstance(p, (list, tuple)) and len(p) == 2 for p in value):
+            for pair in value:
+                for dt in pair:
+                    if dt not in all_csv_types:
+                        issues.append(_err(f"{label} is enabled for '{dt}' but no time-series CSV provides it."))
+        elif value:  # legacy flat list of data types (or malformed entries)
+            string_types = set()
+            for dt in value:
+                if not isinstance(dt, str):
+                    issues.append(_err(f"{label} entry {dt!r} must be a pair of data types [type1, type2]."))
+                    continue
+                string_types.add(dt)
+                if dt not in all_csv_types:
+                    issues.append(_err(f"{label} is enabled for '{dt}' but no time-series CSV provides it."))
+            if len(string_types) < 2:
+                issues.append(_err(f"{label} needs at least 2 data types (it compares pairs)."))
+
+    _validate_pairs("Cross-wavelet", cfg.get("include_crosswavelet"))
+    _validate_pairs("Cross-RQA", cfg.get("include_cRQA"))
 
     return issues

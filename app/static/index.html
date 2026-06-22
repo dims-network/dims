@@ -102,8 +102,13 @@
       </div>
       <div class="analysis">
         <label class="toggle"><input type="checkbox" id="t_cw" /> <strong>Cross-wavelet</strong> — coupling between two signals</label>
-        <p class="hint">Compares pairs of signals across time and frequency. Needs <strong>at least 2</strong> data types.</p>
+        <p class="hint">Compares pairs of signals across time and frequency. Pick the <strong>specific pairs</strong> to compute (all are selected by default — click to toggle).</p>
         <div id="cw_types" class="chips"></div>
+      </div>
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_crqa" /> <strong>Cross-RQA</strong> — cross-recurrence between two signals</label>
+        <p class="hint">Full cross-recurrence plot plus windowed RR/DET/LAM/L_MAX coupling metrics. Pick the <strong>specific pairs</strong> to compute (all are selected by default — click to toggle).</p>
+        <div id="crqa_types" class="chips"></div>
       </div>
       <div class="analysis">
         <label class="toggle"><input type="checkbox" id="t_elan" /> <strong>ELAN annotations</strong></label>

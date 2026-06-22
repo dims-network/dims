@@ -16,6 +16,7 @@ CONFIG_KEYS = [
     "dataTypes",
     "include_RQA",
     "include_crosswavelet",
+    "include_cRQA",
     "include_elan",
     "defaultWindowSize",
     "title",
@@ -139,6 +140,7 @@ def write_config(output_dir: str, cfg: dict) -> str:
     out["dataTypes"] = out.get("dataTypes") or {}
     out["include_RQA"] = out.get("include_RQA") or []
     out["include_crosswavelet"] = out.get("include_crosswavelet") or []
+    out["include_cRQA"] = out.get("include_cRQA") or []
     out["include_elan"] = bool(out.get("include_elan"))
     out["defaultWindowSize"] = out.get("defaultWindowSize") or 5
     for k in ("title", "subtitle", "authors", "contacts"):

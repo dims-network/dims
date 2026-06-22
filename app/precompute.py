@@ -94,7 +94,15 @@ def run_crosswavelet(project: str):
     )
 
 
-def run_precompute(project: str, do_rqa: bool, do_crosswavelet: bool):
+def run_crqa(project: str):
+    vpy = _venv_python(project)
+    yield from _stream(
+        [vpy, "opt/step_cRQA.py", "--config", "config.json", "--output-dir", "assets/crqa"],
+        cwd=project,
+    )
+
+
+def run_precompute(project: str, do_rqa: bool, do_crosswavelet: bool, do_crqa: bool = False):
     """Full precompute pipeline as a single generator of log lines."""
     yield "=== Setting up Python environment ===\n"
     yield from create_venv(project)
@@ -104,6 +112,9 @@ def run_precompute(project: str, do_rqa: bool, do_crosswavelet: bool):
     if do_crosswavelet:
         yield "\n=== Running cross-wavelet ===\n"
         yield from run_crosswavelet(project)
+    if do_crqa:
+        yield "\n=== Running cross-RQA ===\n"
+        yield from run_crqa(project)
     yield "\n=== Precompute complete ===\n"
 
 

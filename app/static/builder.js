@@ -23,8 +23,9 @@ const state = {
   step: 1,
   maxStep: 1,
   files: [],          // {id, name, role, videoID, dataType, columns, issues}
-  rqa: new Set(),
-  cw: new Set(),
+  rqa: new Set(),     // selected data types (single-series RQA)
+  cw: new Set(),      // selected pair keys "a|b" (cross-wavelet)
+  crqa: new Set(),    // selected pair keys "a|b" (cross-RQA)
   elan: false,
 };
 
@@ -112,7 +113,9 @@ async function uploadFiles(fileList) {
     setMsg(2, `Uploading ${f.name}…`, "spinner");
     try {
       const r = await api("/api/upload", { method: "POST", body: fd });
-      state.files.push(r.file);
+      // A multi-column CSV comes back as several files (one per value column).
+      const got = r.files || (r.file ? [r.file] : []);
+      got.forEach((file) => state.files.push(file));
     } catch (e) {
       setMsg(2, `${f.name}: ${e.message}`, "error");
     }
@@ -468,12 +471,22 @@ function allDataTypes() {
   return Array.from(s);
 }
 
+// All unordered pairs of available data types, as {key:"a|b", a, b, label}.
+function allPairs() {
+  const arr = allDataTypes();
+  const out = [];
+  for (let i = 0; i < arr.length; i++)
+    for (let j = i + 1; j < arr.length; j++)
+      out.push({ key: `${arr[i]}|${arr[j]}`, a: arr[i], b: arr[j], label: `${arr[i]} × ${arr[j]}` });
+  return out;
+}
+
 function renderAnalysisTypes() {
   const types = allDataTypes();
-  const rqaBox = $("#rqa_types");
-  const cwBox = $("#cw_types");
-  const enabled = (box) => box.closest(".analysis").querySelector('input[type=checkbox]').checked;
-  const mk = (box, setRef, disabled) => {
+  const pairs = allPairs();
+
+  // RQA: single-type chips (one signal vs itself).
+  const mkTypes = (box, setRef, disabled) => {
     box.innerHTML = "";
     types.forEach((t) => {
       const c = document.createElement("span");
@@ -488,30 +501,66 @@ function renderAnalysisTypes() {
     });
     if (!types.length) box.innerHTML = '<span class="hint">No data types yet — add time-series CSVs in step 2.</span>';
   };
-  mk(rqaBox, state.rqa, !$("#t_rqa").checked);
-  mk(cwBox, state.cw, !$("#t_cw").checked);
+
+  // Cross-wavelet / cross-RQA: one chip per pair; a type can appear in many.
+  const mkPairs = (box, setRef, disabled) => {
+    box.innerHTML = "";
+    pairs.forEach((p) => {
+      const c = document.createElement("span");
+      c.className = "chip" + (setRef.has(p.key) ? " on" : "") + (disabled ? " disabled" : "");
+      c.textContent = p.label;
+      c.addEventListener("click", () => {
+        if (disabled) return;
+        setRef.has(p.key) ? setRef.delete(p.key) : setRef.add(p.key);
+        renderAnalysisTypes();
+      });
+      box.appendChild(c);
+    });
+    if (pairs.length < 1)
+      box.innerHTML = '<span class="hint">Need at least 2 data types to form a pair — add time-series CSVs in step 2.</span>';
+  };
+
+  mkTypes($("#rqa_types"), state.rqa, !$("#t_rqa").checked);
+  mkPairs($("#cw_types"), state.cw, !$("#t_cw").checked);
+  mkPairs($("#crqa_types"), state.crqa, !$("#t_crqa").checked);
 }
 
-// Enabling an analysis selects all available data types by default (the user
-// can then deselect chips); disabling clears the selection. This way ticking
-// RQA / cross-wavelet always lands those keys in config.json.
+// Turn a Set of "a|b" pair keys into a list of [a, b] pairs (only those whose
+// data types still exist).
+function pairKeysToList(setRef) {
+  const valid = new Set(allPairs().map((p) => p.key));
+  return Array.from(setRef)
+    .filter((k) => valid.has(k))
+    .map((k) => k.split("|"));
+}
+
+// Enabling an analysis selects everything by default (the user then deselects);
+// disabling clears the selection. RQA selects all types; cw/cRQA select all pairs.
 function syncAnalysisDefaults() {
   const types = allDataTypes();
+  const pairKeys = allPairs().map((p) => p.key);
   if ($("#t_rqa").checked) { if (state.rqa.size === 0) types.forEach((t) => state.rqa.add(t)); }
   else state.rqa.clear();
-  if ($("#t_cw").checked) { if (state.cw.size === 0) types.forEach((t) => state.cw.add(t)); }
+  if ($("#t_cw").checked) { if (state.cw.size === 0) pairKeys.forEach((k) => state.cw.add(k)); }
   else state.cw.clear();
+  if ($("#t_crqa").checked) { if (state.crqa.size === 0) pairKeys.forEach((k) => state.crqa.add(k)); }
+  else state.crqa.clear();
 }
-["t_rqa", "t_cw", "t_elan"].forEach((id) =>
+["t_rqa", "t_cw", "t_crqa", "t_elan"].forEach((id) =>
   $("#" + id).addEventListener("change", () => { syncAnalysisDefaults(); renderAnalysisTypes(); })
 );
 
 $("#next-4").addEventListener("click", async () => {
   state.elan = $("#t_elan").checked;
   const rqa = $("#t_rqa").checked ? Array.from(state.rqa) : [];
-  const cw = $("#t_cw").checked ? Array.from(state.cw) : [];
-  if (cw.length === 1) {
-    setMsg(4, "Cross-wavelet compares pairs — pick at least 2 data types (or turn it off).", "error");
+  const cw = $("#t_cw").checked ? pairKeysToList(state.cw) : [];
+  const crqa = $("#t_crqa").checked ? pairKeysToList(state.crqa) : [];
+  if ($("#t_cw").checked && cw.length < 1) {
+    setMsg(4, "Cross-wavelet compares pairs — select at least one pair (or turn it off).", "error");
+    return;
+  }
+  if ($("#t_crqa").checked && crqa.length < 1) {
+    setMsg(4, "Cross-RQA compares pairs — select at least one pair (or turn it off).", "error");
     return;
   }
   await api("/api/config", {
@@ -520,6 +569,7 @@ $("#next-4").addEventListener("click", async () => {
     body: JSON.stringify({
       include_RQA: rqa,
       include_crosswavelet: cw,
+      include_cRQA: crqa,
       include_elan: state.elan,
     }),
   });
