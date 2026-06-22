@@ -8,3 +8,4 @@ node_modules/
 
 # builder-generated artifact (cleaned requirements written into a project's opt/)
 opt/_requirements.builder.txt
+assets/

@@ -186,7 +186,9 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     
     # Load data
     df = pd.read_csv(csv_path)
-    
+    # Accept the time column under any casing/whitespace -> canonical 'Time'.
+    df = df.rename(columns={c: 'Time' for c in df.columns if str(c).strip().lower() == 'time'})
+
     # Get time column
     if 'Time' not in df.columns:
         print(f"Error: No 'Time' column in {csv_path}")
