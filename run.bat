@@ -11,8 +11,16 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM Create an isolated virtual environment so we don't touch the system Python.
+if not exist ".venv" (
+  echo Creating virtual environment ^(first run only^)...
+  python -m venv .venv
+)
+set PY=.venv\Scripts\python.exe
+
 echo Installing builder dependencies ^(first run only^)...
-python -m pip install -r requirements.txt
+"%PY%" -m pip install --upgrade pip >nul
+"%PY%" -m pip install -r requirements.txt
 echo Starting DIMS Dashboard Builder...
-python builder.py
+"%PY%" builder.py
 pause

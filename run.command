@@ -17,7 +17,18 @@ if [ -z "$PY" ]; then
   exit 1
 fi
 
+# Create an isolated virtual environment so we don't fight the system Python
+# (modern macOS/Homebrew block system-wide pip installs — PEP 668).
+VENV=".venv"
+if [ ! -d "$VENV" ]; then
+  echo "Creating virtual environment (first run only)..."
+  "$PY" -m venv "$VENV"
+fi
+# Use the venv's interpreter from here on.
+PY="$VENV/bin/python"
+
 echo "Installing builder dependencies (first run only)..."
+"$PY" -m pip install --upgrade pip >/dev/null
 "$PY" -m pip install -r requirements.txt
 
 echo "Starting DIMS Dashboard Builder..."
