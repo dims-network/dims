@@ -139,3 +139,30 @@ def test_block_mode_leaves_a_short_series_alone():
     codes = np.array([1, 2])
     assert list(red.block_mode(codes, 5)) == [1, 2]
     assert list(red.block_mode(codes, 1)) == [1, 2]
+
+
+def test_the_reduced_size_never_exceeds_the_cap():
+    """`factor_for` floor-divided, so the cap was a suggestion.
+
+    999 points against a cap of 500 gave a factor of 1 and drew all 999 --
+    twice the cap, and four times the cells in a recurrence plot, which is
+    quadratic in it. Anything between the cap and twice the cap was not
+    reduced at all. On an ORTHO recording whose categorical gaze recurrence
+    rate is 69%, that wrote a 67 MB browser payload.
+    """
+    for cap in (100, 500, 1000):
+        for n in range(2, 4 * cap, 7):
+            factor = red.factor_for(n, cap)
+            assert n // factor <= cap, (
+                f"{n} points at a cap of {cap} reduced to {n // factor}")
+
+
+def test_nothing_short_enough_is_reduced():
+    """The other half: reducing what already fits would throw away detail."""
+    for n in (1, 50, 499, 500):
+        assert red.factor_for(n, 500) == 1
+
+
+def test_a_factor_is_never_zero_or_negative():
+    assert red.factor_for(10, 0) == 1
+    assert red.factor_for(0, 500) == 1

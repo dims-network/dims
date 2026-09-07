@@ -47,10 +47,22 @@ import numpy as np
 
 
 def factor_for(n_points: int, max_points: int) -> int:
-    """The integer reduction factor, or 1 when nothing needs reducing."""
+    """The integer reduction factor, or 1 when nothing needs reducing.
+
+    Rounds **up**, so that `n_points // factor <= max_points` actually holds.
+    Floor division does not: 999 points against a cap of 500 gave a factor of
+    1 and drew all 999, twice the cap and four times the matrix cells. Anything
+    between max_points and 2*max_points was not reduced at all.
+
+    That was invisible in a series plot -- 530 points where 500 was asked for
+    looks fine -- and expensive in a recurrence plot, which is quadratic in it.
+    On an ORTHO recording whose categorical gaze recurrence rate is 69%, the
+    unreduced 896-point matrix wrote 615,095 sparse index pairs and a 67 MB
+    browser payload.
+    """
     if max_points <= 0 or n_points <= max_points:
         return 1
-    return max(1, n_points // max_points)
+    return max(1, -(-n_points // max_points))
 
 
 def block_mean(a, factor: int):

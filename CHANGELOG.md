@@ -7,6 +7,22 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v1.5.2
+
+**A reduction cap that is actually a cap.** `factor_for` floor-divided, so
+`n // factor` could be twice `max_points`: 999 points against a cap of 500 gave
+a factor of 1 and drew all 999. Anything between the cap and twice the cap was
+not reduced at all.
+
+Invisible in a series plot — 530 points where 500 was asked for looks fine —
+and expensive in a recurrence plot, which is quadratic in it. Measured on an
+ORTHO recording whose categorical gaze recurrence rate is 69%: the unreduced
+896-point matrix wrote 615,095 sparse index pairs, and that study's RQA
+payloads came to 297 MB.
+
+**Any RQA, cross-RQA or categorical output should be recomputed**, as much for
+its size as for its correctness.
+
 ## v1.5.1
 
 - **`dims-case check` says when a clone has not enabled its guards.** A private
