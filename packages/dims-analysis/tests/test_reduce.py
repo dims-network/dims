@@ -1,19 +1,27 @@
-"""How an analysis is reduced for the browser, and why it is not striding.
+"""How an analysis is reduced for the browser.
 
-The cross-wavelet step block-averages and records the factor. The two recurrence
-steps took every nth sample and every nth row/column, and recorded nothing.
+A recurrence plot carries two things a reader takes from it: where the structure
+is, and how much of the plot is recurrent -- the rate printed beside it. There
+are two obvious reductions and each keeps one and destroys the other:
 
-For a continuous series, striding is decimation with no low-pass filter: it folds
-detail back onto the frequencies that remain. For a recurrence matrix it is worse
-than that, and worse in a way specific to what RQA measures.
+  striding   keeps the rate, deletes the structure. A line one cell off the main
+             diagonal vanishes entirely, because the sampled rows and columns
+             never intersect it -- and an off-diagonal line is what a lagged
+             coupling looks like, which is what cross-recurrence is for.
+  block-OR   keeps the structure, inflates the rate. Any block with one point
+             becomes recurrent, so density grows with the square of the factor.
+             Measured on ORTHO at factor 9: 10.9% became 54.4%.
+
+Both were shipped, in that order, and each test below fails on one of them.
 """
 import numpy as np
+import pytest
 
 from dims_analysis.common import reduce as red
 
 
-def _diagonal(n, offset=0):
-    m = np.zeros((n, n), dtype=np.uint8)
+def _line(n, offset=0, dtype=np.uint8):
+    m = np.zeros((n, n), dtype=dtype)
     for i in range(n):
         j = i + offset
         if 0 <= j < n:
@@ -21,55 +29,92 @@ def _diagonal(n, offset=0):
     return m
 
 
-def test_striding_erases_an_off_diagonal_line_and_block_any_does_not():
-    """The headline. Cross-recurrence is about structure OFF the main diagonal
-    -- a lagged coupling is exactly that -- and striding deletes it outright."""
-    m = _diagonal(60, offset=1)
-    factor = 12
-    strided = m[::factor, ::factor]
-    reduced = red.block_any(m, factor)
-    assert strided.sum() == 0, "fixture wrong: this line should vanish under striding"
-    assert reduced.sum() > 0, "block-OR lost a line that striding was expected to lose"
+def _noise(n, density, seed=0):
+    rng = np.random.default_rng(seed)
+    return (rng.random((n, n)) < density).astype(np.uint8)
 
 
-def test_a_diagonal_survives_as_a_diagonal():
-    m = _diagonal(60)
-    reduced = red.block_any(m, 12)
-    assert reduced.shape == (5, 5)
-    assert np.array_equal(reduced, np.eye(5, dtype=reduced.dtype))
+# --- the two failures, each pinned ------------------------------------------
+
+def test_an_off_diagonal_line_survives():
+    """Striding deletes this outright. The fixture asserts that first, so the
+    test cannot quietly stop testing anything."""
+    n, factor, offset = 360, 12, 1
+    m = _line(n, offset)
+    assert m[::factor, ::factor].sum() == 0, \
+        "fixture wrong: this line is supposed to vanish under striding"
+    reduced = red.block_binary(m, factor)
+    assert reduced.sum() > 0, "the line was lost"
+    # and it is still a line, not scattered points
+    diagonals = [k for k in range(-reduced.shape[0] + 1, reduced.shape[1])
+                 if reduced.diagonal(k).mean() > 0.5]
+    assert diagonals, f"the line did not survive as a line: {reduced.sum()} points"
 
 
-def test_block_any_stays_binary():
-    rng = np.random.default_rng(0)
-    m = (rng.random((40, 40)) < 0.07).astype(np.uint8)
-    reduced = red.block_any(m, 4)
-    assert set(np.unique(reduced)).issubset({0, 1}), \
-        "averaging a recurrence matrix produces fractions, which are not recurrences"
+@pytest.mark.parametrize("density,factor", [(0.07, 4), (0.109, 9), (0.25, 6)])
+def test_the_reduced_plot_has_the_same_recurrence_rate(density, factor):
+    """Block-OR fails this badly: at factor 9 it turned 10.9% into 54.4%, so the
+    picture contradicted the number printed beside it."""
+    m = _noise(600, density)
+    reduced = red.block_binary(m, factor)
+    assert reduced.mean() == pytest.approx(m.mean(), abs=0.01), (
+        f"input {m.mean():.3f} -> output {reduced.mean():.3f}")
 
 
-def test_block_any_never_invents_recurrence():
-    m = np.zeros((30, 30), dtype=np.uint8)
-    assert red.block_any(m, 5).sum() == 0
+def test_both_properties_hold_at_once():
+    """Structure and rate together, which is the whole point."""
+    n, factor = 900, 9
+    m = _noise(n, 0.109, seed=1)
+    for i in range(n - 20):
+        m[i, i + 20] = 1                      # a clearly off-diagonal line
+    reduced = red.block_binary(m, factor)
+
+    assert reduced.mean() == pytest.approx(m.mean(), abs=0.01)
+    k = 20 // factor                          # the block diagonal it maps onto
+    assert reduced.diagonal(k).mean() > 2 * reduced.mean(), \
+        "the line is not denser than the background it sits in"
 
 
-def test_block_mean_averages_a_series_rather_than_sampling_it():
-    a = np.arange(12, dtype=float)
-    out = red.block_mean(a, 4)
-    assert np.allclose(out, [1.5, 5.5, 9.5]), "series must be block-averaged"
-    assert not np.allclose(out, a[::4]), "this is what striding would have given"
+# --- basic properties -------------------------------------------------------
+
+def test_the_result_is_binary():
+    """Averaging a recurrence matrix gives fractions, which are not recurrences."""
+    reduced = red.block_binary(_noise(400, 0.07), 4)
+    assert set(np.unique(reduced)).issubset({0, 1})
+
+
+def test_an_empty_matrix_stays_empty():
+    assert red.block_binary(np.zeros((30, 30), np.uint8), 5).sum() == 0
+
+
+def test_a_full_matrix_stays_full():
+    assert red.block_binary(np.ones((30, 30), np.uint8), 5).mean() == 1.0
 
 
 def test_a_factor_of_one_is_the_identity():
-    a = np.arange(9, dtype=float).reshape(3, 3)
+    a = np.arange(9, dtype=np.uint8).reshape(3, 3)
+    assert np.array_equal(red.block_binary(a, 1), a)
     assert np.array_equal(red.block_mean(a, 1), a)
-    assert np.array_equal(red.block_any(a, 1), a)
     assert red.factor_for(100, 500) == 1
 
 
-def test_factor_and_ragged_tails():
+def test_the_output_is_deterministic():
+    """Ties among equally dense blocks are broken arbitrarily but must not vary
+    between runs, or two rebuilds of the same study would differ."""
+    m = _noise(300, 0.07, seed=3)
+    assert np.array_equal(red.block_binary(m, 6), red.block_binary(m, 6))
+
+
+def test_series_are_averaged_not_sampled():
+    a = np.arange(12, dtype=float)
+    out = red.block_mean(a, 4)
+    assert np.allclose(out, [1.5, 5.5, 9.5])
+    assert not np.allclose(out, a[::4])
+
+
+def test_factor_and_the_ragged_tail():
     assert red.factor_for(6000, 500) == 12
-    # 10 rows at factor 4 -> the ragged tail is dropped, not padded with zeros,
-    # because a padded block would report recurrence that was never computed.
-    m = np.ones((10, 10), dtype=np.uint8)
-    assert red.block_any(m, 4).shape == (2, 2)
+    # a partial trailing block is dropped, not padded: a padded block would
+    # report recurrence over cells that were never computed.
+    assert red.block_binary(np.ones((10, 10), np.uint8), 4).shape == (2, 2)
     assert red.block_mean(np.ones(10), 4).shape == (2,)

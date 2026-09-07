@@ -123,11 +123,11 @@ def matrix_to_sparse_format(matrix):
 def downsample_for_visualization(ts1, ts2, time_values, recurrence_matrix, max_points=MAX_POINTS):
     """Reduce for the browser. Returns (ts1, ts2, time, matrix, factor).
 
-    Series are block-averaged, the matrix is block-OR'd. See common/reduce.py.
-    Striding mattered here more than anywhere: cross-recurrence is about
-    structure OFF the main diagonal -- that is what a lagged coupling looks like
-    -- and a line one cell off the diagonal disappears entirely when you take
-    every nth row and every nth column.
+    Series are block-averaged; the matrix keeps both its structure and its
+    recurrence rate. See common/reduce.py. This matters here more than anywhere:
+    cross-recurrence is about structure OFF the main diagonal -- that is what a
+    lagged coupling looks like -- and a line one cell off the diagonal
+    disappears entirely when you take every nth row and every nth column.
     """
     n_points = len(time_values)
     factor = _reduce.factor_for(n_points, max_points)
@@ -137,7 +137,7 @@ def downsample_for_visualization(ts1, ts2, time_values, recurrence_matrix, max_p
         _reduce.block_mean(ts1, factor),
         _reduce.block_mean(ts2, factor),
         _reduce.block_mean(time_values, factor),
-        _reduce.block_any(recurrence_matrix, factor),
+        _reduce.block_binary(recurrence_matrix, factor),
         factor,
     )
 
@@ -355,8 +355,11 @@ def main():
                     'reduction': {
                         'factor': int(reduction_factor),
                         'series': 'block-mean',
-                        'matrix': 'block-any',
+                        'matrix': 'density-preserving',
                         'n_points_full': int(n),
+                        # What was actually drawn; see the note in rqa.py.
+                        'rate_full': _reduce.rate_of(rec_matrix),
+                        'rate_drawn': _reduce.rate_of(matrix_vis),
                     },
                 },
                 'full_stats': {

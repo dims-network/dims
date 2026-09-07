@@ -157,11 +157,13 @@ def matrix_to_sparse_format(matrix):
 def downsample_for_visualization(time_series, time_values, recurrence_matrix, max_points=500):
     """Reduce for the browser. Returns (data, time, matrix, factor).
 
-    The series is block-averaged and the matrix is block-OR'd -- see
-    common/reduce.py for why each, and why striding was wrong for both. It
-    matters most for the matrix: a recurrent line one cell off the main diagonal
-    disappears completely under striding, and that is exactly where a lagged
-    coupling lives.
+    The series is block-averaged; the matrix keeps both its structure and its
+    recurrence rate -- see common/reduce.py, which explains why striding and
+    block-OR each destroy one of the two. It matters most for the matrix: under
+    striding a recurrent line one cell off the main diagonal disappears
+    completely, and that is exactly where a lagged coupling lives; under block-OR
+    the plot fills in until its density no longer matches the rate printed
+    beside it.
     """
     n_points = len(time_series)
     factor = _reduce.factor_for(n_points, max_points)
@@ -170,10 +172,10 @@ def downsample_for_visualization(time_series, time_values, recurrence_matrix, ma
 
     data_ds = _reduce.block_mean(time_series, factor)
     time_ds = _reduce.block_mean(time_values, factor)
-    matrix_ds = _reduce.block_any(recurrence_matrix, factor)
+    matrix_ds = _reduce.block_binary(recurrence_matrix, factor)
 
     print(f"  Reduced {n_points} -> {len(time_ds)} points for the browser "
-          f"(block average / block-OR, factor {factor})")
+          f"(block average / density-preserving, factor {factor})")
 
     return data_ds, time_ds, matrix_ds, factor
 
@@ -227,8 +229,14 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
             'reduction': {
                 'factor': int(reduction_factor),
                 'series': 'block-mean',
-                'matrix': 'block-any',
+                'matrix': 'density-preserving',
                 'n_points_full': int(len(data_clean)),
+                # What was actually drawn. These normally agree; they can differ
+                # on a very sparse matrix, where keeping the rate would reduce a
+                # line to a couple of dots. Recorded either way, so the picture
+                # never silently contradicts the rate beside it.
+                'rate_full': _reduce.rate_of(rec_matrix_full),
+                'rate_drawn': _reduce.rate_of(rec_matrix_vis),
             },
         },
         'full_data': {
