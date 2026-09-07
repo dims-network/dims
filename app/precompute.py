@@ -77,45 +77,109 @@ def create_venv(project: str):
     )
 
 
+# Legacy per-analysis runners. Kept only so an older caller does not break;
+# discover_steps() is what the wizard uses now.
 def run_rqa(project: str):
-    vpy = _venv_python(project)
-    yield from _stream(
-        [vpy, "opt/step_RQA.py", "--config", "config.json", "--output-dir", "assets/rqa"],
-        cwd=project,
-    )
+    yield from _run_step(project, "rqa", "opt/step_RQA.py", "assets/rqa")
 
 
 def run_crosswavelet(project: str):
-    vpy = _venv_python(project)
-    yield from _stream(
-        [vpy, "opt/step_crosswavelet.py", "--config", "config.json",
-         "--output-dir", "assets/crosswavelet", "--verbose"],
-        cwd=project,
-    )
+    yield from _run_step(project, "crosswavelet", "opt/step_crosswavelet.py",
+                         "assets/crosswavelet", extra=["--verbose"])
 
 
 def run_crqa(project: str):
+    yield from _run_step(project, "crqa", "opt/step_cRQA.py", "assets/crqa")
+
+
+def _run_step(project, step_id, script, out_dir, extra=None):
     vpy = _venv_python(project)
-    yield from _stream(
-        [vpy, "opt/step_cRQA.py", "--config", "config.json", "--output-dir", "assets/crqa"],
-        cwd=project,
-    )
+    cmd = [vpy, script, "--config", "config.json", "--output-dir", out_dir]
+    yield from _stream(cmd + list(extra or []), cwd=project)
 
 
-def run_precompute(project: str, do_rqa: bool, do_crosswavelet: bool, do_crqa: bool = False):
-    """Full precompute pipeline as a single generator of log lines."""
+# Which analyses a generated project offers, and how to run each one.
+#
+# This used to be three hardcoded functions plus a three-branch orchestrator, so
+# adding one analysis meant edits in four files across this repo. A project now
+# declares its own: any opt/step_*.py it ships can be run, and its config key
+# decides whether it should be.
+#
+# Naming is the contract, and it is the template's: step_<id>.py writes into
+# assets/<id>/ and is switched on by include_<id>.
+def discover_steps(project: str):
+    """[(step_id, script, output_dir, config_key), ...] for this project."""
+    opt = os.path.join(project, "opt")
+    if not os.path.isdir(opt):
+        return []
+    found = []
+    for name in sorted(os.listdir(opt)):
+        if not (name.startswith("step_") and name.endswith(".py")):
+            continue
+        raw = name[len("step_"):-len(".py")]
+        found.append((raw.lower(), os.path.join("opt", name),
+                      os.path.join("assets", raw.lower()), f"include_{raw}"))
+    return found
+
+
+def _enabled(config: dict, key: str) -> bool:
+    """Match the key case-insensitively: the historical ones are include_RQA and
+    include_cRQA, which no naming rule would have predicted."""
+    wanted = key.lower()
+    return any(k.lower() == wanted and bool(v) for k, v in (config or {}).items())
+
+
+def run_precompute(project: str, do_rqa=None, do_crosswavelet=None, do_crqa=None,
+                   config: dict = None, stop_on_failure: bool = True):
+    """Run every analysis this project's config enables.
+
+    Yields log lines, as before. The booleans are still accepted so an older
+    caller keeps working, but passing `config` is what lets the project decide
+    rather than this function knowing three analyses by name.
+
+    A failure is announced as __FAILED__:<step> and, by default, stops the run.
+    Continuing produced output that was partly stale and looked complete.
+    """
+    if config is None:
+        config = {}
+        for key, flag in (("include_RQA", do_rqa), ("include_crosswavelet", do_crosswavelet),
+                          ("include_cRQA", do_crqa)):
+            if flag:
+                config[key] = True
+
     yield "=== Setting up Python environment ===\n"
     yield from create_venv(project)
-    if do_rqa:
-        yield "\n=== Running RQA ===\n"
-        yield from run_rqa(project)
-    if do_crosswavelet:
-        yield "\n=== Running cross-wavelet ===\n"
-        yield from run_crosswavelet(project)
-    if do_crqa:
-        yield "\n=== Running cross-RQA ===\n"
-        yield from run_crqa(project)
-    yield "\n=== Precompute complete ===\n"
+
+    steps = [s for s in discover_steps(project) if _enabled(config, s[3])]
+    if not steps:
+        yield "\nNo analyses are enabled in config.json - nothing to precompute.\n"
+        yield "=== Precompute complete ===\n"
+        return
+
+    failures = []
+    for step_id, script, out_dir, _key in steps:
+        yield f"\n=== Running {step_id} ===\n"
+        code = None
+        for line in _run_step(project, step_id, script, out_dir,
+                              extra=["--verbose"] if step_id == "crosswavelet" else None):
+            if line.startswith("__EXIT__:"):
+                try:
+                    code = int(line.split(":", 1)[1].strip() or 0)
+                except ValueError:
+                    code = 1
+            yield line
+        if code:
+            failures.append(step_id)
+            yield f"__FAILED__:{step_id}\n"
+            if stop_on_failure:
+                yield f"\nStopping: {step_id} failed. Running the rest would leave output\n"
+                yield "that is partly missing but looks complete.\n"
+                break
+
+    if failures:
+        yield f"\n=== Precompute FAILED: {', '.join(failures)} ===\n"
+    else:
+        yield "\n=== Precompute complete ===\n"
 
 
 # --- Preview ---------------------------------------------------------------

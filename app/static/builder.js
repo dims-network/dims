@@ -654,14 +654,17 @@ $("#btn-precompute").addEventListener("click", async () => {
       const { value, done } = await reader.read();
       if (done) break;
       const chunk = dec.decode(value, { stream: true });
-      if (chunk.includes("__ERROR__") || /__EXIT__:[1-9]/.test(chunk)) failed = true;
-      log.textContent += chunk.replace(/__EXIT__:\d+\n/g, "");
+      if (chunk.includes("__ERROR__") || chunk.includes("__FAILED__:") ||
+          /__EXIT__:[1-9]/.test(chunk)) failed = true;
+      log.textContent += chunk.replace(/__EXIT__:\d+\n/g, "")
+                            .replace(/__FAILED__:\S+\n/g, "");
       log.scrollTop = log.scrollHeight;
     }
     setMsg(6, failed ? "Precompute finished with errors — check the log." : "Precompute complete.",
       failed ? "error" : "ok");
-    unlockStep(7);
-    if (!failed) gotoStep(7);
+    // Only open the preview/deploy step if the analyses actually ran. A
+    // dashboard built on a failed precompute looks complete and is not.
+    if (!failed) { unlockStep(7); gotoStep(7); }
   } catch (e) {
     setMsg(6, e.message, "error");
   } finally {

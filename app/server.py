@@ -297,14 +297,14 @@ def create_app():
         if not state["output_dir"]:
             return jsonify(error="No project."), 400
         cfg = _assemble_config()
-        do_rqa = bool(cfg.get("include_RQA"))
-        do_cw = bool(cfg.get("include_crosswavelet"))
-        do_crqa = bool(cfg.get("include_cRQA"))
         proj = state["output_dir"]
 
         def generate():
+            # Pass the config rather than three booleans: the project's own
+            # opt/step_*.py decide what can run, so adding an analysis to the
+            # template no longer needs a change here.
             try:
-                for line in precompute.run_precompute(proj, do_rqa, do_cw, do_crqa):
+                for line in precompute.run_precompute(proj, config=cfg):
                     yield line
             except Exception as e:  # noqa: BLE001
                 yield f"\n__ERROR__: {e}\n"
