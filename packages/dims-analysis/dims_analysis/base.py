@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import os
 
+from dims_analysis.common import assets
+
 
 class StepContext:
     """Everything a step is allowed to touch outside its own module.
@@ -28,10 +30,45 @@ class StepContext:
     def path(self, *parts: str) -> str:
         return os.path.join(self.project_dir, *parts)
 
+    def output_dir_for(self, step: "Step") -> str:
+        """Where this step's output belongs. No side effects.
+
+        Resolved through data.local.json, so a private study -- whose assets
+        live outside the repository -- gets the same answer here as the step
+        itself computes. An explicit --output-dir is the caller being specific
+        and is never rewritten.
+        """
+        if self._output_dir:
+            return self._output_dir
+        d = assets.resolve(step.output_dir, self.project_dir)
+        return d if os.path.isabs(d) else self.path(d)
+
     def output_path(self, step: "Step", video_id: str) -> str:
-        d = self._output_dir or self.path(step.output_dir)
+        d = self.output_dir_for(step)
         os.makedirs(d, exist_ok=True)
         return os.path.join(d, step.output_name.format(video_id=video_id))
+
+    def output_snapshot(self, step: "Step") -> dict:
+        """{path: mtime} for the step's output directory, for before/after use.
+
+        Comparing snapshots rather than timestamps against a clock start avoids
+        depending on filesystem timestamp granularity, and catches a rewritten
+        file as well as a new one.
+        """
+        d = self.output_dir_for(step)
+        snap: dict = {}
+        try:
+            names = os.listdir(d)
+        except OSError:
+            return snap
+        for name in names:
+            full = os.path.join(d, name)
+            try:
+                if os.path.isfile(full):
+                    snap[full] = os.stat(full).st_mtime_ns
+            except OSError:
+                continue
+        return snap
 
     # -- results -------------------------------------------------------------
     def write_result(self, step: "Step", video_id: str, payload: dict) -> str:

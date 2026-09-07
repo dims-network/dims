@@ -41,19 +41,39 @@ def cmd_run(args) -> int:
         return 2
     config = _load_config(args.config)
     project_dir = os.path.dirname(os.path.abspath(args.config)) or "."
-    steps = discover()
+    import_problems: list = []
+    steps = discover(import_problems)
+
+    unloadable = {name for name, _ in import_problems}
 
     wanted = None
     if args.steps and args.steps != "all":
         wanted = {s.strip() for s in args.steps.split(",") if s.strip()}
-        unknown = wanted - set(steps)
+        # A step that is registered but failed to import is not unknown. Saying
+        # "unknown step: crosswavelet" when pycwt is missing sends the user
+        # looking for a typo instead of an install.
+        unknown = wanted - set(steps) - unloadable
         if unknown:
             print(f"error: unknown step(s): {', '.join(sorted(unknown))}", file=sys.stderr)
             print(f"       available: {', '.join(sorted(steps)) or '(none)'}", file=sys.stderr)
             return 2
 
     ctx = StepContext(project_dir, config, output_dir=args.output_dir)
-    ran, skipped, failed = [], [], []
+    ran, skipped, failed, empty = [], [], [], []
+
+    # A step that could not be imported is only a warning if nothing wanted it.
+    # A missing pycwt used to mean the one analysis the config asked for never
+    # ran, with a warning in the log and an exit code of 0.
+    blocking = unloadable if wanted is None else (unloadable & wanted)
+    if blocking:
+        for name, exc in import_problems:
+            if name in blocking:
+                print(f"error: step '{name}' could not be loaded: {exc}", file=sys.stderr)
+        print(f"       install its dependencies, or pass --steps without it",
+              file=sys.stderr)
+        if not args.keep_going:
+            return 1
+        failed.extend(sorted(blocking))
 
     for sid, step in sorted(steps.items()):
         if wanted is not None and sid not in wanted:
@@ -62,6 +82,7 @@ def cmd_run(args) -> int:
             skipped.append(sid)
             continue
         print(f"=== {sid} ===")
+        before = ctx.output_snapshot(step)
         try:
             step.run(config, ctx)
         except Exception as exc:  # noqa: BLE001 - reported, then surfaced in the exit code
@@ -73,16 +94,47 @@ def cmd_run(args) -> int:
             if not args.keep_going:
                 break
         else:
-            ran.append(sid)
+            # Producing nothing is the failure mode that actually happens, and
+            # it does not raise: every step catches its own unreadable-input
+            # case, prints a warning and returns. The run then reported success
+            # with an empty output directory, and build_assets.py -- which uses
+            # check=True -- printed "Asset build complete".
+            after = ctx.output_snapshot(step)
+            if not _wrote_something(before, after):
+                empty.append(sid)
+                print(f"error: step '{sid}' was enabled by the config but wrote "
+                      f"no output", file=sys.stderr)
+                print(f"       expected files in {ctx.output_dir_for(step)}",
+                      file=sys.stderr)
+                print(f"       the step's own messages above say why; the usual "
+                      f"cause is missing input", file=sys.stderr)
+                if not args.keep_going:
+                    break
+            else:
+                ran.append(sid)
 
     print()
     print(f"ran: {', '.join(ran) or '(none)'}")
     if skipped:
         print(f"skipped (not enabled in config): {', '.join(skipped)}")
+    if empty:
+        print(f"PRODUCED NOTHING: {', '.join(empty)}", file=sys.stderr)
     if failed:
         print(f"FAILED: {', '.join(failed)}", file=sys.stderr)
-        return 1
-    return 0
+    return 1 if (failed or empty) else 0
+
+
+def _wrote_something(before: dict, after: dict) -> bool:
+    """True if any file appeared or was rewritten between the two snapshots.
+
+    Comparing snapshots rather than a wall-clock start avoids depending on the
+    filesystem's timestamp granularity, and counts a rewritten file -- a re-run
+    over the same study writes the same names.
+    """
+    for path, mtime in after.items():
+        if before.get(path) != mtime:
+            return True
+    return False
 
 
 def main(argv=None) -> int:
