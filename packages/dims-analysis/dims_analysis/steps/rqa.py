@@ -18,6 +18,14 @@ import os
 from dims_analysis.common import assets as _assets
 import argparse
 
+# Where the time series are read from. A private study keeps its data outside
+# the repository, at the path data.local.json names, so main() rewrites this
+# through the resolver. It was previously inlined at the one call site and only
+# the OUTPUT directory was resolved -- so on a private study this step read from
+# a directory that does not exist while printing "assets resolved" and reporting
+# success.
+INPUT_DIR = 'assets/timeseries'
+
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
 # the .npz written beside the JSON and is not affected.
@@ -215,7 +223,7 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     """
     Process RQA for a specific data type.
     """
-    csv_path = f"assets/timeseries/{video_id}_{data_type}.csv"
+    csv_path = os.path.join(INPUT_DIR, f"{video_id}_{data_type}.csv")
     
     if not os.path.exists(csv_path):
         print(f"Warning: File not found: {csv_path}")
@@ -288,6 +296,7 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     return result
 
 def main():
+    global INPUT_DIR
     parser = argparse.ArgumentParser(description='Generate RQA data for DIMS Dashboard')
     parser.add_argument('--config', default='config.json', help='Path to config.json')
     parser.add_argument('--output-dir', default='assets/rqa', help='Output directory for RQA data')
@@ -308,6 +317,7 @@ def main():
     _note = _assets.describe()
     if _note:
         print(_note)
+    INPUT_DIR = _assets.resolve(INPUT_DIR)
     args.output_dir = _assets.resolve(args.output_dir)
     os.makedirs(args.output_dir, exist_ok=True)
     
