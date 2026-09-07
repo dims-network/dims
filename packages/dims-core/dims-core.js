@@ -250,7 +250,16 @@ class DIMSApp {
         const target = root || document;
         const run = () => {
             if (typeof Plotly === 'undefined' || !Plotly.Plots || !Plotly.Plots.resize) return;
-            target.querySelectorAll('.js-plotly-plot').forEach(el => {
+            // querySelectorAll walks descendants only, never the root itself. A
+            // tab whose container IS the graph div is therefore invisible to it,
+            // and the timeseries tab is exactly that: it draws straight into
+            // #plotContainer, which is also its pane. The first version of this
+            // shipped with that hole and fixed every tab except the one people
+            // noticed.
+            const figures = [];
+            if (target.matches && target.matches('.js-plotly-plot')) figures.push(target);
+            target.querySelectorAll('.js-plotly-plot').forEach(el => figures.push(el));
+            figures.forEach(el => {
                 // A figure can be removed between the frame being queued and it
                 // running, and one that never finished drawing has no layout to
                 // resize; neither is worth failing a tab switch over.

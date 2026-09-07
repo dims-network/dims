@@ -113,3 +113,32 @@ test('a settled window resize re-measures the visible tab only', async () => {
   assert.ok(!w.__resized.includes('hiddenFigure'),
     'resized a hidden pane, which cannot be measured and wastes the relayout');
 });
+
+test('a tab whose container IS the figure is re-measured too', async () => {
+  // The timeseries tab draws into #plotContainer and declares it as its own
+  // container, so the pane and the graph div are one element. querySelectorAll
+  // never matches its own root, which is how the first fix missed precisely the
+  // tab the bug was reported against.
+  const w = await boot(CONFIG);
+  const ts = w.dimsApp.tabs.find(t => t.id === 'timeseries');
+  assert.ok(ts, 'no timeseries tab');
+  const paneId = w.dimsApp.paneIdFor(ts);
+  const pane = w.document.getElementById(paneId);
+  assert.ok(pane, `no pane ${paneId}`);
+
+  // Plotly drew straight into the pane, so the pane itself carries the marks.
+  pane.classList.add('js-plotly-plot');
+  pane._fullLayout = { width: 300, height: 200 };
+
+  const other = [...w.document.querySelectorAll('.tab-button')]
+    .map(b => b.dataset.tab).find(id => id !== 'timeseries');
+  w.dimsApp.switchTab(other);
+  await new Promise(r => setTimeout(r, 30));
+
+  w.__resized.length = 0;
+  w.dimsApp.switchTab('timeseries');
+  await new Promise(r => setTimeout(r, 30));
+
+  assert.ok(w.__resized.includes(paneId),
+    `the pane that is itself the figure was not resized (resized: ${w.__resized})`);
+});

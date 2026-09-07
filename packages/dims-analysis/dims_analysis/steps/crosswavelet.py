@@ -85,14 +85,18 @@ MONTE_CARLO_ITERATIONS = 0  # Number of Monte Carlo iterations (0 = use theoreti
 # of 0.27 is indistinguishable from no coupling at all, which is not something
 # the raw number reveals. Only a Monte Carlo against AR(1) surrogates gives it.
 WCT_SIGNIF_ENABLED = True   # Compute the Monte Carlo coherence significance level
-WCT_SIGNIF_MC_COUNT = 100   # Surrogate pairs per null (pycwt default is 300)
+WCT_SIGNIF_MC_COUNT = 300   # Surrogate pairs per null (pycwt's own default)
 # The Monte Carlo is seeded, so the same input gives the same significance
 # threshold every time. Unseeded, two runs over identical data disagreed by up
 # to 0.04 on the 95% level (mean 0.012 across scales) -- which propagates into
 # wtc_signif_fraction, i.e. the reported "% of cells significantly coupled"
 # was not reproducible. Set to None to restore the old random behaviour.
 #
-# On mc_count: 100 is a compromise against a cold-run cost of ~45 s. The
+# On mc_count: this was 100 for a while, as a compromise against the cold-run
+# cost. A 95th percentile estimated from 100 samples is noisy -- unseeded, two
+# runs over identical data disagreed by up to 0.04 on the level -- and that level
+# is what decides whether an edge reads as real or as chance, so the study moved
+# to pycwt's default of 300 before publication. The
 # disk cache below means that cost is paid once per (alpha, grid) rather than
 # per pair, per video and per re-run, so raising this toward pycwt's default
 # of 300 is affordable if a tighter null is wanted for publication.
