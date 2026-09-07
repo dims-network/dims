@@ -32,6 +32,12 @@ SCAFFOLD = "packages/dims-case-scaffold"
 RESTRICTED = ["assets/videos", "assets/timeseries", "assets/transcripts",
               "assets/elan", "assets/motion_tracking"]
 
+# Analyses that now come from the core. Anything else a study keeps in opt/ is
+# its own data preparation and must stay -- deleting opt/ wholesale during a
+# migration is an easy and expensive mistake, and one I made twice.
+SHARED_STEPS = {"step_RQA.py", "step_cRQA.py", "step_crosswavelet.py",
+                "requirements.txt"}
+
 PRE_COMMIT = '''#!/bin/sh
 # Refuses to stage data in a private case.
 #
@@ -484,6 +490,23 @@ def cmd_adopt(args):
     print(f"adopted {dest}")
     print(f"  visibility: {args.visibility}   core: {case['dimsCore']}")
     print("  config.json and assets/ were left exactly as they were")
+
+    opt = os.path.join(dest, "opt")
+    if os.path.isdir(opt):
+        own = sorted(f for f in os.listdir(opt)
+                     if f.endswith((".py", ".txt")) and f not in SHARED_STEPS)
+        shared = sorted(f for f in os.listdir(opt) if f in SHARED_STEPS)
+        if shared:
+            print(f"\n  opt/ still holds {len(shared)} file(s) that now come from the core:")
+            for f in shared:
+                print(f"    {f}")
+            print("    These can go: run them with `dims-analysis run --config config.json`.")
+        if own:
+            print(f"\n  opt/ also holds {len(own)} file(s) that look specific to this study:")
+            for f in own:
+                print(f"    {f}")
+            print("    KEEP these. Study-specific data preparation belongs with the study;")
+            print("    only the shared analyses moved to the core.")
     return 0
 
 
