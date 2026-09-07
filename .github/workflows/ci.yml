@@ -82,3 +82,28 @@ jobs:
       - name: Tests
         working-directory: packages/dims-core/test
         run: node --test
+
+  notebooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        working-directory: packages/dims-notebooks
+        run: python -m pip install -q numpy pandas pytest
+      - name: The checks must catch what they were written for
+        working-directory: packages/dims-notebooks
+        run: python -m pytest tests/ -q
+      - name: Notebooks are valid
+        run: |
+          python - <<'PY'
+          import json, glob, sys
+          bad = 0
+          for f in glob.glob("packages/dims-notebooks/*.ipynb"):
+              d = json.load(open(f))
+              if d.get("nbformat") != 4 or not d.get("cells"):
+                  print(f"::error file={f}::not a usable notebook"); bad = 1
+          sys.exit(bad)
+          PY

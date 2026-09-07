@@ -13,6 +13,7 @@ packages/dims-core/          the host: config, video, the time bus, the tab regi
 packages/dims-tabs/          every tab, one self-registering file each
 packages/dims-analysis/      the Python analyses, a pip package
 packages/dims-case-scaffold/ what a new study starts from
+packages/dims-notebooks/     sanity checks, as notebooks you can run on a study
 apps/builder/                the no-code wizard
 docs/contracts/              the contracts — read one, not all of them
 ```
@@ -30,6 +31,7 @@ read individually; you should not need to read this whole directory to start.
 | Know where a data file belongs | [`docs/contracts/assets.md`](docs/contracts/assets.md) |
 | Work with **human-subject data** | [`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md) |
 | Set up a new study | [`docs/contracts/case.md`](docs/contracts/case.md) |
+| Check whether a study's data is sound | [`packages/dims-notebooks/`](packages/dims-notebooks/) |
 | Understand how it all fits | [`docs/architecture.md`](docs/architecture.md) |
 
 ### The five rules
