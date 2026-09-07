@@ -8,4 +8,5 @@ from dims_case.core import (  # noqa: F401
     _install_private_bits as install_private_bits,
     _dir_hash as dir_hash,
     _core_version as core_version,
+    verify_vendor,
 )

@@ -4,7 +4,7 @@
     dims-case new   <name> --visibility public|private [--dir PATH]
     dims-case adopt <path> --name NAME --visibility public|private
     dims-case sync  <path> [--version VERSION]
-    dims-case check <path>
+    dims-case check <path> [--release]
 
 `sync` is what the version-bump bot runs. `check` is what CI runs.
 
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(
 from dims_case.core import (          # noqa: E402
     CORE_ROOT, RESTRICTED, SHARED_STEPS, SCAFFOLD, VENDOR, PRE_COMMIT,
     _core_version, _dir_hash, _install_private_bits, _register_study_tabs,
-    _write_index, _write_vendor, _write_workflows,
+    _write_index, _write_vendor, _write_workflows, verify_vendor,
 )
 
 
@@ -205,20 +205,21 @@ def cmd_sync(args):
 
 
 def cmd_check(args):
+    """Offline by default; `--release` compares against this core checkout.
+
+    CI runs the release's own copy of this command, so `--release` means "the
+    version this study pins", and the comparison is one a fork cannot pass.
+    """
     dest = os.path.abspath(args.path)
     case = json.load(open(os.path.join(dest, "dims-case.json")))
-    recorded = case.get("vendorHashes") or {}
-    failed = False
-    for rel in VENDOR.values():
-        actual = _dir_hash(os.path.join(dest, rel))
-        if recorded.get(rel) != actual:
-            print(f"::error::{rel} does not match the pinned core "
-                  f"{case.get('dimsCore')}. Never edit vendored code -- fix it "
-                  f"in dims-network/dims and bump the pin.")
-            failed = True
-    if not failed:
-        print(f"vendored core matches {case.get('dimsCore')}")
-    return 1 if failed else 0
+    problems = verify_vendor(dest, strict=args.release)
+    for msg in problems:
+        print(f"::error::{msg}")
+    if problems:
+        return 1
+    against = f"core {case.get('dimsCore')}" if args.release else "the recorded pin"
+    print(f"vendored core matches {against}")
+    return 0
 
 
 def main(argv=None):
@@ -245,6 +246,9 @@ def main(argv=None):
 
     c = sub.add_parser("check", help="verify the vendored core (what CI runs)")
     c.add_argument("path")
+    c.add_argument("--release", action="store_true",
+                   help="rebuild vendor/ from this core and compare against "
+                        "that, rather than trusting the study's own hashes")
     c.set_defaults(func=cmd_check)
 
     args = p.parse_args(argv)

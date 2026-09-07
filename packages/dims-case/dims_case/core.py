@@ -22,6 +22,7 @@ import os
 
 
 import shutil
+import tempfile
 
 
 import subprocess
@@ -108,40 +109,12 @@ jobs:
       config_path: "config.json"
       check_assets: %(check_assets)s
 
+  # A study must not carry hand-edited core code -- that is what makes a
+  # pinned copy a pin rather than a fork. The check lives in the org's
+  # workflow repo because it needs the released core to compare against, and
+  # because one copy of it cannot drift from another.
   vendor:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      # A study must not carry hand-edited core code. This is what makes a
-      # pinned copy a pin rather than a fork.
-      - name: Vendored core matches the pin
-        run: |
-          python - <<'PY'
-          import hashlib, json, os, sys
-          case = json.load(open("dims-case.json"))
-          def dir_hash(path):
-              h = hashlib.sha256()
-              for root, dirs, files in os.walk(path):
-                  dirs.sort()
-                  for name in sorted(files):
-                      if name.startswith("."): continue
-                      full = os.path.join(root, name)
-                      h.update(os.path.relpath(full, path).encode())
-                      h.update(open(full, "rb").read())
-              return h.hexdigest()
-          bad = False
-          for rel, expected in (case.get("vendorHashes") or {}).items():
-              actual = dir_hash(rel)
-              if actual != expected:
-                  print(f"::error::{rel} does not match dims-core {case.get('dimsCore')}. "
-                        f"Never edit vendored code -- fix it in dims-network/dims and bump the pin.")
-                  bad = True
-          print("vendored core matches" if not bad else "")
-          sys.exit(1 if bad else 0)
-          PY
+    uses: dims-network/.github/.github/workflows/reusable-vendor-check.yml@main
 """
 
 
@@ -384,6 +357,52 @@ def _write_vendor(dest):
             shutil.rmtree(dst)
         shutil.copytree(src, dst, ignore=shutil.ignore_patterns("test", "node_modules", "*.md"))
     return {rel: _dir_hash(os.path.join(dest, rel)) for rel in VENDOR.values()}
+
+
+def verify_vendor(dest, strict=False):
+    """Problems with a study's vendored core, as a list of messages.
+
+    By default this compares vendor/ against the hashes the study recorded in
+    its own dims-case.json. That catches a hand-edit and needs no network, so
+    it is what a contributor runs locally.
+
+    Both sides of that comparison live in the study, though, so a vendor/ taken
+    from a *modified* core agrees with itself and passes. `strict` rebuilds
+    vendor/ from this checkout of the core and compares against that instead,
+    which is the comparison a fork cannot satisfy. CI runs it from a checkout
+    of the exact release the study pins, which is what makes a pin a pin.
+    """
+    case = json.load(open(os.path.join(dest, "dims-case.json")))
+    version = case.get("dimsCore")
+    recorded = case.get("vendorHashes") or {}
+    problems = []
+
+    expected = dict(recorded)
+    if strict:
+        with tempfile.TemporaryDirectory() as scratch:
+            expected = _write_vendor(scratch)
+        for rel in recorded:
+            if rel not in expected:
+                problems.append(
+                    f"{rel} is vendored here but is not part of core {version}.")
+
+    for rel, want in expected.items():
+        path = os.path.join(dest, rel)
+        if not os.path.isdir(path):
+            problems.append(f"{rel} is missing. Run `dims-case sync .`.")
+            continue
+        if _dir_hash(path) != want:
+            problems.append(
+                f"{rel} does not match dims-core {version}. Never edit vendored "
+                f"code -- fix it in dims-network/dims and bump the pin.")
+        elif strict and recorded.get(rel) != want:
+            # The bytes are right but the study's record of them is not, so an
+            # offline check would pass or fail for the wrong reason.
+            problems.append(
+                f"{rel} matches core {version}, but dims-case.json records a "
+                f"different hash for it. Re-run `dims-case sync .`.")
+
+    return problems
 
 
 def _install_private_bits(dest):
