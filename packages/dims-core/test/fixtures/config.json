@@ -1,0 +1,34 @@
+{
+  "title": "Fixture",
+  "videoIDs": [
+    "s1"
+  ],
+  "dataTypes": {
+    "s1": [
+      "alpha",
+      "beta"
+    ]
+  },
+  "include_RQA": [
+    "alpha",
+    "beta"
+  ],
+  "include_cRQA": [
+    [
+      "alpha",
+      "beta"
+    ]
+  ],
+  "include_crosswavelet": [
+    [
+      "alpha",
+      "beta"
+    ]
+  ],
+  "analysis": {
+    "crosswavelet": {
+      "maxTimePoints": 60,
+      "maxFreqPoints": 24
+    }
+  }
+}

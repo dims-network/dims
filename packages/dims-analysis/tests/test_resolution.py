@@ -208,3 +208,57 @@ def test_every_step_rounds_its_payload_and_says_so():
         code = [l for l in src.splitlines() if not l.lstrip().startswith("#")]
         assert not any("indent=2" in l for l in code), \
             f"{name} still writes indentation nobody reads"
+
+
+def test_the_payload_resolution_is_a_study_setting_not_a_constant():
+    """Two module constants decided how large every study's payload was.
+
+    The step contract's rule is that tuning which can only be changed by
+    editing the source is how a fork ends up maintaining its own copy of an
+    analysis — and `MAX_TIME_POINTS_VIZ` / `MAX_FREQ_POINTS_VIZ` were exactly
+    that. The right size depends on the recording: a two-minute lesson and a
+    thirty-second game do not want the same picture.
+    """
+    import numpy as np
+    from dims_analysis.steps import crosswavelet as cw
+
+    n_time, n_freq = 400, 80
+    # Every key the function reads. Discovered from the function, not guessed:
+    # a partial dict raises a KeyError that looks like a test bug and is one.
+    results = {
+        "freqs": np.linspace(0.1, 5, n_freq),
+        "period": np.linspace(0.2, 10, n_freq),
+        "scales": np.linspace(0.1, 5, n_freq),
+        "power": np.ones((n_freq, n_time)),
+        "phase": np.zeros((n_freq, n_time)),
+        "coherence": np.full((n_freq, n_time), 0.5),
+        "sig95_xwt": np.ones((n_freq, n_time)),
+        "signif_xwt": np.ones(n_freq),
+        "global_power": np.ones(n_freq),
+        "global_signif": np.ones(n_freq),
+        "coi": np.ones(n_time),
+    }
+    time = np.arange(n_time) * 0.05
+    avg = np.ones(n_time)
+
+    small = cw.downsample_for_storage(results, time, avg,
+                                      max_time_points=40, max_freq_points=10)
+    big = cw.downsample_for_storage(results, time, avg,
+                                    max_time_points=400, max_freq_points=80)
+
+    assert len(small["time"]) <= 40 < len(big["time"])
+    assert len(small["period"]) <= 10 < len(big["period"])
+    # And the picture stays rectangular: a coherence row per period, a column
+    # per time point. A tab draws it as a grid and says nothing if it is not.
+    assert len(small["coherence"]) == len(small["period"])
+    assert len(small["coherence"][0]) == len(small["time"])
+
+
+def test_the_study_tuning_block_is_where_those_numbers_come_from():
+    """The plumbing, separately from the sizing: a study sets these in config."""
+    from dims_analysis.steps import crosswavelet as cw
+
+    tune = cw._tuning({"analysis": {"crosswavelet": {"maxTimePoints": 60,
+                                                     "maxFreqPoints": 24}}})
+    assert tune["maxTimePoints"] == 60 and tune["maxFreqPoints"] == 24
+    assert cw._tuning({}) == {}, "no analysis block must mean the defaults"

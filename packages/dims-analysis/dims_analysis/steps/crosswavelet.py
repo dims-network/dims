@@ -117,6 +117,8 @@ WCT_SIGNIF_SEED = 20250906
 #
 #   maxPeriod      float | null   longest period to compute, in SECONDS
 #   scaleAvgBand   [min, max]     scale-averaging band, in SECONDS
+#   maxTimePoints  int            width of the stored picture, in samples
+#   maxFreqPoints  int            height of the stored picture, in scales
 #
 # Note the units: the legacy SCALE_AVG_* constants below are multiples of dt,
 # which is a different thing and easy to confuse. The config keys are always
@@ -147,6 +149,11 @@ COHERENCE_TIME_FACTOR = 1.0     # DEPRECATED, no effect
 COHERENCE_SCALE_WIDTH = 0.6     # DEPRECATED, no effect
 
 # ---------- Visualization/Storage Parameters ----------
+# Defaults. A study overrides them through analysis.crosswavelet.maxTimePoints
+# and .maxFreqPoints: they set how large the browser payload is, and the right
+# size depends on the recording. The contract says tuning that can only be
+# changed by editing the source is how a fork ends up maintaining its own copy
+# of an analysis, and these were exactly that.
 MAX_TIME_POINTS_VIZ = 500    # Maximum time points for visualization (downsampling)
 MAX_FREQ_POINTS_VIZ = 100    # Maximum frequency points for visualization
 # Full-resolution output is NOT controlled here. It is written as a compressed
@@ -905,7 +912,11 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
     stats = calculate_summary_statistics(cwt_results, time_common, scale_avg_power, scale_avg_signif)
     
     # Downsample for storage
-    downsampled = downsample_for_storage(cwt_results, time_common, scale_avg_power)
+    _tune = _tuning(config)
+    downsampled = downsample_for_storage(
+        cwt_results, time_common, scale_avg_power,
+        max_time_points=int(_tune.get("maxTimePoints", MAX_TIME_POINTS_VIZ)),
+        max_freq_points=int(_tune.get("maxFreqPoints", MAX_FREQ_POINTS_VIZ)))
     
     # Prepare output data structure
     result = {
