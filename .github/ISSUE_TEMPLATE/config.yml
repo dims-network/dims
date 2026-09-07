@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How to work on DIMS
+    url: https://github.com/dims-network/dims/blob/main/AGENTS.md
+    about: A map of which single document to read for the task you have.

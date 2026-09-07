@@ -1,0 +1,39 @@
+name: Bug
+description: Something produces a wrong result, or fails.
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For anything touching a **private** dataset: describe the problem, never
+        paste the data. See `docs/contracts/data-visibility.md`.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: The observed behaviour, and what you expected instead.
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Commands, config, which case. Enough for someone else to see it.
+      placeholder: |
+        1. cd case-demo
+        2. dims-analysis run --config config.json
+        3. open the Cross-Wavelet tab
+    validations: { required: true }
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: File and line if you know it.
+      placeholder: packages/dims-analysis/dims_analysis/steps/crosswavelet.py:340
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: >
+        Numbers beat adjectives. If a value looks wrong, say what it is and what
+        it should be. The coherence defect was found because someone measured
+        that 57-62% of cells sat at exactly 1.0.
