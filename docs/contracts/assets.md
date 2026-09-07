@@ -47,8 +47,35 @@ modules among them — is a unit change and a rename, nothing more.
 ```
 
 `entity` is a data type for single-series analyses, `"{a}_vs_{b}"` for pairwise
-ones. Alongside it, a step writes the full-resolution result as `.npz`; the JSON
-is a browser payload and may be reduced, so it is not what you analyse from.
+ones.
+
+## Two artifacts, not one
+
+```
+{output_dir}/{videoID}_{slug}_data.json   the browser payload — reduced
+{output_dir}/{videoID}_{slug}.npz         the analysis — full resolution
+```
+
+The JSON is reduced to a few hundred points so a page can draw it, and the
+reduction is recorded in it. **Analyse from the `.npz`.** On real data the JSON
+holds a sixth of the time points, and for a long time it was the only thing
+kept, so anyone continuing from a study's output was working at a fraction of
+the resolution without being told.
+
+The reduction is a block average, not every nth sample. Striding is decimation
+with no low-pass filter: it does not remove detail, it folds it back onto the
+frequencies that remain. Phase is reduced through the unit circle, since
+averaging +179° and −179° numerically gives 0°.
+
+Read it with:
+
+```python
+import numpy as np
+with np.load("assets/crosswavelet/3120_crosswavelet.npz") as z:
+    coherence = z["bodysync_vs_neuralsync/coherence"]   # (periods, time)
+    period    = z["bodysync_vs_neuralsync/period"]
+    null      = z["bodysync_vs_neuralsync/sig95_wtc"]   # the 95% AR(1) level
+```
 
 ## Acceptance
 

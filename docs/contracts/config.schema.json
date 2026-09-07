@@ -206,6 +206,11 @@
           "step": {
             "type": "number",
             "description": "Windowed-metric step, in seconds."
+          },
+          "saveFullResolution": {
+            "type": "boolean",
+            "default": true,
+            "description": "Write the analysis at the resolution it was computed at, as a compressed .npz beside the JSON. The JSON is a browser payload and is reduced; this is what a notebook or downstream analysis should read."
           }
         }
       }

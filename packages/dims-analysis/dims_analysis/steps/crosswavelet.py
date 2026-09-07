@@ -120,6 +120,7 @@ TAPER_ALPHA = 0.05               # Tukey window parameter (0-1, smaller = less t
 # ---------- File Path Parameters ----------
 INPUT_DIR = 'assets/timeseries'     # Directory containing input CSV files
 OUTPUT_DIR = 'assets/crosswavelet'  # Default output directory
+_EFFECTIVE_OUTPUT_DIR = OUTPUT_DIR  # set from --output-dir in main()
 FILE_PATTERN = '{video_id}_{data_type}.csv'  # Input file naming pattern
 
 # ---------- Debugging/Logging Parameters ----------
@@ -546,6 +547,30 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
         'J': J
     }
 
+def _reduce_time(a, factor):
+    """Block-average along the last (time) axis."""
+    if factor <= 1:
+        return np.asarray(a)
+    a = np.asarray(a)
+    keep = (a.shape[-1] // factor) * factor
+    if keep == 0:
+        return a
+    t = a[..., :keep]
+    return t.reshape(*t.shape[:-1], keep // factor, factor).mean(axis=-1)
+
+
+def _reduce_freq(a, factor):
+    """Block-average along the first (period/frequency) axis."""
+    if factor <= 1:
+        return np.asarray(a)
+    a = np.asarray(a)
+    keep = (a.shape[0] // factor) * factor
+    if keep == 0:
+        return a
+    t = a[:keep]
+    return t.reshape(keep // factor, factor, *t.shape[1:]).mean(axis=1)
+
+
 def downsample_for_storage(cwt_results, time, scale_avg_power, 
                            max_time_points=MAX_TIME_POINTS_VIZ, 
                            max_freq_points=MAX_FREQ_POINTS_VIZ):
@@ -559,33 +584,43 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
     time_factor = max(1, n_time // max_time_points)
     freq_factor = max(1, n_freq // max_freq_points)
     
-    # Downsample time
-    time_ds = time[::time_factor]
-    
-    # Downsample frequency/period/scales
-    freqs_ds = cwt_results['freqs'][::freq_factor]
-    period_ds = cwt_results['period'][::freq_factor]
-    scales_ds = cwt_results['scales'][::freq_factor]
-    
-    # Downsample 2D arrays - ensure real values only
-    power_ds = np.real(cwt_results['power'][::freq_factor, ::time_factor])
-    phase_ds = np.real(cwt_results['phase'][::freq_factor, ::time_factor])
-    coherence_ds = np.real(cwt_results['coherence'][::freq_factor, ::time_factor])
-    sig95_xwt_ds = np.real(cwt_results['sig95_xwt'][::freq_factor, ::time_factor])
-    
-    # Downsample 1D arrays - ensure real values only
-    coi_ds = np.real(cwt_results['coi'][::time_factor])
-    signif_xwt_ds = np.real(cwt_results['signif_xwt'][::freq_factor])
+    # Block-average, not stride. See _reduce_time / _reduce_freq.
+    time_ds = _reduce_time(time, time_factor)
+
+    freqs_ds = _reduce_freq(cwt_results['freqs'], freq_factor)
+    period_ds = _reduce_freq(cwt_results['period'], freq_factor)
+    scales_ds = _reduce_freq(cwt_results['scales'], freq_factor)
+
+    power_ds = np.real(_reduce_time(_reduce_freq(cwt_results['power'], freq_factor), time_factor))
+    # Phase is an angle: averaging it directly would turn +179 and -179 into 0.
+    # Average the unit vectors and take the angle back.
+    _ph = cwt_results['phase']
+    phase_ds = np.angle(_reduce_time(_reduce_freq(np.exp(1j * np.asarray(_ph)), freq_factor), time_factor))
+    coherence_ds = np.real(_reduce_time(_reduce_freq(cwt_results['coherence'], freq_factor), time_factor))
+    sig95_xwt_ds = np.real(_reduce_time(_reduce_freq(cwt_results['sig95_xwt'], freq_factor), time_factor))
+
+    coi_ds = np.real(_reduce_time(cwt_results['coi'], time_factor))
+    signif_xwt_ds = np.real(_reduce_freq(cwt_results['signif_xwt'], freq_factor))
     # Per-period coherence null; may be absent if the Monte Carlo was skipped.
+    # Averaged with NaN-awareness: COI-only rows are NaN and must not poison
+    # their neighbours in a block.
     sig95_wtc = cwt_results.get('sig95_wtc')
-    sig95_wtc_ds = (np.real(sig95_wtc[::freq_factor])
-                    if sig95_wtc is not None else None)
-    global_power_ds = np.real(cwt_results['global_power'][::freq_factor])
-    global_signif_ds = np.real(cwt_results['global_signif'][::freq_factor])
-    scale_avg_power_ds = np.real(scale_avg_power[::time_factor])
+    if sig95_wtc is None:
+        sig95_wtc_ds = None
+    elif freq_factor <= 1:
+        sig95_wtc_ds = np.real(sig95_wtc)
+    else:
+        _w = np.asarray(sig95_wtc, dtype=float)
+        _keep = (len(_w) // freq_factor) * freq_factor
+        with np.errstate(invalid='ignore'):
+            sig95_wtc_ds = np.nanmean(_w[:_keep].reshape(-1, freq_factor), axis=1)
+    global_power_ds = np.real(_reduce_freq(cwt_results['global_power'], freq_factor))
+    global_signif_ds = np.real(_reduce_freq(cwt_results['global_signif'], freq_factor))
+    scale_avg_power_ds = np.real(_reduce_time(scale_avg_power, time_factor))
     
     if VERBOSE and (time_factor > 1 or freq_factor > 1):
-        print(f"  Downsampled: time {n_time}->{len(time_ds)}, freq {n_freq}->{len(freqs_ds)}")
+        print(f"  Reduced for the browser: time {n_time}->{len(time_ds)}, "
+              f"freq {n_freq}->{len(freqs_ds)} (block-averaged)")
 
     # NaN has no JSON literal and JSON.parse() rejects it outright, so the
     # unusable (COI-only) scales are emitted as null instead.
@@ -849,9 +884,65 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
             'phase': np.real(cwt_results['phase']).tolist()
         }
         if VERBOSE:
-            print("  Warning: Full resolution data saved (large file size)")
-    
+            print("  Warning: Full resolution data saved into the JSON (large file)")
+
+    # The analysis itself, at the resolution it was computed at. The JSON beside
+    # it is a browser payload; this is what a notebook or any downstream
+    # analysis should read. Off with
+    # analysis.crosswavelet.saveFullResolution = false.
+    if _tuning(config).get("saveFullResolution", True):
+        try:
+            npz = save_full_resolution(_EFFECTIVE_OUTPUT_DIR, video_id,
+                                       f"{data_type1}_vs_{data_type2}",
+                                       cwt_results, time_common, scale_avg_power)
+            if VERBOSE:
+                print(f"  Full-resolution analysis -> {npz}")
+        except Exception as exc:  # noqa: BLE001 - never lose a run over this
+            print(f"  WARNING: could not write full-resolution output ({exc})")
+
     return result
+
+
+def save_full_resolution(out_dir, video_id, pair_key, cwt_results, time, scale_avg_power):
+    """Write the analysis at the resolution it was computed at.
+
+    The JSON beside this is a *browser payload*: reduced to a few hundred points
+    so a page can draw it. It was for a long time the only thing kept, which
+    meant anyone continuing the analysis from a study's output was silently
+    working at a fraction of the resolution -- and, before block-averaging, from
+    an aliased copy.
+
+    This is the artifact to analyse from. Compressed .npz, one file per video,
+    with a group of arrays per pair.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"{video_id}_crosswavelet.npz")
+
+    existing = {}
+    if os.path.exists(path):
+        try:
+            with np.load(path, allow_pickle=False) as z:
+                existing = {k: z[k] for k in z.files}
+        except Exception:  # noqa: BLE001 - a corrupt file is replaced, not preserved
+            existing = {}
+
+    prefix = pair_key.replace('/', '_')
+    arrays = {
+        f"{prefix}/time": np.asarray(time, dtype=np.float64),
+        f"{prefix}/period": np.real(cwt_results['period']).astype(np.float64),
+        f"{prefix}/freqs": np.real(cwt_results['freqs']).astype(np.float64),
+        f"{prefix}/coherence": np.real(cwt_results['coherence']).astype(np.float32),
+        f"{prefix}/power": np.real(cwt_results['power']).astype(np.float32),
+        f"{prefix}/phase": np.real(cwt_results['phase']).astype(np.float32),
+        f"{prefix}/coi": np.real(cwt_results['coi']).astype(np.float64),
+        f"{prefix}/scale_avg_power": np.real(scale_avg_power).astype(np.float64),
+    }
+    if cwt_results.get('sig95_wtc') is not None:
+        arrays[f"{prefix}/sig95_wtc"] = np.asarray(cwt_results['sig95_wtc'], dtype=np.float64)
+
+    existing.update(arrays)
+    np.savez_compressed(path, **existing)
+    return path
 
 def main():
     parser = argparse.ArgumentParser(description='Generate Cross-Wavelet data for DIMS Dashboard')
@@ -862,7 +953,8 @@ def main():
     args = parser.parse_args()
     
     # Override global settings if command-line args provided
-    global VERBOSE, DEBUG_MODE
+    global VERBOSE, DEBUG_MODE, _EFFECTIVE_OUTPUT_DIR
+    _EFFECTIVE_OUTPUT_DIR = args.output_dir
     if args.verbose:
         VERBOSE = True
     if args.debug:
