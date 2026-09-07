@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 
-from dims_analysis.common import assets
+from dims_analysis.common import assets, results
 
 
 class StepContext:
@@ -79,18 +79,12 @@ class StepContext:
         overwrote the output that a second, complementary analysis had written.
         """
         p = self.output_path(step, video_id)
-        merged = {"video_id": video_id}
-        if os.path.exists(p):
-            try:
-                with open(p) as fh:
-                    existing = json.load(fh)
-                if isinstance(existing, dict):
-                    merged.update(existing)
-            except (OSError, ValueError):
-                pass  # unreadable output is replaced, not preserved
-        merged.update(payload)
-        with open(p, "w") as fh:
-            json.dump(merged, fh, indent=2)
+        body = {"video_id": video_id}
+        body.update(payload)
+        # One implementation, shared with the steps' own main(). This method
+        # existed and merged correctly while no shipped step called it, so the
+        # behaviour lived in a docstring and a test rather than in the product.
+        results.write_payload(p, body, compact=False)
         return p
 
     def params(self, step: "Step", defaults: dict) -> dict:

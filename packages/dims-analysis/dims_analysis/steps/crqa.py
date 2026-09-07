@@ -33,6 +33,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import results as _results
 import argparse
 
 # Where the time series are read from. A private study keeps its data outside
@@ -379,11 +380,17 @@ def main():
 
         if video_results:
             output_path = os.path.join(args.output_dir, f"{vid}_crqa_data.json")
-            with open(output_path, 'w') as f:
-                json.dump(round_payload({'video_id': vid, 'crqa_data': video_results,
-                                         'precision': precision_note()}),
-                          f, separators=(',', ':'))
+            kept = _results.write_payload(output_path, round_payload(
+                {'video_id': vid, 'crqa_data': video_results,
+                 'precision': precision_note()}))
             print(f"\nSaved cRQA data to {output_path}")
+            for key, names in kept.get('kept', {}).items():
+                print(f"  kept {len(names)} existing {key} entr"
+                      f"{'y' if len(names) == 1 else 'ies'} from another "
+                      f"analysis: {', '.join(names)}")
+            for key, names in kept.get('replaced', {}).items():
+                print(f"  replaced {len(names)} existing {key} entr"
+                      f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
         else:
             print(f"\n[INFO] No cRQA results generated for video {vid}")
 

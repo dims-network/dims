@@ -15,6 +15,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import results as _results
 import argparse
 from scipy import signal
 import warnings
@@ -1192,13 +1193,21 @@ def main():
                     }
                 }
                 
-                with open(output_path, 'w') as f:
-                    output_data['precision'] = precision_note()
-                    # Compact separators too: the whitespace of indent=2 is a
-                    # quarter of the file, and nobody reads this by eye.
-                    json.dump(round_payload(output_data), f, separators=(',', ':'))
-                
+                output_data['precision'] = precision_note()
+                # Merge rather than clobber: this file is keyed by video, so a
+                # second analysis writing pairs into it must survive a re-run.
+                # write_payload uses compact separators -- the whitespace of
+                # indent=2 is a quarter of the file and nobody reads it by eye.
+                kept = _results.write_payload(output_path, round_payload(output_data))
+
                 print(f"\nSaved cross-wavelet data to {output_path}")
+            for key, names in kept.get('kept', {}).items():
+                print(f"  kept {len(names)} existing {key} entr"
+                      f"{'y' if len(names) == 1 else 'ies'} from another "
+                      f"analysis: {', '.join(names)}")
+            for key, names in kept.get('replaced', {}).items():
+                print(f"  replaced {len(names)} existing {key} entr"
+                      f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
             
             if OUTPUT_FORMAT in ['npz', 'both']:
                 # Save as compressed NumPy format for easier loading in Python
