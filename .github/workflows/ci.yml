@@ -9,9 +9,12 @@ jobs:
   syntax-and-config:
     uses: dims-network/.github/.github/workflows/reusable-dashboard-ci.yml@main
     with:
-      python_paths: "packages/dims-analysis"
+      python_paths: "packages/dims-analysis packages/dims-case packages/dims-case-scaffold apps/builder tools"
       js_glob: "packages/dims-core/*.js packages/dims-tabs/*.js"
-      config_path: "packages/dims-case-scaffold/config.json"
+      # The scaffold's config.json is not a study's: it names no recordings
+      # until someone fills it in. The `contracts` job below validates it as
+      # what it is, which this generic check cannot.
+      config_path: ""
       check_assets: false
 
   contracts:
@@ -25,17 +28,39 @@ jobs:
 
       # The schema is the contract every case repo is validated against, so a
       # schema that does not describe the real configs is worse than none.
-      - name: The schema must accept the scaffold config
+      - name: The schema describes the scaffold once a study fills it in
         run: |
           python - <<'PY'
           import json, jsonschema, sys
           schema = json.load(open("docs/contracts/config.schema.json"))
           jsonschema.Draft202012Validator.check_schema(schema)
           cfg = json.load(open("packages/dims-case-scaffold/config.json"))
-          errs = list(jsonschema.Draft202012Validator(schema).iter_errors(cfg))
+
+          # The scaffold must ship NO study. It used to carry a session1 /
+          # session2 fixture and a hardcoded author, so every project ever
+          # created inherited someone else's study and had to notice.
+          bad = []
+          if cfg.get("videoIDs"):
+              bad.append(f"videoIDs is not empty: {cfg['videoIDs']}")
+          if cfg.get("dataTypes"):
+              bad.append(f"dataTypes is not empty: {list(cfg['dataTypes'])}")
+          for k in ("authors", "contacts"):
+              if cfg.get(k):
+                  bad.append(f"{k} is filled in: {cfg[k]!r}")
+          for msg in bad:
+              print(f"::error file=packages/dims-case-scaffold/config.json::{msg}")
+
+          # And with a study filled in, it must satisfy the schema every case
+          # repo is validated against. `minItems: 1` on videoIDs is correct for
+          # a study and wrong for a scaffold, so the scaffold is checked in the
+          # state it is actually used in.
+          filled = dict(cfg)
+          filled["videoIDs"] = ["s01"]
+          filled["dataTypes"] = {"s01": ["bodysync"]}
+          errs = list(jsonschema.Draft202012Validator(schema).iter_errors(filled))
           for e in errs:
               print(f"::error::{list(e.path)}: {e.message}")
-          sys.exit(1 if errs else 0)
+          sys.exit(1 if errs or bad else 0)
           PY
 
       # The README routes to the contracts; a dead link there sends a
