@@ -7,6 +7,26 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v1.4.1
+
+Documentation. No behaviour changes beyond two error messages, but this is the
+release the website renders from, so it is tagged.
+
+- **`docs/getting-started.md`**: the page that did not exist — raw data to a
+  running dashboard, with every command run on a clean directory before it was
+  written. Writing it is what found the two config errors in v1.4.0's notes, and
+  a third: `dataTypes` is an object keyed by recording, not a flat list, and the
+  first draft of this page got that wrong.
+- **`docs/coherence.md`**: the method, and how to read a coherence value against
+  its chance level. It was explained in one place only — an audit inside a
+  private study, which also names recordings — and repeated approximately in
+  three others. This page carries no study data.
+- **READMEs for `dims-core`, `dims-tabs` and `dims-case`**, which had none
+  despite being, respectively, what every dashboard runs on, what it draws with,
+  and what creates every study.
+- **`docs/dashboard-user-guide.md` is gone.** It was a byte-identical copy of a
+  June template README, orphaned, describing `js/app.js` and `opt/step_*.py`.
+
 ## v1.4.0
 
 Documentation that matches the code, one API corrected, and a version bump that

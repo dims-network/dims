@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dims-analysis"
-version = "1.4.0"
+version = "1.4.1"
 description = "Analyses for DIMS: recurrence quantification, cross-recurrence and cross-wavelet coherence over multimodal time series."
 readme = "README.md"
 requires-python = ">=3.10"

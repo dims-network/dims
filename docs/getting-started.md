@@ -93,7 +93,14 @@ full schema is [`config.schema.json`](contracts/config.schema.json).
 {
   "title": "My study",
   "videoIDs": ["session01", "session02"],
-  "dataTypes": ["bodysync", "neuralsync"],
+
+  // Which measures each recording has. An object keyed by recording, not a
+  // flat list: two sessions rarely carry exactly the same measures, and this
+  // is what the time-series tab reads to know what to offer.
+  "dataTypes": {
+    "session01": ["bodysync", "neuralsync"],
+    "session02": ["bodysync"]
+  },
 
   // Which data types to analyse -- not true/false. The list is the answer to
   // "which of them", and true does not say.

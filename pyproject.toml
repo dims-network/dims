@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # "dims" is already taken on PyPI by an unrelated project, so the distribution
 # carries the network's name. The import packages keep their own names.
 name = "dims-network"
-version = "1.4.0"
+version = "1.4.1"
 description = "DIMS — tools for exploring dynamic interactions and multimodal signals: recurrence quantification, wavelet coherence, and a dashboard for looking at them against video."
 readme = "README.md"
 requires-python = ">=3.10"
