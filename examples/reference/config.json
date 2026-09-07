@@ -1,0 +1,45 @@
+{
+  "title": "DIMS reference study",
+  "subtitle": "Synthetic signals with known answers",
+  "videoIDs": [
+    "reference"
+  ],
+  "dataTypes": {
+    "reference": [
+      "flat",
+      "noise_a",
+      "noise_b",
+      "quantised",
+      "sine",
+      "sine_lagged"
+    ]
+  },
+  "include_RQA": [
+    "sine",
+    "noise_a",
+    "quantised",
+    "flat"
+  ],
+  "include_cRQA": [
+    [
+      "sine",
+      "sine_lagged"
+    ]
+  ],
+  "include_crosswavelet": [
+    [
+      "sine",
+      "sine_lagged"
+    ],
+    [
+      "noise_a",
+      "noise_b"
+    ]
+  ],
+  "analysis": {
+    "crosswavelet": {
+      "mcCount": 20
+    }
+  },
+  "defaultWindowSize": 5
+}

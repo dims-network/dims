@@ -126,6 +126,33 @@ WCT_SIGNIF_SEED = 20250906
 CONFIG_TUNING_KEY = "crosswavelet"
 
 
+#: Config keys that switch on a tab which reads `sig95_wtc`. The coherence
+#: chance level is displayed by exactly one tab today -- case-karnatak's
+#: cross-effector network -- while every study paid to compute it. So the
+#: default follows what the study actually contains, and any study can ask for
+#: it explicitly. See docs/contracts/analysis-output.md, A7.
+COHERENCE_NULL_CONSUMERS = ("include_network",)
+
+#: What to use when a consumer is present and the study did not say.
+DEFAULT_MC_COUNT_WITH_CONSUMER = 100
+
+
+def mc_count_for(config):
+    """How many surrogates to run, and it is a real decision, not a constant.
+
+    An explicit `analysis.crosswavelet.mcCount` always wins, in both
+    directions. Otherwise: 100 if this config enables a tab that reads the
+    result, 0 if nothing does.
+    """
+    given = _tuning(config).get("mcCount")
+    if given is not None:
+        return int(given)
+    for key in COHERENCE_NULL_CONSUMERS:
+        if _config.enabled(config, key):
+            return DEFAULT_MC_COUNT_WITH_CONSUMER
+    return 0
+
+
 def _tuning(config):
     return ((config or {}).get("analysis") or {}).get(CONFIG_TUNING_KEY) or {}
 
@@ -316,7 +343,8 @@ def _wct_cache_path(key):
     digest = hashlib.sha256(repr(key).encode("utf-8")).hexdigest()[:32]
     return os.path.join(_WCT_CACHE_DIR, f"wct_{digest}.npy")
 
-def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet):
+def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet,
+                           mc_count=None):
     """95% coherence level under an AR(1) null, as a per-scale vector.
 
     Returns None if the Monte Carlo is disabled or fails, in which case the
@@ -344,7 +372,12 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
     Cost is independent of the recording length: pycwt sizes its own surrogates
     from the scale range, so a 2-minute and a 20-minute video pay the same.
     """
-    if not WCT_SIGNIF_ENABLED:
+    if mc_count is None:
+        mc_count = WCT_SIGNIF_MC_COUNT
+    mc_count = int(mc_count)
+    # 0 means: this study has nothing that reads the result, so do not
+    # spend hours computing it. See docs/contracts/analysis-output.md.
+    if not WCT_SIGNIF_ENABLED or mc_count <= 0:
         return None
 
     # Round the coefficients: the null is very insensitive to alpha (the 95%
@@ -352,7 +385,7 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
     # decimals can share a result.
     key = (round(float(alpha1), 2), round(float(alpha2), 2),
            round(float(dt), 6), round(float(dj), 6), round(float(s0), 6),
-           int(n_scales), float(SIGNIFICANCE_LEVEL), int(WCT_SIGNIF_MC_COUNT),
+           int(n_scales), float(SIGNIFICANCE_LEVEL), int(mc_count),
            str(MOTHER_WAVELET).lower(), float(OMEGA0), WCT_SIGNIF_SEED)
     if key in _WCT_SIGNIF_CACHE:
         return _WCT_SIGNIF_CACHE[key]
@@ -382,7 +415,7 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
         level = wavelet.wct_significance(
             float(alpha1), float(alpha2), dt, dj, s0, int(n_scales) - 1,
             significance_level=SIGNIFICANCE_LEVEL, wavelet=mother_wavelet,
-            mc_count=WCT_SIGNIF_MC_COUNT, progress=False, cache=False
+            mc_count=mc_count, progress=False, cache=False
         )
     except Exception as exc:  # noqa: BLE001 -- never fail the whole step over this
         if VERBOSE:
@@ -424,7 +457,8 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
 
 def compute_cross_wavelet_standard(data1, data2, time, dt,
                                    mother=MOTHER_WAVELET, omega0=OMEGA0,
-                                   dj=DJ, s0=None, J=None, max_period=None):
+                                   dj=DJ, s0=None, J=None, max_period=None,
+                                   mc_count=None):
     """
     Compute cross-wavelet transform between two time series using pycwt standard approach.
     
@@ -558,7 +592,7 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # it, 0.27 and 0.55 look like "some coupling" and "more coupling", when in
     # fact the first is exactly what independent signals produce.
     sig95_wtc = _wct_significance_level(alpha1, alpha2, dt, dj, s0, len(scales),
-                                        mother_wavelet)
+                                        mother_wavelet, mc_count=mc_count)
     if sig95_wtc is not None and len(sig95_wtc) != len(scales):
         if VERBOSE:
             print(f"  WARNING: coherence significance length {len(sig95_wtc)} "
@@ -861,7 +895,8 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
     cwt_results = compute_cross_wavelet_standard(
         data1_interp, data2_interp, time_common, dt,
         mother=MOTHER_WAVELET, omega0=OMEGA0, dj=DJ,
-        max_period=_tuning(config).get("maxPeriod")
+        max_period=_tuning(config).get("maxPeriod"),
+        mc_count=mc_count_for(config)
     )
     
     # Calculate scale-averaged wavelet power
@@ -1086,6 +1121,19 @@ def main():
     #   * a legacy flat list of data types, expanded to all unique pairs below.
     raw_cwt = _config.as_list(config, 'include_crosswavelet',
                               'pairs of data types')
+
+    # Say which way the coherence null went and why. The decision is a real one
+    # -- it is the difference between seconds and hours -- and it used to be a
+    # constant nobody could see, let alone change.
+    _mc = mc_count_for(config)
+    if _mc > 0:
+        _why = ("mcCount is set in config.json"
+                if _tuning(config).get("mcCount") is not None
+                else f"{' or '.join(COHERENCE_NULL_CONSUMERS)} is enabled")
+        print(f"coherence null: {_mc} surrogates ({_why})")
+    else:
+        print("coherence null: skipped -- nothing in this config reads it. "
+              "Set analysis.crosswavelet.mcCount to compute it anyway.")
     if all(isinstance(item, (list, tuple)) and len(item) == 2 for item in raw_cwt):
         base_pairs = [(t1, t2) for t1, t2 in raw_cwt]
     else:

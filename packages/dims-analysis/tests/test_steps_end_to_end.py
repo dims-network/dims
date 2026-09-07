@@ -48,6 +48,12 @@ def _study(tmp_path, external):
         "include_RQA": ["alpha", "beta"],
         "include_cRQA": [["alpha", "beta"]],
         "include_crosswavelet": [["alpha", "beta"]],
+        # Asked for explicitly. The coherence null is no longer computed
+        # unconditionally -- its default follows whether the study has a tab
+        # that reads it -- and these tests are about what gets *written* when
+        # it is computed, not about the default. The default has its own test
+        # below. A small count keeps the fixture fast.
+        "analysis": {"crosswavelet": {"mcCount": 8}},
     }
     (project / "config.json").write_text(json.dumps(config, indent=2))
     if external:
@@ -154,3 +160,47 @@ def test_the_recurrence_npz_keeps_more_than_the_payload(tmp_path, step):
     with np.load(next((assets / step).glob("*.npz"))) as z:
         full = len(z[next(n for n in z.files if n.endswith("/time"))])
     assert full >= drawn, "the archive holds less than the picture"
+
+
+def test_the_coherence_null_is_skipped_when_nothing_reads_it(tmp_path):
+    """The default, and it is the difference between seconds and hours.
+
+    The Monte Carlo coherence null costs ~2.8 h on a twelve-recording study and
+    is displayed by exactly one tab in the whole system. So it runs when the
+    config enables a tab that reads it, and otherwise does not -- while
+    remaining available to any study that asks. See the analysis-output
+    contract, A7.
+    """
+    project, _assets = _study(tmp_path, external=False)
+    config = json.loads((project / "config.json").read_text())
+    del config["analysis"]                      # no explicit request
+    assert "include_network" not in config      # and no consumer
+    (project / "config.json").write_text(json.dumps(config, indent=2))
+
+    proc = _run("crosswavelet", project)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "coherence null: skipped" in proc.stdout, (
+        f"the run must say it skipped the null and how to ask for it; it said:"
+        f"\n{proc.stdout[-2000:]}")
+
+    payload = json.loads(
+        (project / "assets" / "crosswavelet" / "v1_crosswavelet_data.json").read_text())
+    vis = next(iter(payload["crosswavelet_pairs"].values()))["visualization"]
+    assert "sig95_wtc" not in vis or vis["sig95_wtc"] is None, (
+        "a null that was not computed must be absent, not a wrong number")
+    # Everything else is still there: skipping the null is not skipping the
+    # analysis.
+    assert vis["coherence"] and vis["power"] and vis["phase"]
+
+
+def test_a_study_with_a_consumer_computes_the_null_by_default(tmp_path):
+    """`include_network` is what reads `sig95_wtc` today."""
+    project, _assets = _study(tmp_path, external=False)
+    config = json.loads((project / "config.json").read_text())
+    del config["analysis"]
+    config["include_network"] = True
+    (project / "config.json").write_text(json.dumps(config, indent=2))
+
+    proc = _run("crosswavelet", project)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "coherence null: 100 surrogates" in proc.stdout, proc.stdout[-2000:]
