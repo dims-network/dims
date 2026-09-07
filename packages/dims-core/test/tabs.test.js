@@ -16,7 +16,16 @@ async function boot(config, files = {}) {
   try {
     const env = makeEnv({
       config, files,
-      scripts: ['packages/dims-core/video-component.js', 'packages/dims-core/dims-core.js'],
+      // Same order index.html uses: the host first, then the tab modules.
+      scripts: [
+        'packages/dims-core/video-component.js',
+        'packages/dims-core/dims-core.js',
+        'packages/dims-tabs/timeseries.js',
+        'packages/dims-tabs/rqa.js',
+        'packages/dims-tabs/crosswavelet.js',
+        'packages/dims-tabs/crqa.js',
+        'packages/dims-tabs/elan.js',
+      ],
     });
     const w = env.window;
     for (const k of QUIET) if (w.console) w.console[k] = () => {};

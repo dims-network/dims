@@ -68,3 +68,17 @@ jobs:
       - name: Tests
         working-directory: packages/dims-analysis
         run: python -m pytest tests/ -q
+
+  dashboard-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install test tooling
+        working-directory: packages/dims-core/test
+        run: npm install --no-audit --no-fund
+      - name: Tests
+        working-directory: packages/dims-core/test
+        run: node --test

@@ -53,7 +53,8 @@ Only `id`, `label` and `onActivate` are required.
 | `app.currentVideoID` | selected video |
 | `app.lastClickedPoint` | current playhead time, seconds |
 | `app.loadJSON(url)` / `app.loadCSV(url)` | fetch helpers; use these, not `fetch` |
-| `app.onTimeChange(fn)` | subscribe to the playhead outside your tab's own hook |
+| `app.onTimeChange(fn)` | follow the playhead even when your tab is not visible; returns an unsubscribe function |
+| `window.DIMS.extendHost({...})` | attach rendering methods to the host, as the built-in tabs do |
 
 Treat anything else on `app` as private. If you need something that is not here,
 that is a request to extend this contract — say so in an issue rather than
@@ -61,17 +62,21 @@ reaching into internals.
 
 ## Rules
 
-1. **Register before the host loads.** Your `<script>` runs before
-   `dims-core.js`. Registering later is silently ignored.
-2. **Style only with CSS custom properties** — `var(--text)`, `var(--muted)`,
+1. **Load after `dims-core.js`, before `DOMContentLoaded`.** The host defines
+   the registry; your file registers into it. Registering after the app has
+   been constructed is too late and is ignored.
+2. **A duplicate `id` is refused**, so you cannot shadow a built-in tab by
+   registering over it. Pick a distinct one.
+3. **Style only with CSS custom properties** — `var(--text)`, `var(--muted)`,
    `var(--panel)`, `var(--accent)`. Never read the host's JS theme object: it is
    a module-level variable initialised after your file runs, so it is not there
    when you need it. Tabs that follow this rule survive theme switches with no
    host support at all.
-3. **Stay inside your container.** Do not touch other panes, and do not add
+4. **Stay inside your container.** Do not touch other panes, and do not add
    controls to the header directly — declare them and let the host place them.
-4. **Load data lazily,** in `onActivate`, not at registration.
-5. **Fail visibly, not fatally.** If your data is missing, render a short
+5. **Load data lazily,** in `onActivate`, not at registration.
+6. **Fail visibly, not fatally.** A gate that throws hides only your tab;
+   the others carry on. If your data is missing, render a short
    explanation into your container. Never throw out of a hook.
 
 ## Acceptance
