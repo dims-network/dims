@@ -16,6 +16,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
 import argparse
 
@@ -198,27 +199,27 @@ def matrix_to_sparse_format(matrix):
     return sparse_data
 
 def downsample_for_visualization(time_series, time_values, recurrence_matrix, max_points=500):
-    """
-    Downsample data for visualization if too large.
+    """Reduce for the browser. Returns (data, time, matrix, factor).
+
+    The series is block-averaged and the matrix is block-OR'd -- see
+    common/reduce.py for why each, and why striding was wrong for both. It
+    matters most for the matrix: a recurrent line one cell off the main diagonal
+    disappears completely under striding, and that is exactly where a lagged
+    coupling lives.
     """
     n_points = len(time_series)
-    
-    if n_points <= max_points:
-        return time_series, time_values, recurrence_matrix
-    
-    # Calculate downsampling factor
-    factor = n_points // max_points
-    
-    # Downsample time series
-    time_ds = time_values[::factor]
-    data_ds = time_series[::factor]
-    
-    # Downsample recurrence matrix
-    matrix_ds = recurrence_matrix[::factor, ::factor]
-    
-    print(f"  Downsampled from {n_points} to {len(time_ds)} points for visualization")
-    
-    return data_ds, time_ds, matrix_ds
+    factor = _reduce.factor_for(n_points, max_points)
+    if factor <= 1:
+        return time_series, time_values, recurrence_matrix, 1
+
+    data_ds = _reduce.block_mean(time_series, factor)
+    time_ds = _reduce.block_mean(time_values, factor)
+    matrix_ds = _reduce.block_any(recurrence_matrix, factor)
+
+    print(f"  Reduced {n_points} -> {len(time_ds)} points for the browser "
+          f"(block average / block-OR, factor {factor})")
+
+    return data_ds, time_ds, matrix_ds, factor
 
 def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0):
     """
@@ -263,7 +264,7 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     rec_matrix_full, threshold, rec_rate = calculate_recurrence_matrix(data_clean)
     
     # Downsample for visualization
-    data_vis, time_vis, rec_matrix_vis = downsample_for_visualization(
+    data_vis, time_vis, rec_matrix_vis, reduction_factor = downsample_for_visualization(
         data_clean, time_clean, rec_matrix_full
     )
     
@@ -286,7 +287,15 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
             'time': time_vis.tolist(),
             'data': data_vis.tolist(),
             'matrix_size': len(time_vis),
-            'sparse_matrix': sparse_matrix  # List of [row, col] pairs
+            'sparse_matrix': sparse_matrix,  # List of [row, col] pairs
+            # What this plot is a reduction OF. Without it a reader cannot tell
+            # a 500-point picture from the 6000-point analysis behind it.
+            'reduction': {
+                'factor': int(reduction_factor),
+                'series': 'block-mean',
+                'matrix': 'block-any',
+                'n_points_full': int(len(data_clean)),
+            },
         },
         'full_data': {
             'n_points': len(data_clean),

@@ -33,6 +33,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
 import argparse
 
@@ -113,16 +114,24 @@ def matrix_to_sparse_format(matrix):
 
 
 def downsample_for_visualization(ts1, ts2, time_values, recurrence_matrix, max_points=MAX_POINTS):
-    """Downsample the full matrix (and the two series) for a lighter JSON payload."""
+    """Reduce for the browser. Returns (ts1, ts2, time, matrix, factor).
+
+    Series are block-averaged, the matrix is block-OR'd. See common/reduce.py.
+    Striding mattered here more than anywhere: cross-recurrence is about
+    structure OFF the main diagonal -- that is what a lagged coupling looks like
+    -- and a line one cell off the diagonal disappears entirely when you take
+    every nth row and every nth column.
+    """
     n_points = len(time_values)
-    if n_points <= max_points:
-        return ts1, ts2, time_values, recurrence_matrix
-    factor = n_points // max_points
+    factor = _reduce.factor_for(n_points, max_points)
+    if factor <= 1:
+        return ts1, ts2, time_values, recurrence_matrix, 1
     return (
-        ts1[::factor],
-        ts2[::factor],
-        time_values[::factor],
-        recurrence_matrix[::factor, ::factor],
+        _reduce.block_mean(ts1, factor),
+        _reduce.block_mean(ts2, factor),
+        _reduce.block_mean(time_values, factor),
+        _reduce.block_any(recurrence_matrix, factor),
+        factor,
     )
 
 
@@ -349,7 +358,7 @@ def main():
                 windowed_metrics['L_MAX'].append(l_max)
 
             # Full recurrence plot for visualization, downsampled to <=500x500.
-            ts1_vis, ts2_vis, time_vis, matrix_vis = downsample_for_visualization(
+            ts1_vis, ts2_vis, time_vis, matrix_vis, reduction_factor = downsample_for_visualization(
                 ts1_1d, ts2_1d, time_vals, rec_matrix
             )
             sparse_matrix = matrix_to_sparse_format(matrix_vis)
@@ -367,7 +376,14 @@ def main():
                     'data_x': ts1_vis.tolist(),
                     'data_y': ts2_vis.tolist(),
                     'matrix_size': len(time_vis),
-                    'sparse_matrix': sparse_matrix,  # full RP, downsampled
+                    'sparse_matrix': sparse_matrix,  # full RP, reduced
+                    # What this plot is a reduction OF.
+                    'reduction': {
+                        'factor': int(reduction_factor),
+                        'series': 'block-mean',
+                        'matrix': 'block-any',
+                        'n_points_full': int(n),
+                    },
                 },
                 'full_stats': {
                     'n_points': int(n),
