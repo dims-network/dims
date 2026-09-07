@@ -202,6 +202,52 @@ def _core_version():
     return "0.0.0-dev"
 
 
+BEGIN = "<!-- study-owned tabs: BEGIN"
+END = "<!-- study-owned tabs: END -->"
+
+
+def _write_index(dest):
+    """Refresh index.html from the scaffold, keeping the study's own tab list.
+
+    The vendored core changes; a study's own tabs do not. Without this, every
+    core refresh would silently delete them -- and with no build step, that list
+    of script tags IS the configuration.
+    """
+    scaffold_index = os.path.join(CORE_ROOT, SCAFFOLD, "index.html")
+    target = os.path.join(dest, "index.html")
+    new = open(scaffold_index).read()
+    if os.path.exists(target):
+        old = open(target).read()
+        i, j = old.find(BEGIN), old.find(END)
+        if i != -1 and j != -1:
+            keep = old[i:j + len(END)]
+            ni, nj = new.find(BEGIN), new.find(END)
+            if ni != -1 and nj != -1:
+                new = new[:ni] + keep + new[nj + len(END):]
+    open(target, "w").write(new)
+
+
+def _register_study_tabs(dest):
+    """List whatever is in tabs/ inside the preserved block."""
+    tabs_dir = os.path.join(dest, "tabs")
+    if not os.path.isdir(tabs_dir):
+        return
+    files = sorted(f for f in os.listdir(tabs_dir) if f.endswith(".js"))
+    if not files:
+        return
+    target = os.path.join(dest, "index.html")
+    s = open(target).read()
+    i, j = s.find(BEGIN), s.find(END)
+    if i == -1 or j == -1:
+        return
+    tags = "\n".join(f'    <script src="tabs/{f}"></script>' for f in files)
+    block = (BEGIN + "\n"
+             "         Tabs that only make sense for this study. Same contract\n"
+             "         as a built-in one: docs/contracts/tab.md -->\n"
+             + tags + "\n    " + END)
+    open(target, "w").write(s[:i] + block + s[j + len(END):])
+
+
 def _write_vendor(dest):
     for src_rel, dst_rel in VENDOR.items():
         src, dst = os.path.join(CORE_ROOT, src_rel), os.path.join(dest, dst_rel)
@@ -298,16 +344,14 @@ def cmd_adopt(args):
     scaffold = os.path.join(CORE_ROOT, SCAFFOLD)
     # Only files the study does not already have. config.json and assets/ are
     # the study's own and are never touched.
-    for name in ("index.html", "serve.py"):
-        src = os.path.join(scaffold, name)
-        dst = os.path.join(dest, name)
-        if os.path.exists(src):
-            shutil.copy(src, dst)
+    shutil.copy(os.path.join(scaffold, "serve.py"), os.path.join(dest, "serve.py"))
+    _write_index(dest)
     for sub in ("rqa", "crqa", "crosswavelet", "timeseries", "videos",
                 "transcripts", "elan"):
         os.makedirs(os.path.join(dest, "assets", sub), exist_ok=True)
 
     hashes = _write_vendor(dest)
+    _register_study_tabs(dest)
     case_path = os.path.join(dest, "dims-case.json")
     existing = {}
     if os.path.exists(case_path):
@@ -344,6 +388,8 @@ def cmd_sync(args):
     old = case.get("dimsCore")
     case["dimsCore"] = args.version or _core_version()
     case["vendorHashes"] = _write_vendor(dest)
+    _write_index(dest)
+    _register_study_tabs(dest)
     with open(case_path, "w") as fh:
         json.dump(case, fh, indent=2)
         fh.write("\n")

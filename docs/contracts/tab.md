@@ -1,7 +1,20 @@
 # Contract: a dashboard tab
 
-A tab is one JavaScript file in `packages/dims-tabs/`. It registers itself. The
-host never lists tabs, and adding one must not require editing any other file.
+A tab is one JavaScript file. It registers itself. The host never lists tabs,
+and adding one must not require editing any other file.
+
+Tabs live in one of two places:
+
+- **`packages/dims-tabs/`** — tabs that make sense for more than one study, and
+  ship with the core.
+- **`tabs/` inside a case repo** — tabs that belong to *that study*. ORTHO's
+  trajectory view is the example: it draws a background image of the physical
+  play space and this study's own path geometry, which mean nothing anywhere
+  else. `dims-case` lists them in `index.html` and preserves that list when the
+  core is refreshed.
+
+The contract is identical either way, which is the point: a study can add a
+view without touching, or waiting for, the core.
 
 Built-in tabs use this same API — timeseries, RQA, cross-RQA, cross-wavelet and
 ELAN are not special. That is deliberate: if this contract breaks, ELAN breaks

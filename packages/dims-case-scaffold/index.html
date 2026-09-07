@@ -33,11 +33,15 @@
     <script src="vendor/dims-tabs/crosswavelet.js"></script>
     <script src="vendor/dims-tabs/crqa.js"></script>
     <script src="vendor/dims-tabs/elan.js"></script>
-    <!-- Optional tabs: delete a line to remove that tab. Each is inert unless
-         its config key is set, so leaving them costs nothing. -->
-    <script src="vendor/dims-tabs/trajectory.js"></script>
-    <script src="vendor/dims-tabs/dtw.js"></script>
+    <!-- Optional, and inert unless its config key is set. -->
     <script src="vendor/dims-tabs/network.js"></script>
+
+    <!-- study-owned tabs: BEGIN
+         Tabs that only make sense for this study live in tabs/ and are listed
+         here. This block is preserved when the vendored core is refreshed.
+         A study-owned tab uses exactly the same contract as a built-in one:
+         docs/contracts/tab.md -->
+    <!-- study-owned tabs: END -->
 </head>
 <body>
     <div class="container">
