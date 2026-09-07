@@ -74,6 +74,7 @@ class DIMSApp {
         this.elanData = null;
         this.elanSelectedTiers = null;
         this.currentTab = null;
+        this.currentPerspective = '';
         this.tabs = [];
         this._timeSubscribers = [];
     }
@@ -96,6 +97,7 @@ class DIMSApp {
             this.setupHeader();
             this.setupTabs();
             this.setupControls();
+            this.setupPerspectiveControl();
             this.setupEventListeners();
             
             // Load first video by default
@@ -398,6 +400,39 @@ class DIMSApp {
         }
     }
 
+    setupPerspectiveControl() {
+        // Built from config rather than shipped in index.html, so a study that
+        // does not use perspectives has no dead control, and one that does need
+        // not edit its markup.
+        const list = Array.isArray(this.config.perspectives) ? this.config.perspectives : [];
+        if (!list.length) return;
+
+        const controls = document.querySelector('.controls');
+        if (!controls || document.getElementById('perspectiveSelect')) return;
+
+        const label = document.createElement('label');
+        label.setAttribute('for', 'perspectiveSelect');
+        label.textContent = 'Perspective:';
+        label.style.marginLeft = '8px';
+
+        const select = document.createElement('select');
+        select.id = 'perspectiveSelect';
+        select.innerHTML = '<option value="">auto</option>' +
+            list.map(p => `<option value="${p}">${p}</option>`).join('');
+
+        controls.appendChild(label);
+        controls.appendChild(select);
+        this.currentPerspective = '';
+
+        select.addEventListener('change', (e) => {
+            this.currentPerspective = e.target.value || '';
+            const t = this.lastClickedPoint ?? 0;
+            const win = parseInt(document.getElementById('windowSize').value)
+                || this.config.defaultWindowSize || 5;
+            this.updateVideos(t, win);
+        });
+    }
+
     setupEventListeners() {
         document.getElementById('videoSelect').addEventListener('change', (e) => {
             this.loadVideoData(e.target.value);
@@ -678,8 +713,34 @@ class DIMSApp {
         return () => { this._timeSubscribers = this._timeSubscribers.filter(f => f !== fn); };
     }
 
+    buildVideoSrc() {
+        // Some studies film the same session from several angles and want to
+        // switch between them. Ortho had this, wired into its own copy of the
+        // dashboard; it is a property of video, so it belongs to the host
+        // rather than to any one tab.
+        //
+        // With no videoSrcTemplate configured this is exactly the old
+        // behaviour: assets/videos/{videoID}.mp4
+        const tmpl = this.config.videoSrcTemplate;
+        const fallbackTmpl = this.config.fallbackVideoSrcTemplate || 'assets/videos/{videoID}.mp4';
+        const fill = (t, persp) =>
+            t.replace('{videoID}', this.currentVideoID).replace('{persp}', persp || '');
+
+        if (tmpl) {
+            if (this.currentPerspective) return fill(tmpl, this.currentPerspective);
+            // "auto": the first angle that actually exists for this video.
+            // Not every session has every angle -- recordings fail.
+            const available = (this.config.videoPerspectives || {})[this.currentVideoID];
+            if (Array.isArray(available) && available.length) return fill(tmpl, available[0]);
+            if (Array.isArray(this.config.perspectives) && this.config.perspectives.length) {
+                return fill(tmpl, this.config.perspectives[0]);
+            }
+        }
+        return fill(fallbackTmpl, '');
+    }
+
     updateVideos(clickTime, windowSize) {
-        const videoSrc = `assets/videos/${this.currentVideoID}.mp4`;
+        const videoSrc = this.buildVideoSrc();
         const startTime = Math.max(0, clickTime - windowSize / 2);
         const endTime = clickTime + windowSize / 2;
 
