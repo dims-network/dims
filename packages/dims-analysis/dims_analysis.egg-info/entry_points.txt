@@ -1,7 +1,0 @@
-[console_scripts]
-dims-analysis = dims_analysis.cli:main
-
-[dims.steps]
-crosswavelet = dims_analysis.steps.crosswavelet:Step
-crqa = dims_analysis.steps.crqa:Step
-rqa = dims_analysis.steps.rqa:Step

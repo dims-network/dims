@@ -1,3 +1,0 @@
-dims_analysis
-dims_builder
-dims_case
