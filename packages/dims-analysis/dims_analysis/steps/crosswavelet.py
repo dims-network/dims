@@ -15,6 +15,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import config as _config
 from dims_analysis.common import results as _results
 import argparse
 from scipy import signal
@@ -1088,7 +1089,7 @@ def main():
         config = json.load(f)
     
     # Check if cross-wavelet is requested
-    if 'include_crosswavelet' not in config or not config['include_crosswavelet']:
+    if not _config.enabled(config, 'include_crosswavelet'):
         if VERBOSE:
             print("No cross-wavelet analysis requested in config")
         return
@@ -1097,7 +1098,8 @@ def main():
     #   * a list of explicit [type1, type2] pairs (new, lets the user pick exactly
     #     which pairs to compute), or
     #   * a legacy flat list of data types, expanded to all unique pairs below.
-    raw_cwt = config['include_crosswavelet']
+    raw_cwt = _config.as_list(config, 'include_crosswavelet',
+                              'pairs of data types')
     if all(isinstance(item, (list, tuple)) and len(item) == 2 for item in raw_cwt):
         base_pairs = [(t1, t2) for t1, t2 in raw_cwt]
     else:

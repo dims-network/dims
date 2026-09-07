@@ -33,6 +33,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import config as _config
 from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
@@ -256,11 +257,11 @@ def main():
         print(f"Error: Config file '{args.config}' not found.")
         return
 
-    if 'include_cRQA' not in config or not config['include_cRQA']:
+    if not _config.enabled(config, 'include_cRQA'):
         print("No cRQA requested in config (include_cRQA not found or empty)")
         return
 
-    raw_pairs = config['include_cRQA']
+    raw_pairs = _config.as_list(config, 'include_cRQA', 'pairs of data types')
     valid_pairs = []
     for item in raw_pairs:
         if isinstance(item, list) and len(item) == 2:

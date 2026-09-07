@@ -1,16 +1,22 @@
 # How DIMS fits together
 
 ```
-             dims-network/dims          ← all code, released as v1.2.0
-                    │
-         ┌──────────┴──────────┐
-   vendored pin            pip install
-   (bot PR + CI hash)      dims-analysis
-         │                      │
-   ┌─────┴─────┬────────────┐   └── used by the builder and by case repos
+                dims-network/dims          all the code, released as vX.Y.Z
+                       │
+        ┌──────────────┴──────────────┐
+  vendor/ , pinned            dims-analysis, installed
+  what the browser loads      what rebuilds the assets
+  (bot PR; CI rebuilds it     (pip install -e ./dims —
+   from the release tag)       not on PyPI yet)
+        │                              │
+   ┌────┴─────┬──────────────┐         └── used by every study, and by the builder
 case-demo  case-ortho  case-karnatak
- (public)   (public)     (PRIVATE)
+ (public)   (public)     (PRIVATE — data lives outside the repository)
 ```
+
+Both halves move together and carry the same version number. A study's
+`dims-case.json` names it once: it is the tag CI fetches to verify `vendor/`,
+and it is the version of `dims-analysis` that produced the study's assets.
 
 ## Why a monorepo
 
@@ -30,6 +36,12 @@ A dashboard has to open from a plain file server, years later, on a machine
 nobody has maintained. Plain `<script>` tags and CSS custom properties survive
 that; a bundler and a `node_modules` tree do not. This constrains the design and
 is worth the constraint.
+
+The constraint is not fully honoured yet: five libraries — React, ReactDOM,
+Plotly, PapaParse, lodash — are still loaded from a CDN rather than vendored,
+so a dashboard opened without a network is a blank page. That is
+[dims#12](https://github.com/dims-network/dims/issues/12), and until it is
+closed, "opens from a plain file server" means one with a network behind it.
 
 ## Why everything self-registers
 

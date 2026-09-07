@@ -16,6 +16,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import config as _config
 from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
@@ -294,7 +295,7 @@ def main():
         config = json.load(f)
     
     # Check if RQA is requested
-    if 'include_RQA' not in config or not config['include_RQA']:
+    if not _config.enabled(config, 'include_RQA'):
         print("No RQA requested in config (include_RQA not found or empty)")
         return
     
@@ -313,7 +314,8 @@ def main():
         print(f"{'='*50}")
         
         # Get data types to process for RQA (remove duplicates)
-        rqa_data_types = list(dict.fromkeys(config['include_RQA']))
+        rqa_data_types = list(dict.fromkeys(
+            _config.as_list(config, 'include_RQA', 'data types')))
         
         # Process each data type
         rqa_results = {}

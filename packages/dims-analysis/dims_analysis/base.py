@@ -115,8 +115,16 @@ class Step:
     description: str = ""
 
     def gate(self, config: dict) -> bool:
-        """Whether to run at all. Default: the config key is present and truthy."""
-        return bool(config.get(self.config_key))
+        """Whether to run at all. Default: the config key is present and truthy.
+
+        Matched case-insensitively, because the three gate keys use three
+        different conventions -- `include_RQA`, `include_cRQA`,
+        `include_crosswavelet` -- and `build_assets.py` already matched loosely.
+        A study writing `include_crqa` was reported as enabled by one and
+        skipped in silence by the other.
+        """
+        from dims_analysis.common import config as _config
+        return _config.enabled(config, self.config_key)
 
     def run(self, config: dict, ctx: StepContext) -> None:
         raise NotImplementedError
