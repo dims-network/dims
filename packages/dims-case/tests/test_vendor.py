@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dims_case.core import VENDOR, _write_vendor, verify_vendor  # noqa: E402
 
 
-def make_study(tmp_path, version="1.3.0"):
+def make_study(tmp_path, version="9.9.9"):
     """The vendored part of a study, as `dims-case new` would write it."""
     dest = str(tmp_path / "case-x")
     os.makedirs(dest)

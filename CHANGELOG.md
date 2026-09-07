@@ -7,6 +7,26 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v1.3.1
+
+Tooling only. No study's `vendor/` bytes change between 1.3.0 and 1.3.1, so a
+bump is a one-line edit to `dimsCore` — but CI needs the bump, because it runs
+the pinned release's own copy of `dims-case`.
+
+- **The vendored-core check compares against the release.** `dims-case check`
+  compared `vendor/` with the hashes recorded in the study's own
+  `dims-case.json`; both sides live in the study, so a copy taken from a
+  modified core agrees with itself and passes. `dims-case check --release`
+  rebuilds `vendor/` from this checkout and compares against that, which is
+  what CI now runs from a checkout of the pinned tag. The org's reusable
+  workflow, which did this with a `diff -r` that would have failed on every
+  study and had no callers, is wired into all three studies.
+- **`dims-case sync` seeds a rebuild path into studies that predate it.**
+  `build_assets.py`, `requirements.txt` and `data.local.json.example` are
+  copied in when absent and never overwritten afterwards, so a study that was
+  created before the scaffold had them can receive them by bumping the core.
+- **`dims-case` has tests.** It generates every study repository and had none.
+
 ## v1.3.0
 
 The analyses stopped failing quietly, and the builder started working on the
