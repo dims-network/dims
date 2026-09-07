@@ -1,0 +1,15 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    uses: dims-network/.github/.github/workflows/reusable-dashboard-ci.yml@main
+    with:
+      python_paths: "app template/opt"
+      js_glob: "app/static/*.js"
+      config_path: ""
+      check_assets: false
