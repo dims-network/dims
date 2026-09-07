@@ -16,6 +16,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
 import argparse
@@ -81,78 +82,28 @@ def calculate_recurrence_matrix(time_series, threshold=None, target_recurrence=0
     # Calculate distance matrix
     distance_matrix = cdist(ts_reshaped, ts_reshaped, metric='euclidean')
     
-    # If threshold not provided, calculate it to achieve target recurrence rate
+    # One rule, one implementation: see common/recurrence.py. The threshold and
+    # the recurrence rate both ignore the line of identity, because a point
+    # recurring with itself is not a finding.
     if threshold is None:
-        # Flatten upper triangle of distance matrix (excluding diagonal)
-        upper_triangle = distance_matrix[np.triu_indices_from(distance_matrix, k=1)]
-        # Find threshold that gives target recurrence rate
-        threshold = np.percentile(upper_triangle, target_recurrence * 100)
-        print(f"  Calculated threshold: {threshold:.4f} for {target_recurrence*100}% recurrence")
-    
-    # Create recurrence matrix
+        threshold = _rec.threshold_for_target(distance_matrix, target_recurrence,
+                                              self_paired=True)
+        print(f"  Calculated threshold: {threshold:.4f} for "
+              f"{target_recurrence * 100}% recurrence")
+
     recurrence_matrix = (distance_matrix <= threshold).astype(np.uint8)
-    
-    # Calculate actual recurrence rate
-    n = len(time_series)
-    actual_recurrence = (np.sum(recurrence_matrix) - n) / (n * n - n)
+    actual_recurrence = _rec.recurrence_rate(recurrence_matrix, self_paired=True)
     print(f"  Actual recurrence rate: {actual_recurrence*100:.2f}%")
-    
+
     return recurrence_matrix, threshold, actual_recurrence
 
 def get_line_lengths(matrix, direction='diagonal', min_len=2, exclude_main_diagonal=False):
-    """Lengths of consecutive recurrent runs along diagonals or columns.
-
-    For single-series RQA set exclude_main_diagonal=True to skip the line of
-    identity (k=0), which is trivially all-ones and would otherwise dominate
-    DET / L_MAX.
-    """
-    lengths = []
-    rows, cols = matrix.shape
-
-    if direction == 'diagonal':
-        for k in range(-rows + 1, cols):
-            if exclude_main_diagonal and k == 0:
-                continue
-            diag = matrix.diagonal(k)
-            if len(diag) < min_len:
-                continue
-            padded = np.pad(diag, (1, 1), 'constant').astype(int)
-            diff = np.diff(padded)
-            starts = np.where(diff == 1)[0]
-            ends = np.where(diff == -1)[0]
-            seq_lens = ends - starts
-            lengths.extend(seq_lens[seq_lens >= min_len])
-
-    elif direction == 'vertical':
-        for col_idx in range(cols):
-            col = matrix[:, col_idx]
-            if np.sum(col) < min_len:
-                continue
-            padded_col = np.pad(col, (1, 1), 'constant').astype(int)
-            col_diff = np.diff(padded_col)
-            starts = np.where(col_diff == 1)[0]
-            ends = np.where(col_diff == -1)[0]
-            l = ends - starts
-            lengths.extend(l[l >= min_len])
-
-    return np.array(lengths)
+    """Delegates to the shared implementation; see common/recurrence.py."""
+    return _rec.line_lengths(matrix, direction, min_len, self_paired=exclude_main_diagonal)
 
 def calculate_window_metrics(matrix, dt, min_line=2, exclude_main_diagonal=False):
-    """RQA metrics (RR, DET, LAM, L_MAX) for one sub-window of the matrix."""
-    total_points = matrix.size
-    if total_points == 0:
-        return 0.0, 0.0, 0.0, 0.0
-    recurrence_count = np.sum(matrix)
-    rr = recurrence_count / total_points
-    if recurrence_count == 0:
-        return float(rr), 0.0, 0.0, 0.0
-    diag_lines = get_line_lengths(matrix, direction='diagonal', min_len=min_line,
-                                  exclude_main_diagonal=exclude_main_diagonal)
-    vert_lines = get_line_lengths(matrix, direction='vertical', min_len=min_line)
-    det = np.sum(diag_lines) / recurrence_count if recurrence_count > 0 else 0.0
-    lam = np.sum(vert_lines) / recurrence_count if recurrence_count > 0 else 0.0
-    l_max = (np.max(diag_lines) * dt) if len(diag_lines) > 0 else 0.0
-    return float(rr), float(det), float(lam), float(l_max)
+    """Delegates to the shared implementation; see common/recurrence.py."""
+    return _rec.window_metrics(matrix, dt, min_line, self_paired=exclude_main_diagonal)
 
 def compute_windowed_metrics(matrix, time_values, window_sec=20.0, step_sec=1.0):
     """Slide a square window along the main diagonal of `matrix`, returning

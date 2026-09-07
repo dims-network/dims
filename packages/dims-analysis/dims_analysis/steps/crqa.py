@@ -33,6 +33,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
 import argparse
@@ -94,12 +95,16 @@ def calculate_cross_recurrence_matrix(emb1, emb2, threshold=None, target_recurre
     """
     distance_matrix = cdist(emb1, emb2, metric='euclidean')
 
+    # One rule, one implementation: see common/recurrence.py. Nothing is
+    # excluded here -- the two series are different, so no cell recurs by
+    # construction and there is no line of identity to ignore.
     if threshold is None:
-        threshold = np.percentile(distance_matrix, target_recurrence * 100)
+        threshold = _rec.threshold_for_target(distance_matrix, target_recurrence,
+                                              self_paired=False)
         print(f"    > Calculated threshold: {threshold:.4f} (Target RR: {target_recurrence*100}%)")
 
     recurrence_matrix = (distance_matrix <= threshold).astype(np.uint8)
-    actual_recurrence = np.sum(recurrence_matrix) / recurrence_matrix.size
+    actual_recurrence = _rec.recurrence_rate(recurrence_matrix, self_paired=False)
     return recurrence_matrix, threshold, actual_recurrence
 
 
@@ -136,61 +141,12 @@ def downsample_for_visualization(ts1, ts2, time_values, recurrence_matrix, max_p
 
 
 def get_line_lengths(matrix, direction='diagonal', min_len=2):
-    """Lengths of consecutive recurrent runs along diagonals or columns."""
-    lengths = []
-    rows, cols = matrix.shape
-
-    if direction == 'diagonal':
-        for k in range(-rows + 1, cols):
-            diag = matrix.diagonal(k)
-            if len(diag) < min_len:
-                continue
-            padded = np.pad(diag, (1, 1), 'constant').astype(int)
-            diff = np.diff(padded)
-            starts = np.where(diff == 1)[0]
-            ends = np.where(diff == -1)[0]
-            seq_lens = ends - starts
-            lengths.extend(seq_lens[seq_lens >= min_len])
-
-    elif direction == 'vertical':
-        for col_idx in range(cols):
-            col = matrix[:, col_idx]
-            if np.sum(col) < min_len:
-                continue
-            padded_col = np.pad(col, (1, 1), 'constant').astype(int)
-            col_diff = np.diff(padded_col)
-            starts = np.where(col_diff == 1)[0]
-            ends = np.where(col_diff == -1)[0]
-            l = ends - starts
-            lengths.extend(l[l >= min_len])
-
-    return np.array(lengths)
-
+    """Delegates to the shared implementation; see common/recurrence.py."""
+    return _rec.line_lengths(matrix, direction, min_len, self_paired=False)
 
 def calculate_window_metrics(matrix, dt, min_line=2):
-    """RQA metrics (RR, DET, LAM, L_MAX) for one sub-window of the matrix."""
-    total_points = matrix.size
-    if total_points == 0:
-        return 0.0, 0.0, 0.0, 0.0
-
-    recurrence_count = np.sum(matrix)
-    rr = recurrence_count / total_points
-    if recurrence_count == 0:
-        return float(rr), 0.0, 0.0, 0.0
-
-    diag_lines = get_line_lengths(matrix, direction='diagonal', min_len=min_line)
-    vert_lines = get_line_lengths(matrix, direction='vertical', min_len=min_line)
-
-    det = np.sum(diag_lines) / recurrence_count if recurrence_count > 0 else 0.0
-    lam = np.sum(vert_lines) / recurrence_count if recurrence_count > 0 else 0.0
-    l_max = (np.max(diag_lines) * dt) if len(diag_lines) > 0 else 0.0
-
-    return float(rr), float(det), float(lam), float(l_max)
-
-
-# ============================================================================
-# DATA HANDLING
-# ============================================================================
+    """Delegates to the shared implementation; see common/recurrence.py."""
+    return _rec.window_metrics(matrix, dt, min_line, self_paired=False)
 
 def _load_series(path):
     """Read a {value, Time} CSV; return (time, value) arrays sorted by time, NaNs dropped."""
