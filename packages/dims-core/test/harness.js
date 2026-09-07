@@ -40,14 +40,51 @@ function makeEnv({ config, files = {}, scripts }) {
   // Stub the CDN globals. Plotly calls are recorded so tests can assert what
   // was drawn without a renderer.
   const plotted = [];
+  // Real Plotly attaches an .on() to the plot element; the host uses it to catch
+  // clicks on a chart. Without it the load path throws and every later
+  // assertion is really testing the error branch.
+  const attach = (el) => {
+    if (el && typeof el.on !== 'function') {
+      el._handlers = {};
+      el.on = (ev, fn) => { (el._handlers[ev] = el._handlers[ev] || []).push(fn); };
+      el.emit = (ev, payload) => (el._handlers[ev] || []).forEach(fn => fn(payload));
+    }
+    return el;
+  };
   w.Plotly = {
-    newPlot: (el, data, layout) => { plotted.push({ el: el && el.id, n: (data || []).length }); return Promise.resolve(); },
-    react: () => Promise.resolve(), purge: () => {}, relayout: () => Promise.resolve(),
+    newPlot: (el, data, layout) => {
+      attach(typeof el === 'string' ? w.document.getElementById(el) : el);
+      plotted.push({ el: el && (el.id || el), n: (data || []).length });
+      return Promise.resolve();
+    },
+    react: (el) => { attach(typeof el === 'string' ? w.document.getElementById(el) : el); return Promise.resolve(); },
+    purge: () => {}, relayout: () => Promise.resolve(),
     Plots: { resize: () => {} },
   };
+  w.__attachPlotly = attach;
   w.React = { createElement: (...a) => ({ __el: a }), Fragment: 'F' };
   w.ReactDOM = { render: () => {}, createRoot: () => ({ render: () => {} }) };
-  w.Papa = { parse: (t, o) => { const r = { data: [], errors: [], meta: {} }; o && o.complete && o.complete(r); return r; } };
+  // A real (small) CSV parser, not a stub that always returns nothing. With an
+  // empty result the host takes its "no valid data" branch, so any test about
+  // what happens once data is loaded silently exercises nothing.
+  w.Papa = {
+    parse: (text, opts) => {
+      const lines = String(text).trim().split(/\r?\n/).filter(Boolean);
+      const header = (lines.shift() || '').split(',').map(h => h.trim());
+      const data = lines.map(line => {
+        const cells = line.split(',');
+        const row = {};
+        header.forEach((h, i) => {
+          const v = (cells[i] ?? '').trim();
+          row[h] = opts && opts.dynamicTyping && v !== '' && !isNaN(v) ? Number(v) : v;
+        });
+        return row;
+      });
+      const result = { data, errors: [], meta: { fields: header } };
+      if (opts && opts.complete) opts.complete(result);
+      return result;
+    },
+  };
   w.TimeRangeVideo = function () { return null; };
   w.__plotted = plotted;
 

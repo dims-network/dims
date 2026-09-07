@@ -15,3 +15,5 @@ dims_analysis/steps/__init__.py
 dims_analysis/steps/crosswavelet.py
 dims_analysis/steps/crqa.py
 dims_analysis/steps/rqa.py
+tests/test_coherence.py
+tests/test_registry.py
