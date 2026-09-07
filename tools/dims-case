@@ -161,12 +161,26 @@ def cmd_adopt(args):
 # overwriting that on a version bump would delete the study's own pipeline.
 SCAFFOLD_FILES = ("serve.py",)
 
+# Installed if the study does not have them, never overwritten. A study makes
+# these its own -- Karnatak's build_assets.py drives motion capture, and a
+# requirements.txt grows the study's own dependencies -- so refreshing them on
+# a version bump would delete work. Seeding them means an older study is not
+# left without a rebuild path just because it predates the scaffold having one.
+SCAFFOLD_SEED_FILES = ("build_assets.py", "requirements.txt",
+                       "data.local.json.example")
+
 
 def _refresh_scaffold_files(dest):
     for name in SCAFFOLD_FILES:
         src = os.path.join(CORE_ROOT, SCAFFOLD, name)
         if os.path.exists(src):
             shutil.copy(src, os.path.join(dest, name))
+    for name in SCAFFOLD_SEED_FILES:
+        src = os.path.join(CORE_ROOT, SCAFFOLD, name)
+        dst = os.path.join(dest, name)
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copy(src, dst)
+            print(f"  seeded {name}")
 
 
 def cmd_sync(args):

@@ -131,6 +131,10 @@ def main():
     print(f'assets     : {asset_dir()}')
     print(f'shared     : {", ".join(shared) or "(none enabled)"}')
     print(f'study-owned: {", ".join(sid for sid, _ in mine) or "(none)"}')
+    idle = [sid for sid, _ in own_steps() if not enabled(config, sid)]
+    if idle:
+        print(f'  not enabled: {", ".join(idle)}  '
+              f'(add "include_<id>": true to config.json to run them)')
 
     if not videos:
         sys.exit('\nERROR: config.json lists no videoIDs. Nothing to build.')
@@ -154,9 +158,12 @@ def main():
             '-m', 'dims_analysis.cli', 'run', '--config', 'config.json')
 
     for step_id, path in mine:
+        # No --output-dir: a study-owned step knows where its results belong,
+        # and imposing assets/<id>/ would be wrong for the ones that write into
+        # an existing directory on purpose. ORTHO's categorical gaze RQA writes
+        # into assets/rqa/ so it merges with the shared RQA for the same video.
         run(f"This study's own: {step_id}",
-            str(path.relative_to(ROOT)), '--config', 'config.json',
-            '--output-dir', f'assets/{step_id}')
+            str(path.relative_to(ROOT)), '--config', 'config.json')
 
     print('\n' + '=' * 66)
     print('  Asset build complete')
