@@ -148,6 +148,27 @@ def cmd_adopt(args):
     return 0
 
 
+# Files the scaffold owns, refreshed on every core update. A study never edits
+# these: serve.py is the host, not the study.
+#
+# serve.py was NOT in this list, and the consequence was invisible: case-demo
+# and case-ortho kept the pre-monorepo 101-line version -- no data.local.json
+# support and no path-traversal guard -- and no amount of core bumping could
+# ever have given it to them. Only `adopt` copied it, once.
+#
+# build_assets.py is deliberately absent: the scaffold ships a generic one, but
+# a study replaces it with its own (Karnatak's drives motion capture), and
+# overwriting that on a version bump would delete the study's own pipeline.
+SCAFFOLD_FILES = ("serve.py",)
+
+
+def _refresh_scaffold_files(dest):
+    for name in SCAFFOLD_FILES:
+        src = os.path.join(CORE_ROOT, SCAFFOLD, name)
+        if os.path.exists(src):
+            shutil.copy(src, os.path.join(dest, name))
+
+
 def cmd_sync(args):
     dest = os.path.abspath(args.path)
     case_path = os.path.join(dest, "dims-case.json")
@@ -157,6 +178,7 @@ def cmd_sync(args):
     case["vendorHashes"] = _write_vendor(dest)
     _write_index(dest)
     _register_study_tabs(dest)
+    _refresh_scaffold_files(dest)
     # Workflows are generated, like index.html and vendor/, so a core refresh
     # refreshes them too. Otherwise a study keeps whatever CI it was created
     # with, which is how five repos ended up with five drifted copies.
