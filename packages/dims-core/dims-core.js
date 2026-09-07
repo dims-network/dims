@@ -17,6 +17,49 @@ function readTheme() {
 }
 let THEME = readTheme();
 
+// ---------------------------------------------------------------------------
+// The tab registry.
+//
+// Every tab registers itself here -- the built-in ones in packages/dims-tabs/
+// included. That is deliberate: if this mechanism breaks, ELAN and RQA break
+// with it, in the same commit, so it cannot rot unnoticed while only
+// third-party tabs suffer.
+//
+// Load order is dims-core.js first, then the tab files. Registering after the
+// app has been constructed is too late and is ignored.
+//
+// Contract, with the acceptance checks: docs/contracts/tab.md
+// ---------------------------------------------------------------------------
+window.DIMS = window.DIMS || {
+    _tabs: [],
+
+    registerTab(def) {
+        if (!def || !def.id) {
+            console.error('DIMS.registerTab: a tab needs an id', def);
+            return;
+        }
+        if (this._tabs.some(t => t.id === def.id)) {
+            console.error(`DIMS.registerTab: duplicate tab id '${def.id}' ignored`);
+            return;
+        }
+        this._tabs.push(def);
+    },
+
+    // Tabs whose rendering lives in their own file attach it to the host here.
+    // Explicit rather than magic, so it can be grepped for.
+    extendHost(methods) {
+        if (!this._appProto) {
+            console.error('DIMS.extendHost called before dims-core.js defined the host');
+            return;
+        }
+        Object.assign(this._appProto, methods);
+    },
+
+    // Tabs must style themselves with CSS custom properties. This is exposed
+    // only for the plot libraries, which need concrete colour values.
+    theme() { return THEME; }
+};
+
 class DIMSApp {
     constructor() {
         this.config = null;
@@ -30,7 +73,9 @@ class DIMSApp {
         this.crqaData = null;
         this.elanData = null;
         this.elanSelectedTiers = null;
-        this.currentTab = 'timeseries';
+        this.currentTab = null;
+        this.tabs = [];
+        this._timeSubscribers = [];
     }
 
     async initialize() {
@@ -68,18 +113,18 @@ class DIMSApp {
     }
 
     setupTabs() {
-        const hasRQA = this.config.include_RQA && this.config.include_RQA.length > 0;
-        // Cross-wavelet accepts two config forms, and they gate differently:
-        // explicit pairs [[a,b]] where ONE entry is already a valid analysis,
-        // and the legacy flat list [a,b,c] which needs two types to form a
-        // pair at all. Testing length >= 2 for both silently hid the tab from
-        // any study that asked for exactly one pair -- while the analysis had
-        // run and its output was sitting in assets/.
-        const cwConfig = this.config.include_crosswavelet;
-        const hasCrossWavelet = Array.isArray(cwConfig) && cwConfig.length > 0 &&
-            (Array.isArray(cwConfig[0]) || cwConfig.length >= 2);
-        const hasCRQA = this.config.include_cRQA && this.config.include_cRQA.length > 0;
-        const hasELAN = !!this.config.include_elan;
+        // Which tabs apply to this study. Nothing is listed here: tabs register
+        // themselves and decide for themselves whether they apply.
+        this.tabs = (window.DIMS._tabs || [])
+            .filter(t => {
+                try {
+                    return !t.gate || t.gate(this.config);
+                } catch (err) {
+                    console.error(`Tab '${t.id}' gate threw; hiding it.`, err);
+                    return false;
+                }
+            })
+            .sort((a, b) => (a.order == null ? 100 : a.order) - (b.order == null ? 100 : b.order));
 
         // Wrap the time slider (and the tab bar, below) in one sticky toolbar so
         // they pin to the top of the page together while scrolling.
@@ -92,158 +137,84 @@ class DIMSApp {
             stickyBar.appendChild(sliderContainer);
         }
 
-        // If no optional tabs, hide tab container
-        if (!hasRQA && !hasCrossWavelet && !hasCRQA && !hasELAN) {
-            const tabContainer = document.getElementById('tabContainer');
-            if (tabContainer) tabContainer.style.display = 'none';
-            return;
-        }
-        
-        // Create tab UI if not exists
+        const plotContainer = document.getElementById('plotContainer');
+        if (!plotContainer) return;
+
+        // A single tab is no choice at all, so the bar is hidden entirely.
+        const showBar = this.tabs.length > 1;
+
         let tabContainer = document.getElementById('tabContainer');
         if (!tabContainer) {
-            // Create tab container above plot container
-            const plotContainer = document.getElementById('plotContainer');
             tabContainer = document.createElement('div');
             tabContainer.id = 'tabContainer';
-            
-            // Tab colors come from css/theme.css (.tab-button / .active)
-            let tabHTML = `<div class="tabs">
-                <button class="tab-button active" data-tab="timeseries">Time Series</button>`;
-
-            if (hasRQA) {
-                tabHTML += `<button class="tab-button" data-tab="rqa">RQA Plots</button>`;
-            }
-
-            if (hasCrossWavelet) {
-                tabHTML += `<button class="tab-button" data-tab="crosswavelet">Cross-Wavelet</button>`;
-            }
-
-            if (hasCRQA) {
-                tabHTML += `<button class="tab-button" data-tab="crqa">Cross-RQA</button>`;
-            }
-
-            if (hasELAN) {
-                tabHTML += `<button class="tab-button" data-tab="elan">ELAN Annotations</button>`;
-            }
-
-            tabHTML += `</div>`;
-            tabContainer.innerHTML = tabHTML;
-            // Put the tab bar inside the sticky toolbar (just under the slider);
-            // fall back to placing it above the plot if the bar isn't present.
-            if (stickyBar) {
-                stickyBar.appendChild(tabContainer);
-            } else {
-                plotContainer.parentNode.insertBefore(tabContainer, plotContainer);
-            }
-
-            // Create RQA container if needed
-            if (hasRQA) {
-                const rqaContainer = document.createElement('div');
-                rqaContainer.id = 'rqaContainer';
-                rqaContainer.style.display = 'none';
-                rqaContainer.style.minHeight = '800px';
-                rqaContainer.className = 'plot-pane';
-                rqaContainer.style.padding = '20px';
-                plotContainer.parentNode.insertBefore(rqaContainer, plotContainer.nextSibling);
-            }
-            
-            // Create Cross-Wavelet container if needed
-            if (hasCrossWavelet) {
-                const cwContainer = document.createElement('div');
-                cwContainer.id = 'crossWaveletContainer';
-                cwContainer.style.display = 'none';
-                cwContainer.style.minHeight = '800px';
-                cwContainer.className = 'plot-pane';
-                cwContainer.style.padding = '20px';
-                plotContainer.parentNode.insertBefore(cwContainer, plotContainer.nextSibling);
-            }
-
-            // Create Cross-RQA container if needed
-            if (hasCRQA) {
-                const crqaContainer = document.createElement('div');
-                crqaContainer.id = 'crqaContainer';
-                crqaContainer.style.display = 'none';
-                crqaContainer.style.minHeight = '800px';
-                crqaContainer.className = 'plot-pane';
-                crqaContainer.style.padding = '20px';
-                plotContainer.parentNode.insertBefore(crqaContainer, plotContainer.nextSibling);
-            }
-
-            // Create ELAN container if needed
-            if (hasELAN) {
-                const elanContainer = document.createElement('div');
-                elanContainer.id = 'elanContainer';
-                elanContainer.style.display = 'none';
-                elanContainer.style.minHeight = '600px';
-                elanContainer.className = 'plot-pane';
-                elanContainer.style.padding = '20px';
-                plotContainer.parentNode.insertBefore(elanContainer, plotContainer.nextSibling);
-            }
+            (stickyBar || plotContainer.parentNode).appendChild(tabContainer);
         }
-        
-        // Add tab click handlers
-        const tabButtons = tabContainer.querySelectorAll('.tab-button');
-        tabButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const targetTab = e.target.dataset.tab;
-                this.switchTab(targetTab);
-            });
+        tabContainer.innerHTML = showBar
+            ? `<div class="tabs">${this.tabs.map((t, i) =>
+                `<button class="tab-button${i === 0 ? ' active' : ''}" data-tab="${t.id}">${t.label || t.id}</button>`
+              ).join('')}</div>`
+            : '';
+
+        // One pane per tab. containerId lets a tab keep an id that other code
+        // already depends on (#plotContainer, #crossWaveletContainer).
+        this.tabs.forEach((t, i) => {
+            const id = this.paneIdFor(t);
+            let pane = document.getElementById(id);
+            if (!pane) {
+                pane = document.createElement('div');
+                pane.id = id;
+                pane.className = 'plot-pane';
+                pane.style.minHeight = '800px';
+                pane.style.padding = '20px';
+                plotContainer.parentNode.insertBefore(pane, plotContainer.nextSibling);
+            }
+            pane.style.display = i === 0 ? 'block' : 'none';
+        });
+
+        this.currentTab = this.tabs.length ? this.tabs[0].id : null;
+
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
         });
     }
 
+    paneIdFor(tab) {
+        return tab.containerId || `${tab.id}Container`;
+    }
+
     switchTab(tabName) {
+        const tab = (this.tabs || []).find(t => t.id === tabName);
+        if (!tab) return;
+
+        const previous = this.currentTab;
+        if (previous && previous !== tabName) {
+            const prev = (this.tabs || []).find(t => t.id === previous);
+            if (prev && prev.onDeactivate) {
+                try { prev.onDeactivate(this); }
+                catch (err) { console.error(`Tab '${previous}' onDeactivate failed:`, err); }
+            }
+        }
         this.currentTab = tabName;
-        
-        // Toggle the active class; colors come from css/theme.css
-        const tabButtons = document.querySelectorAll('.tab-button');
-        tabButtons.forEach(button => {
-            button.classList.toggle('active', button.dataset.tab === tabName);
+
+        document.querySelectorAll('.tab-button').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tabName);
         });
-        
-        // Hide all containers, then show the selected one
-        ['plotContainer', 'rqaContainer', 'crossWaveletContainer', 'crqaContainer', 'elanContainer'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
+        (this.tabs || []).forEach(t => {
+            const el = document.getElementById(this.paneIdFor(t));
+            if (el) el.style.display = t.id === tabName ? 'block' : 'none';
         });
 
-        if (tabName === 'timeseries') {
-            document.getElementById('plotContainer').style.display = 'block';
-            if (this.lastClickedPoint !== null) {
-                this.handleTimeClick(this.lastClickedPoint);
+        const container = document.getElementById(this.paneIdFor(tab));
+        try {
+            if (!tab._activated) {
+                tab._activated = true;
+                Promise.resolve(tab.onActivate && tab.onActivate(this, container))
+                    .catch(err => console.error(`Tab '${tabName}' onActivate failed:`, err));
+            } else if (tab.onUpdate) {
+                tab.onUpdate(this, container);
             }
-        } else if (tabName === 'rqa') {
-            const rqaContainer = document.getElementById('rqaContainer');
-            if (rqaContainer) rqaContainer.style.display = 'block';
-            if (this.currentVideoID && !this.rqaData) {
-                this.loadRQAData(this.currentVideoID);
-            } else if (this.rqaData && this.lastClickedPoint !== null) {
-                this.updateRQAHighlights();
-            }
-        } else if (tabName === 'crosswavelet') {
-            const cwContainer = document.getElementById('crossWaveletContainer');
-            if (cwContainer) cwContainer.style.display = 'block';
-            if (this.currentVideoID && !this.crossWaveletData) {
-                this.loadCrossWaveletData(this.currentVideoID);
-            } else if (this.crossWaveletData && this.lastClickedPoint !== null) {
-                this.updateCrossWaveletHighlights();
-            }
-        } else if (tabName === 'crqa') {
-            const crqaContainer = document.getElementById('crqaContainer');
-            if (crqaContainer) crqaContainer.style.display = 'block';
-            if (this.currentVideoID && !this.crqaData) {
-                this.loadCRQAData(this.currentVideoID);
-            } else if (this.crqaData) {
-                this.displayCRQAPlots();
-            }
-        } else if (tabName === 'elan') {
-            const elanContainer = document.getElementById('elanContainer');
-            if (elanContainer) elanContainer.style.display = 'block';
-            if (this.currentVideoID && !this.elanData) {
-                this.loadELANData(this.currentVideoID);
-            } else if (this.elanData) {
-                this.updateELANHighlight();
-            }
+        } catch (err) {
+            console.error(`Tab '${tabName}' failed to activate:`, err);
         }
     }
 
@@ -1743,20 +1714,35 @@ if (arrowData.x.length > 0) {
         // Update transcript
         this.updateTranscript(time, windowSize);
         
-        // Update highlights based on current tab
-        if (this.currentTab === 'rqa' && this.rqaData) {
-            this.updateRQAHighlights();
-        } else if (this.currentTab === 'crosswavelet' && this.crossWaveletData) {
-            this.updateCrossWaveletHighlights();
-        } else if (this.currentTab === 'crqa' && this.crqaData) {
-            this.updateCRQAHighlights();
-        } else if (this.currentTab === 'elan' && this.elanData) {
-            this.updateELANHighlight();
-        }
+        // The time bus. This was an if/else chain naming every tab, which meant
+        // adding a tab required editing this method -- the single biggest
+        // obstacle to tabs being separable at all.
+        this.emitTimeChange(time, windowSize);
         
         // Update status
         document.getElementById('status').textContent = 
             `Selected time: ${time.toFixed(2)}s (window: ${windowSize}s)`;
+    }
+
+    emitTimeChange(time, windowSize) {
+        // The visible tab gets first refusal, since it is the one on screen.
+        const active = (this.tabs || []).find(t => t.id === this.currentTab);
+        if (active && active.onTimeUpdate) {
+            try { active.onTimeUpdate(this, time, windowSize); }
+            catch (err) { console.error(`Tab '${active.id}' onTimeUpdate failed:`, err); }
+        }
+        // Anything else that asked to follow the playhead, tab or not.
+        (this._timeSubscribers || []).forEach(fn => {
+            try { fn(time, windowSize); }
+            catch (err) { console.error('A time subscriber failed:', err); }
+        });
+    }
+
+    onTimeChange(fn) {
+        if (typeof fn !== 'function') return () => {};
+        this._timeSubscribers = this._timeSubscribers || [];
+        this._timeSubscribers.push(fn);
+        return () => { this._timeSubscribers = this._timeSubscribers.filter(f => f !== fn); };
     }
 
     updateVideos(clickTime, windowSize) {
@@ -1809,6 +1795,15 @@ if (arrowData.x.length > 0) {
     }
 
     async loadVideoData(videoID) {
+        // A new video invalidates whatever each tab had drawn.
+        (this.tabs || []).forEach(t => {
+            t._activated = false;
+            if (t.onVideoChange) {
+                try { t.onVideoChange(this, videoID); }
+                catch (err) { console.error(`Tab '${t.id}' onVideoChange failed:`, err); }
+            }
+        });
+
         if (!videoID) return;
         
         this.showStatus('Loading data...');
@@ -2108,6 +2103,10 @@ if (arrowData.x.length > 0) {
         this._renderELANPlot();
     }
 }
+
+// Tab files load after this one and attach their rendering through
+// DIMS.extendHost(), which needs the prototype.
+window.DIMS._appProto = DIMSApp.prototype;
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
