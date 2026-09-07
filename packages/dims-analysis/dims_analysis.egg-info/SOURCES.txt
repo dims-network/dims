@@ -17,3 +17,4 @@ dims_analysis/steps/crqa.py
 dims_analysis/steps/rqa.py
 tests/test_coherence.py
 tests/test_registry.py
+tests/test_resolution.py

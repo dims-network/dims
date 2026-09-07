@@ -14,6 +14,41 @@ import json
 import os
 import argparse
 
+# Browser payloads are rounded to significant figures; see the module docstring
+# for why decimal places would be wrong here. The full-resolution analysis is
+# the .npz written beside the JSON and is not affected.
+try:
+    from dims_analysis.common.payload import round_payload, precision_note
+except ImportError:  # standalone script inside a case repo, without the package
+    import math as _math
+
+    PAYLOAD_SIGNIFICANT_FIGURES = 6
+
+    def round_payload(o, figures=PAYLOAD_SIGNIFICANT_FIGURES):
+        if isinstance(o, dict):
+            return {k: round_payload(v, figures) for k, v in o.items()}
+        if isinstance(o, (list, tuple)):
+            return [round_payload(v, figures) for v in o]
+        # Integers pass through: a sparse recurrence matrix is tens of
+        # thousands of [row, col] index pairs, and "7.0" is both wrong and
+        # larger than "7".
+        if o is None or isinstance(o, bool) or isinstance(o, int):
+            return o
+        if not isinstance(o, float):
+            return o
+        if not _math.isfinite(o):
+            return None
+        if o == 0:
+            return o
+        return float(f"%.{figures}g" % o)
+
+    def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
+        return {"significant_figures": figures,
+                "note": ("This file is the browser payload and is rounded. The "
+                         "full-resolution analysis is the .npz beside it.")}
+
+
+
 def calculate_recurrence_matrix(time_series, threshold=None, target_recurrence=0.07):
     """
     Calculate recurrence matrix for a time series.
@@ -289,10 +324,11 @@ def main():
         if rqa_results:
             output_path = os.path.join(args.output_dir, f"{video_id}_rqa_data.json")
             with open(output_path, 'w') as f:
-                json.dump({
+                json.dump(round_payload({
                     'video_id': video_id,
-                    'rqa_data': rqa_results
-                }, f, indent=2)
+                    'rqa_data': rqa_results,
+                    'precision': precision_note(),
+                }), f, separators=(',', ':'))
             print(f"\nSaved RQA data to {output_path}")
             
             # Print summary

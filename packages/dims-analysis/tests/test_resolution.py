@@ -118,3 +118,54 @@ def test_statistics_survive_undefined_cells():
     src = open(os.path.join(HERE, "dims_analysis", "steps", "crosswavelet.py")).read()
     assert "coi_mask | ~np.isfinite" in src, \
         "undefined cells must be masked out of the statistics too"
+
+
+# --- payload precision ------------------------------------------------------
+# These guard a decision that is easy to undo by accident: someone "fixes" the
+# rounding to decimal places, or drops it while touching serialisation, and the
+# files quadruple or the quiet cells silently become zero.
+
+def test_significant_figures_not_decimal_places():
+    from dims_analysis.common.payload import round_significant
+
+    # The whole reason this is not one call to round(): cross-wavelet power
+    # spans eight orders of magnitude.
+    assert round_significant(3.21e-08) == 3.21e-08, \
+        "a small value must survive; decimal-place rounding would zero it"
+    assert round(3.21e-08, 6) == 0.0, "which is what we are avoiding"
+
+    assert round_significant(0.5940133868313864) == 0.594013
+    assert round_significant(1234.5678901) == 1234.57
+
+
+def test_integers_are_left_alone():
+    """A sparse recurrence matrix is tens of thousands of [row, col] index
+    pairs. Turning those into floats is wrong and larger on disk."""
+    from dims_analysis.common.payload import round_significant, round_payload
+    assert round_significant(7) == 7 and isinstance(round_significant(7), int)
+    assert round_significant(505) == 505
+    matrix = [[0, 7], [3, 17]]
+    assert round_payload(matrix) == matrix
+    assert all(isinstance(v, int) for row in round_payload(matrix) for v in row)
+
+
+def test_nan_becomes_null_not_a_bare_token():
+    from dims_analysis.common.payload import round_payload
+    assert round_payload(float("nan")) is None
+    assert round_payload(float("inf")) is None
+
+
+def test_every_step_rounds_its_payload_and_says_so():
+    """The guard against this quietly disappearing: each step must round on the
+    way out and record the precision in the file."""
+    import os
+    steps = os.path.join(HERE, "dims_analysis", "steps")
+    for name in ("crosswavelet.py", "rqa.py", "crqa.py"):
+        src = open(os.path.join(steps, name)).read()
+        assert "round_payload(" in src, f"{name} writes an unrounded payload"
+        assert "precision_note()" in src, f"{name} does not record its precision"
+        # code lines only: a comment explaining why indent=2 was removed is not
+        # a violation, and matching it would be the same false positive twice.
+        code = [l for l in src.splitlines() if not l.lstrip().startswith("#")]
+        assert not any("indent=2" in l for l in code), \
+            f"{name} still writes indentation nobody reads"

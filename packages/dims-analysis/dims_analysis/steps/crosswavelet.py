@@ -14,6 +14,41 @@ import os
 import argparse
 from scipy import signal
 import warnings
+
+# Browser payloads are rounded to significant figures; see the module docstring
+# for why decimal places would be wrong here. The full-resolution analysis is
+# the .npz written beside the JSON and is not affected.
+try:
+    from dims_analysis.common.payload import round_payload, precision_note
+except ImportError:  # standalone script inside a case repo, without the package
+    import math as _math
+
+    PAYLOAD_SIGNIFICANT_FIGURES = 6
+
+    def round_payload(o, figures=PAYLOAD_SIGNIFICANT_FIGURES):
+        if isinstance(o, dict):
+            return {k: round_payload(v, figures) for k, v in o.items()}
+        if isinstance(o, (list, tuple)):
+            return [round_payload(v, figures) for v in o]
+        # Integers pass through: a sparse recurrence matrix is tens of
+        # thousands of [row, col] index pairs, and "7.0" is both wrong and
+        # larger than "7".
+        if o is None or isinstance(o, bool) or isinstance(o, int):
+            return o
+        if not isinstance(o, float):
+            return o
+        if not _math.isfinite(o):
+            return None
+        if o == 0:
+            return o
+        return float(f"%.{figures}g" % o)
+
+    def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
+        return {"significant_figures": figures,
+                "note": ("This file is the browser payload and is rounded. The "
+                         "full-resolution analysis is the .npz beside it.")}
+
+
 warnings.filterwarnings('ignore')
 
 # ==============================================================================
@@ -1108,7 +1143,10 @@ def main():
                 }
                 
                 with open(output_path, 'w') as f:
-                    json.dump(output_data, f, indent=2)
+                    output_data['precision'] = precision_note()
+                    # Compact separators too: the whitespace of indent=2 is a
+                    # quarter of the file, and nobody reads this by eye.
+                    json.dump(round_payload(output_data), f, separators=(',', ':'))
                 
                 print(f"\nSaved cross-wavelet data to {output_path}")
             

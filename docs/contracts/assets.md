@@ -62,6 +62,33 @@ holds a sixth of the time points, and for a long time it was the only thing
 kept, so anyone continuing from a study's output was working at a fraction of
 the resolution without being told.
 
+### Precision
+
+The JSON is **rounded to 6 significant figures**, and says so: every output
+carries a `precision` block naming the figure count and pointing at the `.npz`.
+
+That is not a compression trick, it is honesty about what the file is. A value
+in the payload becomes a pixel's colour on a heatmap — a few hundred
+distinguishable levels — so writing `0.5940133868313864` claims a precision the
+measurement never had and costs four times the bytes. Measured on the reference
+study: 8.2 MB → 2.3 MB for cross-wavelet, 5.1 MB → 1.0 MB for RQA.
+
+**Significant figures, not decimal places**, and the difference is not cosmetic:
+
+| value | 6 significant figures | 6 decimal places |
+|---|---|---|
+| `3.21e-08` | `3.21e-08` | `0.0` — destroyed |
+| `0.5940133868313864` | `0.594013` | `0.594013` |
+
+Cross-wavelet power spans eight orders of magnitude, so a fixed number of
+decimal places silently zeroes the quiet cells. Integers — counts, and the
+`[row, col]` index pairs of a sparse recurrence matrix — are left untouched.
+
+Nothing is lost to analysis: the `.npz` holds float32, which is about seven
+significant figures.
+
+### Reduction
+
 The reduction is a block average, not every nth sample. Striding is decimation
 with no low-pass filter: it does not remove detail, it folds it back onto the
 frequencies that remain. Phase is reduced through the unit circle, since
