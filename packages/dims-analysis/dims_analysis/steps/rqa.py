@@ -16,6 +16,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
@@ -28,6 +29,9 @@ import argparse
 # a directory that does not exist while printing "assets resolved" and reporting
 # success.
 INPUT_DIR = 'assets/timeseries'
+
+# Fewer points than this cannot support a recurrence estimate worth drawing.
+MIN_DATA_POINTS = 10
 
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
@@ -177,38 +181,16 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     Process RQA for a specific data type.
     """
     csv_path = os.path.join(INPUT_DIR, f"{video_id}_{data_type}.csv")
-    
-    if not os.path.exists(csv_path):
-        print(f"Warning: File not found: {csv_path}")
-        return None
-    
-    print(f"\nProcessing {video_id} - {data_type}")
-    
-    # Load data
-    df = pd.read_csv(csv_path)
-    # Accept the time column under any casing/whitespace -> canonical 'Time'.
-    df = df.rename(columns={c: 'Time' for c in df.columns if str(c).strip().lower() == 'time'})
 
-    # Get time column
-    if 'Time' not in df.columns:
-        print(f"Error: No 'Time' column in {csv_path}")
+    print(f"\nProcessing {video_id} - {data_type}")
+
+    # One reader, shared with cRQA and the notebooks: canonical Time column,
+    # NaNs dropped, sorted by time. This step did not sort, so on an
+    # out-of-order CSV it and cRQA disagreed about what the data was.
+    time_clean, data_clean = _series.load_or_none(csv_path, min_points=MIN_DATA_POINTS)
+    if data_clean is None:
         return None
-    
-    # Get all non-time columns
-    data_cols = [col for col in df.columns if col != 'Time']
-    
-    # If multiple columns we take the first one
-    data_col = data_cols[0]
-    
-    # Clean data
-    mask = ~pd.isna(df[data_col])
-    time_clean = df['Time'][mask].values
-    data_clean = df[data_col][mask].values
-    
-    if len(data_clean) < 10:
-        print(f"  Insufficient data points ({len(data_clean)})")
-        return None
-    
+
     print(f"  Processing {len(data_clean)} data points")
     
     # Calculate full recurrence matrix

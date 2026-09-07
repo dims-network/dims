@@ -33,6 +33,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
@@ -149,16 +150,8 @@ def calculate_window_metrics(matrix, dt, min_line=2):
     return _rec.window_metrics(matrix, dt, min_line, self_paired=False)
 
 def _load_series(path):
-    """Read a {value, Time} CSV; return (time, value) arrays sorted by time, NaNs dropped."""
-    df = pd.read_csv(path)
-    # Accept the time column under any casing/whitespace -> canonical 'Time'.
-    df = df.rename(columns={c: 'Time' for c in df.columns if str(c).strip().lower() == 'time'})
-    if 'Time' not in df.columns:
-        print(f"  [Error] '{path}' has no 'Time' column.")
-        return None, None
-    value_col = [c for c in df.columns if c != 'Time'][0]
-    sub = df[['Time', value_col]].dropna().sort_values('Time')
-    return sub['Time'].values.astype(float), sub[value_col].values.astype(float)
+    """Delegates to the shared reader; see common/series.py."""
+    return _series.load(path)
 
 
 def load_and_align_data(video_id, type1, type2, input_dir=None):
