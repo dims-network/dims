@@ -179,3 +179,30 @@ def test_the_two_hooks_are_not_the_same_file(tmp_path):
     hooks = dest / ".githooks"
     assert hooks.joinpath("pre-commit").read_text() != hooks.joinpath("pre-push").read_text()
     assert os.access(hooks / "pre-push", os.X_OK)
+
+
+def test_check_says_when_a_clone_has_not_enabled_its_guards(study, capsys):
+    """Tracked hooks do nothing until the clone opts in, and forgetting is silent.
+
+    `git config core.hooksPath .githooks` is documented, and a person who
+    clones a private study and misses it has no guards at all until CI catches
+    something after a push. So the command that answers "is this study healthy"
+    says so.
+    """
+    import subprocess
+    import sys
+
+    dims_case = os.path.join(os.path.dirname(__file__),
+                             "..", "..", "..", "tools", "dims-case")
+    git(study, "config", "--unset", "core.hooksPath")
+    r = subprocess.run([sys.executable, dims_case, "check", str(study)],
+                       capture_output=True, text=True)
+    assert "guards are not enabled" in r.stdout
+    assert "core.hooksPath .githooks" in r.stdout
+    # A warning, not a failure: it is about this clone, not about the study.
+    assert r.returncode == 0
+
+    git(study, "config", "core.hooksPath", ".githooks")
+    r = subprocess.run([sys.executable, dims_case, "check", str(study)],
+                       capture_output=True, text=True)
+    assert "guards are not enabled" not in r.stdout

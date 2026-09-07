@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.join(
@@ -179,6 +180,20 @@ def cmd_check(args):
         print(f"::error::{msg}")
     if problems:
         return 1
+
+    # A private study's hooks are tracked, but git does not run them until the
+    # clone opts in -- and forgetting is silent, which is the one thing a guard
+    # may not be. CI still catches it, but only after a push.
+    if case.get("visibility") == "private":
+        configured = subprocess.run(
+            ["git", "-C", dest, "config", "--get", "core.hooksPath"],
+            capture_output=True, text=True).stdout.strip()
+        if configured != ".githooks":
+            print("warning: the commit and push guards are not enabled in this "
+                  "clone.")
+            print("         git -C . config core.hooksPath .githooks")
+            print("         (this study is declared private; until then only CI "
+                  "stops data)")
     against = f"core {case.get('dimsCore')}" if args.release else "the recorded pin"
     print(f"vendored core matches {against}")
     return 0

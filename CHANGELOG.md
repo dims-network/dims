@@ -7,6 +7,21 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v1.5.1
+
+- **`dims-case check` says when a clone has not enabled its guards.** A private
+  study's hooks are tracked, but git does not run them until someone sets
+  `core.hooksPath` — and forgetting is silent, which is the one thing a guard
+  may not be. CI still catches it, but only after a push. A warning, not a
+  failure: it is a fact about the clone, not about the study.
+- **The contract checks run in `pytest`, not only in CI.** The core's own CI was
+  red for four releases over the scaffold's `config.json`, and the local suite
+  had nothing to say about it. The schema, the scaffold, and every path the
+  README and the contracts point at are now checked where a developer meets
+  them.
+- The CI syntax check covers `dims-case`, the scaffold, the builder and
+  `tools/`, not only `dims-analysis`.
+
 ## v1.5.0
 
 CI that can fail, and a regression suite that tests the product rather than a
