@@ -7,6 +7,51 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v1.4.0
+
+Documentation that matches the code, one API corrected, and a version bump that
+brings a study's own files forward instead of freezing them.
+
+**Breaking:** `series.load_or_none` returns `None`, not `(None, None)`. The pair
+made the obvious guard — `if load_or_none(...) is None` — always false, so a
+caller who wrote it met an `AttributeError` several lines later instead of a
+skip. Callers that unpack unconditionally must now check first. Only one caller
+existed inside the core; a study-owned step that unpacks the result needs the
+same one-line change.
+
+### The contracts describe what runs
+
+- **`step.md` was fiction.** Its `ctx` table was wrong on all five rows, two of
+  the methods it documented exist nowhere, and its example would not run. It
+  now documents both real ways to add an analysis — a study-owned script in
+  `opt/`, which is what every shipped example actually is, and a registered
+  step — with the true signatures, and says plainly that `ctx` is paths and
+  results rather than a data layer.
+- **`assets.md`** now names the container key per file (`crosswavelet_pairs`,
+  not `crosswavelet_data` — reading the wrong one gets an empty tab, not an
+  error), describes `sparse_matrix` and the `reduction` block, lists the `.npz`
+  members, and says why the recurrence matrix is not among them.
+- **`case.md`** no longer claims a case runs offline. Every dashboard loads
+  five libraries from a CDN, so a study opened without a network is a blank
+  page (dims#12). It also documents which files a bump regenerates and which it
+  will not touch.
+
+### Analyses
+
+- **`reduce.block_mode`**, for categorical series. The mean of two
+  area-of-interest codes is a third area nobody looked at; the mode is a value
+  that was actually true.
+
+### Studies keep up with the scaffold
+
+`build_assets.py`, `requirements.txt` and `data.local.json.example` were seeded
+once and never touched again, so a study that had not modified them was frozen
+at whatever the scaffold looked like the day it was created — the same drift
+the vendored core exists to prevent, reappearing in the files vendoring does not
+cover. Their hashes are now recorded in `dims-case.json`: a file still matching
+its record is brought forward, a file the study has edited is kept, and `sync`
+says which happened for each.
+
 ## v1.3.2
 
 The guards `docs/contracts/data-visibility.md` promises a private study. Three

@@ -118,3 +118,24 @@ def test_factor_and_the_ragged_tail():
     # report recurrence over cells that were never computed.
     assert red.block_binary(np.ones((10, 10), np.uint8), 4).shape == (2, 2)
     assert red.block_mean(np.ones(10), 4).shape == (2,)
+
+
+def test_block_mode_keeps_a_code_that_was_actually_there():
+    """Averaging AOI codes would produce a code nobody looked at."""
+    codes = np.array([1, 1, 3, 2, 2, 2, 5, 5, 9])
+    out = red.block_mode(codes, 3)
+    assert list(out) == [1, 2, 5]
+    assert set(out) <= set(codes)
+
+
+def test_block_mode_reduces_to_the_same_length_as_block_mean():
+    """The display series and the reduced matrix have to line up."""
+    codes = np.arange(23) % 4
+    time = np.linspace(0, 1, 23)
+    assert len(red.block_mode(codes, 5)) == len(red.block_mean(time, 5))
+
+
+def test_block_mode_leaves_a_short_series_alone():
+    codes = np.array([1, 2])
+    assert list(red.block_mode(codes, 5)) == [1, 2]
+    assert list(red.block_mode(codes, 1)) == [1, 2]

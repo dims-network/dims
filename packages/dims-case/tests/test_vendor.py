@@ -102,3 +102,65 @@ def test_vendor_carries_only_what_a_dashboard_loads(tmp_path):
             assert "test" not in dirs
             assert "node_modules" not in dirs
             assert [f for f in files if f.endswith(".md")] == []
+
+
+# --- seeded files -----------------------------------------------------------
+
+def seeded_study(tmp_path):
+    from dims_case.core import _refresh_scaffold_files
+    dest = str(tmp_path / "case-x")
+    os.makedirs(dest)
+    case = {"case": "x", "visibility": "public", "dimsCore": "9.9.9"}
+    case["seededHashes"] = _refresh_scaffold_files(dest, case, report=lambda *_: None)
+    return dest, case
+
+
+def sync_again(dest, case):
+    from dims_case.core import _refresh_scaffold_files
+    lines = []
+    case["seededHashes"] = _refresh_scaffold_files(dest, case, report=lines.append)
+    return lines
+
+
+def test_an_untouched_seeded_file_is_brought_forward(tmp_path):
+    """Otherwise a study is stuck on the scaffold as it was the day it started.
+
+    That is the drift the vendored core exists to prevent, reappearing in the
+    files vendoring deliberately does not cover.
+    """
+    dest, case = seeded_study(tmp_path)
+    path = os.path.join(dest, "build_assets.py")
+    original = open(path).read()
+    open(path, "w").write("# an older scaffold's version\n")
+    case["seededHashes"]["build_assets.py"] = _sha(path)
+
+    lines = sync_again(dest, case)
+    assert open(path).read() == original
+    assert any("updated build_assets.py" in line for line in lines)
+
+
+def test_a_file_the_study_edited_is_never_overwritten(tmp_path):
+    """Karnatak's build_assets.py drives motion capture. Losing it is not a bump."""
+    dest, case = seeded_study(tmp_path)
+    path = os.path.join(dest, "build_assets.py")
+    mine = "# this study's own pipeline\n"
+    open(path, "w").write(mine)
+
+    lines = sync_again(dest, case)
+    assert open(path).read() == mine
+    assert any("kept build_assets.py" in line for line in lines)
+
+
+def test_a_study_with_no_recorded_hashes_keeps_what_it_has(tmp_path):
+    """Studies that predate the recording must not be overwritten on a guess."""
+    dest, _case = seeded_study(tmp_path)
+    path = os.path.join(dest, "build_assets.py")
+    open(path, "w").write("# unknown provenance\n")
+
+    sync_again(dest, {})
+    assert open(path).read() == "# unknown provenance\n"
+
+
+def _sha(path):
+    import hashlib
+    return hashlib.sha256(open(path, "rb").read()).hexdigest()

@@ -42,12 +42,59 @@ modules among them — is a unit change and a rename, nothing more.
 {output_dir}/{videoID}_{slug}_data.json
 {
   "video_id": "3120",
-  "<analysis>_data": { "<entity>": { … } }
+  "<container>": { "<entity>": { … } },
+  "precision":   { "significant_figures": 6, "note": … }
 }
 ```
 
-`entity` is a data type for single-series analyses, `"{a}_vs_{b}"` for pairwise
-ones.
+`entity` is a data type for single-series analyses (`"bodysync"`), and
+`"{a}_vs_{b}"` for pairwise ones (`"bodysync_vs_neuralsync"`).
+
+The container key is **not** uniform, and reading the wrong one gets you an
+empty tab rather than an error:
+
+| file | container |
+|---|---|
+| `rqa/{videoID}_rqa_data.json` | `rqa_data` |
+| `crqa/{videoID}_crqa_data.json` | `crqa_data` |
+| `crosswavelet/{videoID}_crosswavelet_data.json` | **`crosswavelet_pairs`** |
+
+A file is **merged, not replaced**, when an analysis writes into it: ORTHO's
+categorical gaze RQA writes into the same `rqa_data` the shared step writes,
+and before merging existed whichever ran second erased the other. Write through
+`dims_analysis.common.results.write_payload`, never `json.dump`.
+
+### The picture inside a payload
+
+Every per-entity entry carries a `visualization` block, and it is a
+**reduction** — a few hundred points regardless of how long the recording was.
+
+```jsonc
+"visualization": {
+  "time": [...], "data": [...],      // "data_x"/"data_y" for a pairwise analysis
+  "matrix_size": 500,
+  "sparse_matrix": [[12, 40], ...],  // recurrent cells only, as [row, col]
+  "reduction": {
+    "factor": 12,
+    "series": "block-mean",          // "block mode (categorical)" for coded series
+    "matrix": "density-preserving",
+    "n_points_full": 6013,
+    "rate_full": 0.0700,             // the analysis
+    "rate_drawn": 0.0699             // what the picture actually shows
+  }
+}
+```
+
+`sparse_matrix` lists only the recurrent cells of a `matrix_size` ×
+`matrix_size` grid, because a recurrence plot is a few percent ones and the
+dense form would be a hundred times larger. Indices are into the **reduced**
+grid, so they align with `time` and `data` in the same block and with nothing
+else.
+
+`rate_full` and `rate_drawn` normally agree. They can differ on a very sparse
+matrix, where reproducing the rate exactly would reduce a recurrent line to a
+couple of dots; the reduction keeps the structure there and records what it
+drew, so the picture never silently contradicts the number printed beside it.
 
 ## Two artifacts, not one
 
@@ -55,6 +102,22 @@ ones.
 {output_dir}/{videoID}_{slug}_data.json   the browser payload — reduced
 {output_dir}/{videoID}_{slug}.npz         the analysis — full resolution
 ```
+
+Members are `"{entity}/{array}"`, so one file holds every entity for that video
+and a new one is appended without rewriting the rest.
+
+| file | members, per entity |
+|---|---|
+| `{videoID}_crosswavelet.npz` | `time`, `period`, `freqs`, `coherence`, `power`, `phase`, `coi`, `scale_avg_power`, `sig95_wtc` |
+| `{videoID}_rqa.npz` | `time`, `signal`, `threshold`, `recurrence_rate`, `windowed_time`, `windowed_RR`, `windowed_DET`, `windowed_LAM`, `windowed_L_MAX` |
+| `{videoID}_crqa.npz` | `time`, `signal_x`, `signal_y`, `threshold`, `global_recurrence_rate`, and the same `windowed_*` |
+
+**The recurrence matrix itself is not stored**, in either file, and that is
+deliberate rather than an omission: it is quadratic in the length of the
+recording, and one Karnatak lesson would be 3.4 billion cells. What is stored
+is what a reader continues from — both prepared signals, the threshold, and the
+windowed metrics at full resolution — from which the matrix is one `cdist`
+away, at whatever resolution they can afford.
 
 The JSON is reduced to a few hundred points so a page can draw it, and the
 reduction is recorded in it. **Analyse from the `.npz`.** On real data the JSON
@@ -89,10 +152,27 @@ significant figures.
 
 ### Reduction
 
-The reduction is a block average, not every nth sample. Striding is decimation
-with no low-pass filter: it does not remove detail, it folds it back onto the
-frequencies that remain. Phase is reduced through the unit circle, since
-averaging +179° and −179° numerically gives 0°.
+A **continuous series** is block-averaged, not sampled every nth point.
+Striding is decimation with no low-pass filter: it does not remove detail, it
+folds it back onto the frequencies that remain. Phase is averaged through the
+unit circle, since the numerical mean of +179° and −179° is 0°. A **categorical
+series** (gaze codes) takes each block's commonest value, because the mean of
+two area-of-interest codes is a third area nobody looked at.
+
+A **recurrence matrix is binary**, and it has two properties a reader takes from
+the picture: where the structure is, and how much of the plot is recurrent.
+Neither obvious method keeps both. Striding keeps the rate and destroys the
+structure — a line one cell off the main diagonal vanishes entirely, because
+the sampled rows and columns never intersect it, and an off-diagonal line is
+exactly what a lagged coupling looks like. Block-OR keeps the structure and
+inflates the rate: measured on an ORTHO recording at factor 9, a 10.9% matrix
+became 54.4% beside a caption still saying 10.9%.
+
+What is used instead: block-average the binary matrix into a per-block
+recurrence *fraction*, then keep the densest blocks — as many as reproduce the
+original rate. Structure survives because a block on a line is denser than the
+background; the rate survives because it is what the selection is calibrated
+to.
 
 Read it with:
 

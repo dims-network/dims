@@ -65,14 +65,19 @@ def load(path: str, min_points: int = 0, value_column: str | None = None):
 
 
 def load_or_none(path: str, min_points: int = 0, prefix: str = "  "):
-    """load(), reporting the problem and returning (None, None) instead.
+    """load(), reporting the problem and returning None instead.
 
     For the steps, which continue to the next data type rather than stopping.
     The runner notices a step that produced nothing, so this no longer hides a
     failed run.
+
+    It returns None, not (None, None). The pair was worse than it looks: the
+    obvious guard, `if load_or_none(...) is None`, was then always false, and a
+    caller who wrote it got an AttributeError several lines later instead of a
+    skip. A function whose name says None has to return None.
     """
     try:
         return load(path, min_points)
     except SeriesError as exc:
         print(f"{prefix}Warning: {exc}")
-        return None, None
+        return None

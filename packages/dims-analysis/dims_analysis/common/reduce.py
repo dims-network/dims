@@ -65,6 +65,31 @@ def block_mean(a, factor: int):
     return head.mean(axis=1)
 
 
+def block_mode(a, factor: int):
+    """Block-reduce a categorical series by taking each block's commonest code.
+
+    The categorical counterpart of `block_mean`. Averaging area-of-interest
+    codes would produce a code nobody looked at; taking every nth sample folds
+    detail back onto the samples that remain, exactly as it does for a
+    continuous series. The mode is the value that was actually true for most of
+    the block.
+
+    Ties go to the smaller code, which is arbitrary but deterministic.
+    """
+    a = np.asarray(a)
+    if factor <= 1:
+        return a
+    keep = (a.shape[0] // factor) * factor
+    if keep == 0:
+        return a
+    blocks = a[:keep].reshape(keep // factor, factor)
+    out = np.empty(blocks.shape[0], dtype=a.dtype)
+    for i, block in enumerate(blocks):
+        values, counts = np.unique(block, return_counts=True)
+        out[i] = values[np.argmax(counts)]
+    return out
+
+
 def block_binary(m, factor: int):
     """Reduce a binary matrix keeping both its structure and its density.
 

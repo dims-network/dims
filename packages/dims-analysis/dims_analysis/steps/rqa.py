@@ -190,7 +190,8 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     # One reader, shared with cRQA and the notebooks: canonical Time column,
     # NaNs dropped, sorted by time. This step did not sort, so on an
     # out-of-order CSV it and cRQA disagreed about what the data was.
-    time_clean, data_clean = _series.load_or_none(csv_path, min_points=MIN_DATA_POINTS)
+    loaded = _series.load_or_none(csv_path, min_points=MIN_DATA_POINTS)
+    time_clean, data_clean = loaded if loaded else (None, None)
     if data_clean is None:
         return None
 

@@ -60,10 +60,21 @@ def test_the_length_floor_is_the_callers_to_state(tmp_path):
     assert "fewer than the 50" in str(exc.value)
 
 
-def test_load_or_none_reports_and_returns_a_pair(tmp_path, capsys):
-    t, v = series.load_or_none(str(tmp_path / "missing.csv"))
-    assert (t, v) == (None, None)
+def test_load_or_none_returns_none_so_the_obvious_guard_works(tmp_path, capsys):
+    """It used to return (None, None), which is never None.
+
+    So `if load_or_none(...) is None: continue` -- the guard anyone writes --
+    was always false, and the caller met an AttributeError several lines later
+    instead of a skip. A function whose name says None returns None.
+    """
+    assert series.load_or_none(str(tmp_path / "missing.csv")) is None
     assert "Warning:" in capsys.readouterr().out
+
+
+def test_load_or_none_returns_the_pair_when_it_can(tmp_path):
+    path = _csv(tmp_path, "Time,a\n0,1\n1,2\n")
+    time, values = series.load_or_none(path)
+    assert list(values) == [1, 2]
 
 
 def test_the_value_column_can_be_named(tmp_path):

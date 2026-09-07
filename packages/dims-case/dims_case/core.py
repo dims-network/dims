@@ -468,6 +468,73 @@ def verify_vendor(dest, strict=False):
 GITIGNORE_MARK = "# private study: data lives outside the repo"
 
 
+# Always refreshed: generated files a study has no reason to edit. serve.py is
+# the host, not the study.
+#
+# It was not always in this list, and the consequence was invisible: case-demo
+# and case-ortho kept the pre-monorepo 101-line version -- no data.local.json
+# support and no path-traversal guard -- and no amount of core bumping could
+# have given it to them. Only `adopt` copied it, once.
+SCAFFOLD_FILES = ("serve.py",)
+
+# Seeded once, then the study's own. Karnatak's build_assets.py drives motion
+# capture and its requirements.txt grew the study's own dependencies, so
+# overwriting these on a version bump would delete work.
+#
+# But "never overwritten" left the studies that had *not* touched them stuck on
+# whatever the scaffold looked like the day they were seeded, which is the same
+# drift the vendored core exists to prevent. So the hash of what was written is
+# recorded, exactly as it is for vendor/: a file that still matches its record
+# is untouched and is refreshed; a file that does not is the study's, and is
+# left alone with a line saying so.
+SCAFFOLD_SEED_FILES = ("build_assets.py", "requirements.txt",
+                       "data.local.json.example")
+
+
+def _file_hash(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        h.update(fh.read())
+    return h.hexdigest()
+
+
+def _refresh_scaffold_files(dest, case=None, report=print):
+    """Refresh generated files; seed and update untouched ones.
+
+    Returns the map of seeded-file hashes to record in dims-case.json.
+    """
+    seeded = dict((case or {}).get("seededHashes") or {})
+
+    for name in SCAFFOLD_FILES:
+        src = os.path.join(CORE_ROOT, SCAFFOLD, name)
+        if os.path.exists(src):
+            shutil.copy(src, os.path.join(dest, name))
+
+    for name in SCAFFOLD_SEED_FILES:
+        src = os.path.join(CORE_ROOT, SCAFFOLD, name)
+        dst = os.path.join(dest, name)
+        if not os.path.exists(src):
+            continue
+        if not os.path.exists(dst):
+            shutil.copy(src, dst)
+            seeded[name] = _file_hash(dst)
+            report(f"  seeded {name}")
+            continue
+        current = _file_hash(dst)
+        if current == _file_hash(src):
+            seeded[name] = current              # already up to date
+        elif seeded.get(name) == current:
+            shutil.copy(src, dst)
+            seeded[name] = _file_hash(dst)
+            report(f"  updated {name} (unmodified since it was seeded)")
+        else:
+            # Either the study edited it, or it predates the recording of
+            # hashes. Both mean: not ours to overwrite.
+            report(f"  kept {name} (this study's own; the scaffold's version "
+                   f"has moved on)")
+    return seeded
+
+
 def _write_hooks(dest):
     """Install both hooks, overwriting whatever is there.
 
