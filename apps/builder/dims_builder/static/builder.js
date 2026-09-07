@@ -53,12 +53,11 @@ function unlockStep(n) {
 
 // ---- STEP 1: project -------------------------------------------------------
 function srcChoice() {
-  return $('input[name="src"]:checked').value; // "bundled" | "url" | "local"
+  return $('input[name="src"]:checked').value; // "bundled" | "local"
 }
 $$('input[name="src"]').forEach((r) =>
   r.addEventListener("change", () => {
     const c = srcChoice();
-    $("#src_url").disabled = c !== "url";
     $("#src_local").disabled = c !== "local";
   })
 );
@@ -66,8 +65,7 @@ $$('input[name="src"]').forEach((r) =>
 $("#btn-create").addEventListener("click", async () => {
   const c = srcChoice();
   // "bundled" → empty string lets the server use the built-in template.
-  const source = c === "url" ? $("#src_url").value.trim()
-               : c === "local" ? $("#src_local").value.trim()
+  const source = c === "local" ? $("#src_local").value.trim()
                : "";
   const payload = {
     output_dir: $("#output_dir").value.trim(),

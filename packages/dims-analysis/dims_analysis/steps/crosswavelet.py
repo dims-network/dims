@@ -15,6 +15,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import coherence as _coh
 from dims_analysis.common import config as _config
 from dims_analysis.common import results as _results
 import argparse
@@ -531,39 +532,13 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # applies the scale normalisation and the correct time/scale kernels for
     # the chosen mother wavelet.
     # ------------------------------------------------------------------
-    scales_2d = np.ones([1, N]) * scales[:, None]
-    S1 = mother_wavelet.smooth(np.abs(W1) ** 2 / scales_2d, dt, dj, scales)
-    S2 = mother_wavelet.smooth(np.abs(W2) ** 2 / scales_2d, dt, dj, scales)
-    S12 = mother_wavelet.smooth(XWT / scales_2d, dt, dj, scales)
-
-    # Correctly normalised, this is bounded in [0, 1] by construction. The
-    # epsilon guards division by zero in all-flat regions, and the clip below
-    # absorbs floating-point overshoot only -- it is NOT the old saturating
-    # clamp. If it ever has real work to do, the formula is wrong again, so
-    # we check rather than silently clamp.
-    # Where neither signal has power in a band, coherence is undefined -- not 1.
-    #
-    # This is not hypothetical. In a study of a tabletop game the velocity
-    # signals are exactly zero about half the time, because the pieces are not
-    # moving. There S1*S2 collapses toward zero, the ratio explodes (observed:
-    # 176), and clipping it to 1.0 paints "perfect coupling" across every
-    # stretch where nothing happened. That is the same mistake as the defect
-    # this function was written to fix, arriving from a different direction.
-    #
-    # Such cells are marked undefined and travel as null to the browser, which
-    # draws a gap. A gap is honest; a bright band is not.
-    denom = np.real(S1 * S2)
-    positive = denom[denom > 0]
-    floor = 1e-10 * np.median(positive) if positive.size else 0.0
-
-    with np.errstate(divide='ignore', invalid='ignore'):
-        WCO = np.real(np.abs(S12) ** 2 / denom)
-
-    undefined = ~np.isfinite(WCO) | (denom <= floor)
-    # A value materially above 1 cannot be a coherence; it means the denominator
-    # was degenerate here, so the cell is undefined rather than saturated.
-    undefined |= WCO > 1.0 + 1e-6
-    WCO = np.where(undefined, np.nan, np.clip(WCO, 0.0, 1.0))
+    # One implementation, shared with the regression tests that guard it:
+    # dims_analysis.common.coherence. The tests used to carry their own copy
+    # of this formula, and the copy had already fallen behind -- it omitted
+    # the undefined-cell masking below, so the suite protecting the most
+    # consequential defect in this project was checking something the product
+    # no longer did.
+    WCO, undefined = _coh.coherence(W1, W2, scales, dt, dj, mother_wavelet)
 
     if undefined.any():
         frac = float(undefined.mean())

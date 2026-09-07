@@ -7,6 +7,35 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v1.5.0
+
+CI that can fail, and a regression suite that tests the product rather than a
+copy of it.
+
+- **The Python syntax check could not fail.** It ended in `|| true`, and every
+  study passed `python_paths: ""` besides — so `build_assets.py`, every `opt/`
+  and `tools/` script, and a 1245-line study-owned tab were never parsed by CI.
+  Studies now check their own code and leave the vendored core alone, which is
+  verified byte-for-byte against the release anyway.
+- **The coherence regression tests re-implemented coherence.** The suite
+  guarding the defect that prompted this whole migration carried its own copy
+  of the formula, and the copy had already fallen behind: it omitted the
+  masking of cells with too little power to define coherence — itself a fix for
+  a variant of the same bug. The measure now lives once, in
+  `common/coherence.py`, and the tests import it. Confirmed by breaking the
+  real function two ways and watching them fail.
+- **Stillness drawn as perfect coupling was untested.** That is the defect a
+  collaborator actually reported, and removing its fix left the suite green.
+  Three tests now cover it, including one that checks the guard does not eat
+  ordinary cells and hide real coupling.
+- **A test asserted on source text** — that `crosswavelet.py` contained the
+  string `np.clip(WCO, 0.0, 1.0)`. It passed for any file mentioning it and
+  failed for a refactor that kept the behaviour. It runs the code now.
+- **A from-zero acceptance test**: `dims-case new`, add series, `--check`,
+  build, both resolutions present and parsing, write a manifest, verify it, and
+  a deleted asset reported. The path a person takes, which no unit test stands
+  in for.
+
 ## v1.4.1
 
 Documentation. No behaviour changes beyond two error messages, but this is the

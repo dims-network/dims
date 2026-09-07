@@ -27,8 +27,6 @@ CONFIG_KEYS = [
     "contacts",
 ]
 
-DEFAULT_TEMPLATE_URL = "https://github.com/dims-network/DIMS_dashboard_template"
-
 # The scaffold a new study starts from. It used to be a copy of the dashboard
 # vendored into this repo as a git subtree, kept in step by hand with
 # scripts/update-template.sh -- the last copy of the dashboard code left in the
@@ -92,8 +90,14 @@ def _resolve_local_template(source: str):
     """Return (local_dir, cleanup) for a template `source`.
 
     A git URL is shallow-cloned into a temp dir (cleanup removes it); a local
-    path or the bundled template is returned as-is (cleanup is a no-op). Raises
-    ProjectError if the resolved directory isn't a DIMS template.
+    path or the bundled scaffold is returned as-is (cleanup is a no-op). Raises
+    ProjectError if the resolved directory isn't a DIMS scaffold.
+
+    The wizard no longer offers a URL, because the only URL it ever suggested
+    was the pre-monorepo template -- now archived, and carrying a dashboard
+    with no vendored core, so a project built from it would be a fork rather
+    than a study. The capability stays for anyone pointing at a scaffold of
+    their own.
     """
     if _looks_like_url(source):
         tmp = tempfile.mkdtemp(prefix="dims_template_")
@@ -111,14 +115,16 @@ def _resolve_local_template(source: str):
         shutil.rmtree(os.path.join(tmp, ".git"), ignore_errors=True)
         if not is_template_dir(tmp):
             shutil.rmtree(tmp, ignore_errors=True)
-            raise ProjectError("Cloned template is missing expected files (config.json/serve.py/opt/assets).")
+            raise ProjectError("That repository is not a DIMS scaffold: it has no "
+                               "config.json, serve.py and assets/.")
         return tmp, lambda: shutil.rmtree(tmp, ignore_errors=True)
 
     src = os.path.abspath(os.path.expanduser(source))
     if not os.path.isdir(src):
         raise ProjectError(f"Template path not found: {src}")
     if not is_template_dir(src):
-        raise ProjectError(f"'{src}' does not look like a DIMS template (missing config/opt/assets).")
+        raise ProjectError(f"'{src}' is not a DIMS scaffold: it needs "
+                           f"config.json, serve.py and assets/.")
     return src, (lambda: None)
 
 

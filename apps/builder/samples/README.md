@@ -34,9 +34,8 @@ ideal for trying **pairwise** cross-wavelet / cross-RQA (e.g. compute
 ## How to test
 
 1. Run `dims-builder` (browser opens to the wizard).
-2. **Step 1** — pick an empty output folder; for an offline run choose
-   "local template folder" and point it at your local
-   `DIMS_dashboard_template`. Set a title.
+2. **Step 1** — pick an empty output folder and keep the built-in scaffold,
+   which is the one that ships inside the builder. Set a title.
 3. **Step 2** — drag a session's files into the dropzone (or use *browse*).
    For `session2`, dropping the single `session2.csv` yields three data-type rows
    automatically (`bodysync` / `neuralsync` / `gaze`); the rest map to the session

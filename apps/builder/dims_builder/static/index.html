@@ -35,13 +35,10 @@
         <label class="radio"><input type="radio" name="src" value="bundled" checked />
           Use the built-in template (recommended — no git or internet needed)</label>
         <small class="src-note">The DIMS dashboard code ships inside this builder.</small>
-        <label class="radio"><input type="radio" name="src" value="url" />
-          Clone the latest from GitHub (requires git)</label>
-        <input id="src_url" type="text"
-               value="https://github.com/dims-network/DIMS_dashboard_template" disabled />
         <label class="radio"><input type="radio" name="src" value="local" />
-          Use a local template folder</label>
-        <input id="src_local" type="text" placeholder="/path/to/DIMS_dashboard_template" disabled />
+          Use a scaffold folder on this machine</label>
+        <input id="src_local" type="text"
+               placeholder="/path/to/dims/packages/dims-case-scaffold" disabled />
       </fieldset>
 
       <h3>Dashboard details</h3>

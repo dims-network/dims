@@ -125,14 +125,22 @@ def test_no_power_means_undefined_coherence_not_perfect_coherence():
 
     Those cells have no coherence to report. They must be undefined, and travel
     to the browser as null so it draws a gap.
-    """
-    src = open(os.path.join(HERE, "dims_analysis", "steps", "crosswavelet.py")).read()
 
-    assert "np.clip(WCO, 0.0, 1.0)" in src
-    assert "undefined" in src, "degenerate cells must be marked, not clipped"
-    # the give-away of the old behaviour: a bare clip with only an epsilon guard
-    assert "np.abs(S12) ** 2 / (S1 * S2 + 1e-30)" not in src, \
-        "an epsilon is not enough when both signals are genuinely silent"
+    This used to assert on the *text* of the step: that it contained
+    `np.clip(WCO, 0.0, 1.0)` and the word "undefined". That passes for any file
+    mentioning those strings and fails for any refactor that keeps the
+    behaviour — which is what happened when the formula moved into
+    `common/coherence.py`. It now runs the thing.
+    """
+    import numpy as np
+    from dims_analysis.common import coherence as coh
+
+    silent = np.zeros((1, 4))
+    S12 = np.zeros((1, 4), dtype=complex)
+    wco, undefined = coh.coherence_from_spectra(silent, silent, S12)
+
+    assert undefined.all(), "cells with no power must be undefined"
+    assert np.isnan(wco).all(), "and must not carry a value, least of all 1.0"
 
 
 def test_json_carries_no_bare_nan():
