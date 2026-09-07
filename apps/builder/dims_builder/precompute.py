@@ -1,6 +1,17 @@
-"""Run the template's own analysis scripts and preview server in the generated
-project. The builder never reimplements the analyses — it subprocesses the
-template's opt/step_*.py and serve.py.
+"""Run the analyses a generated project asks for, and its preview server.
+
+The builder never reimplements an analysis. It used to subprocess the
+template's own ``opt/step_*.py``, which is where the shared analyses lived
+before the migration; they are now the ``dims-analysis`` package, so this
+subprocesses ``dims-analysis run`` instead. A project may still ship its own
+``opt/step_*.py`` -- a study-owned analysis, like ORTHO's categorical RQA --
+and those are run after the shared ones.
+
+That change was overdue and its absence was fatal: the bundled scaffold has no
+``opt/`` at all, so step discovery found nothing and, worse, the environment
+setup opened ``opt/requirements.txt`` before checking whether there was
+anything to do. Every project the wizard generated failed at step 6 with a
+FileNotFoundError, for the audience least able to read one.
 
 All run_* functions are generators yielding text lines so the server can stream
 progress to the browser.
@@ -19,6 +30,12 @@ import sys
 _BOGUS_REQS = {"json"}
 _PIN_OVERRIDES = {"scipy": "scipy"}  # drop the impossible exact pin
 _EXTRA_REQS = ["numpy"]
+
+
+# The monorepo this builder is part of: apps/builder/dims_builder -> dims/.
+# The analyses are installed from here because dims-network is not on PyPI.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
 
 
 def _venv_python(project: str) -> str:
@@ -42,9 +59,15 @@ def _stream(cmd, cwd):
     yield f"__EXIT__:{code}\n"
 
 
-def _filtered_requirements(project: str) -> str:
-    """Write a cleaned requirements file (stray 'json' removed) and return path."""
+def _filtered_requirements(project: str):
+    """A cleaned copy of the project's own requirements, or None if it has none.
+
+    Only a study that ships its own analyses has an opt/requirements.txt. The
+    scaffold does not, and this used to be opened unconditionally.
+    """
     src = os.path.join(project, "opt", "requirements.txt")
+    if not os.path.exists(src):
+        return None
     cleaned = os.path.join(project, "opt", "_requirements.builder.txt")
     lines = []
     with open(src) as f:
@@ -65,31 +88,24 @@ def _filtered_requirements(project: str) -> str:
 
 
 def create_venv(project: str):
-    """Create project/.venv and install the template's analysis requirements."""
+    """Create project/.venv with the analyses installed.
+
+    dims-network is not on PyPI, so the package is installed editable from the
+    monorepo this builder is running out of -- which is the only copy the user
+    is guaranteed to have, since they are running its wizard.
+    """
     vpy = _venv_python(project)
     if not os.path.exists(vpy):
         yield from _stream([sys.executable, "-m", "venv", ".venv"], cwd=project)
     yield from _stream([vpy, "-m", "pip", "install", "--upgrade", "pip"], cwd=project)
+    yield from _stream([vpy, "-m", "pip", "install", "-e", _REPO_ROOT], cwd=project)
     reqs = _filtered_requirements(project)
-    yield from _stream(
-        [vpy, "-m", "pip", "install", "-r", os.path.relpath(reqs, project)],
-        cwd=project,
-    )
-
-
-# Legacy per-analysis runners. Kept only so an older caller does not break;
-# discover_steps() is what the wizard uses now.
-def run_rqa(project: str):
-    yield from _run_step(project, "rqa", "opt/step_RQA.py", "assets/rqa")
-
-
-def run_crosswavelet(project: str):
-    yield from _run_step(project, "crosswavelet", "opt/step_crosswavelet.py",
-                         "assets/crosswavelet", extra=["--verbose"])
-
-
-def run_crqa(project: str):
-    yield from _run_step(project, "crqa", "opt/step_cRQA.py", "assets/crqa")
+    if reqs:
+        yield "\nThis study ships analyses of its own; installing their requirements.\n"
+        yield from _stream(
+            [vpy, "-m", "pip", "install", "-r", os.path.relpath(reqs, project)],
+            cwd=project,
+        )
 
 
 def _run_step(project, step_id, script, out_dir, extra=None):
@@ -98,17 +114,21 @@ def _run_step(project, step_id, script, out_dir, extra=None):
     yield from _stream(cmd + list(extra or []), cwd=project)
 
 
-# Which analyses a generated project offers, and how to run each one.
+# Analyses the project ships ITSELF, beyond the shared ones.
 #
-# This used to be three hardcoded functions plus a three-branch orchestrator, so
-# adding one analysis meant edits in four files across this repo. A project now
-# declares its own: any opt/step_*.py it ships can be run, and its config key
-# decides whether it should be.
+# This used to be how every analysis was found: the pre-migration template
+# carried opt/step_RQA.py and friends, and the builder scanned for them. Those
+# moved into the dims-analysis package, so scanning finds nothing in a modern
+# project -- which is exactly what the scaffold is. What remains here is the
+# study-owned case: ORTHO's categorical gaze RQA, Karnatak's mocap steps.
 #
-# Naming is the contract, and it is the template's: step_<id>.py writes into
-# assets/<id>/ and is switched on by include_<id>.
+# Naming is the contract: step_<id>.py writes into assets/<id>/ and is switched
+# on by include_<id>.
+_SHARED_STEP_IDS = {"rqa", "crqa", "crosswavelet"}
+
+
 def discover_steps(project: str):
-    """[(step_id, script, output_dir, config_key), ...] for this project."""
+    """[(step_id, script, output_dir, config_key), ...] the project ships itself."""
     opt = os.path.join(project, "opt")
     if not os.path.isdir(opt):
         return []
@@ -117,6 +137,10 @@ def discover_steps(project: str):
         if not (name.startswith("step_") and name.endswith(".py")):
             continue
         raw = name[len("step_"):-len(".py")]
+        if raw.lower() in _SHARED_STEP_IDS:
+            # A leftover copy of a shared analysis. Running it would produce a
+            # second, older answer beside the package's.
+            continue
         found.append((raw.lower(), os.path.join("opt", name),
                       os.path.join("assets", raw.lower()), f"include_{raw}"))
     return found
@@ -147,21 +171,46 @@ def run_precompute(project: str, do_rqa=None, do_crosswavelet=None, do_crqa=None
             if flag:
                 config[key] = True
 
-    yield "=== Setting up Python environment ===\n"
-    yield from create_venv(project)
+    own = [s for s in discover_steps(project) if _enabled(config, s[3])]
+    shared_wanted = any(k.lower().startswith("include_") and bool(v)
+                        for k, v in (config or {}).items())
 
-    steps = [s for s in discover_steps(project) if _enabled(config, s[3])]
-    if not steps:
-        yield "\nNo analyses are enabled in config.json - nothing to precompute.\n"
+    # Check BEFORE building an environment. Setting up a venv first, and
+    # reading a requirements file that a modern project does not have, is how
+    # this used to fail for every project the wizard generated.
+    if not shared_wanted and not own:
+        yield "No analyses are enabled in config.json - nothing to precompute.\n"
         yield "=== Precompute complete ===\n"
         return
 
+    yield "=== Setting up Python environment ===\n"
+    yield from create_venv(project)
+
     failures = []
-    for step_id, script, out_dir, _key in steps:
-        yield f"\n=== Running {step_id} ===\n"
+
+    if shared_wanted:
+        yield "\n=== Running the analyses this config enables ===\n"
         code = None
-        for line in _run_step(project, step_id, script, out_dir,
-                              extra=["--verbose"] if step_id == "crosswavelet" else None):
+        for line in _stream([_venv_python(project), "-m", "dims_analysis.cli",
+                             "run", "--config", "config.json"], cwd=project):
+            if line.startswith("__EXIT__:"):
+                try:
+                    code = int(line.split(":", 1)[1].strip() or 0)
+                except ValueError:
+                    code = 1
+            yield line
+        if code:
+            failures.append("dims-analysis")
+            yield "__FAILED__:dims-analysis\n"
+            if stop_on_failure:
+                yield "\nStopping: the analyses failed. Running the rest would leave\n"
+                yield "output that is partly missing but looks complete.\n"
+                own = []
+
+    for step_id, script, out_dir, _key in own:
+        yield f"\n=== Running {step_id} (this study's own) ===\n"
+        code = None
+        for line in _run_step(project, step_id, script, out_dir):
             if line.startswith("__EXIT__:"):
                 try:
                     code = int(line.split(":", 1)[1].strip() or 0)
@@ -172,8 +221,7 @@ def run_precompute(project: str, do_rqa=None, do_crosswavelet=None, do_crqa=None
             failures.append(step_id)
             yield f"__FAILED__:{step_id}\n"
             if stop_on_failure:
-                yield f"\nStopping: {step_id} failed. Running the rest would leave output\n"
-                yield "that is partly missing but looks complete.\n"
+                yield f"\nStopping: {step_id} failed.\n"
                 break
 
     if failures:
