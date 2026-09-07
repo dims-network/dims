@@ -864,7 +864,13 @@
         id: 'network',
         label: 'Cross-Effector Network',
         order: 60,
-        gate: cfg => Array.isArray(cfg.include_crosswavelet) && cfg.include_crosswavelet.length >= 1,
+        // Opt-in, not implied. This tab reads node identities out of the data
+        // type names (person + body part), so on a study that simply happens to
+        // have cross-wavelet results it would draw a graph of nonsense. A tab
+        // must not appear merely because some other analysis exists.
+        gate: cfg => cfg.include_network === true &&
+                     Array.isArray(cfg.include_crosswavelet) &&
+                     cfg.include_crosswavelet.length >= 1,
         async onActivate(app, container) {
             if (!app.crossWaveletData) {
                 const path = `assets/crosswavelet/${app.currentVideoID}_crosswavelet_data.json`;

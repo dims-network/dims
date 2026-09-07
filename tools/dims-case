@@ -5,8 +5,9 @@ A case repo holds config, data, and a pinned copy of the core. It holds no code
 of its own: `vendor/` is written by this tool and verified by CI against the
 release named in dims-case.json.
 
-    dims-case new  <name> --visibility public|private [--dir PATH]
-    dims-case sync <path> [--version VERSION]
+    dims-case new   <name> --visibility public|private [--dir PATH]
+    dims-case adopt <path> --name NAME --visibility public|private
+    dims-case sync  <path> [--version VERSION]
     dims-case check <path>
 
 `sync` is what the version-bump bot runs. `check` is what CI runs.
@@ -71,6 +72,110 @@ PY
 '''
 
 
+
+CI_YML = """name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    uses: dims-network/.github/.github/workflows/reusable-dashboard-ci.yml@main
+    with:
+      python_paths: ""
+      js_glob: "vendor/dims-core/*.js vendor/dims-tabs/*.js"
+      config_path: "config.json"
+      check_assets: %(check_assets)s
+
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # A study must not carry hand-edited core code. This is what makes a
+      # pinned copy a pin rather than a fork.
+      - name: Vendored core matches the pin
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, sys
+          case = json.load(open("dims-case.json"))
+          def dir_hash(path):
+              h = hashlib.sha256()
+              for root, dirs, files in os.walk(path):
+                  dirs.sort()
+                  for name in sorted(files):
+                      if name.startswith("."): continue
+                      full = os.path.join(root, name)
+                      h.update(os.path.relpath(full, path).encode())
+                      h.update(open(full, "rb").read())
+              return h.hexdigest()
+          bad = False
+          for rel, expected in (case.get("vendorHashes") or {}).items():
+              actual = dir_hash(rel)
+              if actual != expected:
+                  print(f"::error::{rel} does not match dims-core {case.get('dimsCore')}. "
+                        f"Never edit vendored code -- fix it in dims-network/dims and bump the pin.")
+                  bad = True
+          print("vendored core matches" if not bad else "")
+          sys.exit(1 if bad else 0)
+          PY
+"""
+
+PAGES_YML = """name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: dims-network/.github/.github/workflows/reusable-pages-deploy.yml@main
+"""
+
+PRIVACY_YML = """name: Privacy guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guard:
+    uses: dims-network/.github/.github/workflows/reusable-privacy-guard.yml@main
+"""
+
+
+def _write_workflows(dest, visibility):
+    wf = os.path.join(dest, ".github", "workflows")
+    os.makedirs(wf, exist_ok=True)
+    # A private study keeps its assets out of git, so the asset existence check
+    # would report every file as missing.
+    open(os.path.join(wf, "ci.yml"), "w").write(
+        CI_YML % {"check_assets": "true" if visibility == "public" else "false"})
+    if visibility == "public":
+        open(os.path.join(wf, "pages.yml"), "w").write(PAGES_YML)
+    else:
+        # No Pages for a private study: there is nothing publishable to deploy.
+        p = os.path.join(wf, "pages.yml")
+        if os.path.exists(p):
+            os.remove(p)
+        open(os.path.join(wf, "privacy.yml"), "w").write(PRIVACY_YML)
+
+
 def _dir_hash(path):
     """Stable hash of a directory's contents, for the vendor integrity check."""
     h = hashlib.sha256()
@@ -128,6 +233,8 @@ def cmd_new(args):
         json.dump(case, fh, indent=2)
         fh.write("\n")
 
+    _write_workflows(dest, args.visibility)
+
     if args.visibility == "private":
         hooks = os.path.join(dest, ".githooks")
         os.makedirs(hooks, exist_ok=True)
@@ -151,6 +258,82 @@ def cmd_new(args):
     if args.visibility == "private":
         print("  next:       git init && git config core.hooksPath .githooks")
         print("              cp data.local.json.example data.local.json  and edit it")
+    return 0
+
+
+def _install_private_bits(dest):
+    hooks = os.path.join(dest, ".githooks")
+    os.makedirs(hooks, exist_ok=True)
+    for name in ("pre-commit", "pre-push"):
+        p = os.path.join(hooks, name)
+        with open(p, "w") as fh:
+            fh.write(PRE_COMMIT)
+        os.chmod(p, 0o755)
+    with open(os.path.join(dest, ".gitignore"), "a") as fh:
+        fh.write("\n# private study: data lives outside the repo\n")
+        for r in RESTRICTED:
+            fh.write(f"{r}/*\n!{r}/.gitkeep\n")
+        fh.write("data.local.json\n")
+    example = os.path.join(dest, "data.local.json.example")
+    if not os.path.exists(example):
+        with open(example, "w") as fh:
+            json.dump({"assetsRoot": "/absolute/path/to/the/data"}, fh, indent=2)
+            fh.write("\n")
+
+
+def cmd_adopt(args):
+    """Convert an EXISTING study into the pinned-core shape.
+
+    `new` deliberately refuses a non-empty directory, so that it can never
+    scribble over someone's data. Migrating an existing study is a different
+    operation and says so: it keeps config.json and assets/ exactly as they are,
+    and only adds what a case needs.
+    """
+    dest = os.path.abspath(args.path)
+    if not os.path.isdir(dest):
+        sys.exit(f"error: no such directory: {dest}")
+    if not os.path.exists(os.path.join(dest, "config.json")):
+        sys.exit("error: no config.json here — is this a study?")
+
+    scaffold = os.path.join(CORE_ROOT, SCAFFOLD)
+    # Only files the study does not already have. config.json and assets/ are
+    # the study's own and are never touched.
+    for name in ("index.html", "serve.py"):
+        src = os.path.join(scaffold, name)
+        dst = os.path.join(dest, name)
+        if os.path.exists(src):
+            shutil.copy(src, dst)
+    for sub in ("rqa", "crqa", "crosswavelet", "timeseries", "videos",
+                "transcripts", "elan"):
+        os.makedirs(os.path.join(dest, "assets", sub), exist_ok=True)
+
+    hashes = _write_vendor(dest)
+    case_path = os.path.join(dest, "dims-case.json")
+    existing = {}
+    if os.path.exists(case_path):
+        try:
+            existing = json.load(open(case_path))
+        except ValueError:
+            pass
+    case = {
+        "case": args.name,
+        "visibility": args.visibility,
+        "dimsCore": _core_version(),
+        "publishable": existing.get("publishable", []),
+        "restricted": RESTRICTED,
+        "vendorHashes": hashes,
+    }
+    with open(case_path, "w") as fh:
+        json.dump(case, fh, indent=2)
+        fh.write("\n")
+
+    _write_workflows(dest, args.visibility)
+    if args.visibility == "private":
+        _install_private_bits(dest)
+
+    print(f"adopted {dest}")
+    print(f"  visibility: {args.visibility}   core: {case['dimsCore']}")
+    print("  config.json and assets/ were left exactly as they were")
     return 0
 
 
@@ -195,6 +378,12 @@ def main(argv=None):
                    help="the researcher's decision, recorded. Never inferred.")
     n.add_argument("--dir")
     n.set_defaults(func=cmd_new)
+
+    a = sub.add_parser("adopt", help="convert an existing study to the pinned-core shape")
+    a.add_argument("path")
+    a.add_argument("--name", required=True)
+    a.add_argument("--visibility", required=True, choices=["public", "private"])
+    a.set_defaults(func=cmd_adopt)
 
     s = sub.add_parser("sync", help="refresh the vendored core (what the bot runs)")
     s.add_argument("path")

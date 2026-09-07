@@ -59,6 +59,7 @@ const CONFIG = {
   videoIDs: ['s1'],
   dataTypes: { s1: ['teacher_lefthandspeed', 'student_lefthandspeed'] },
   include_crosswavelet: [['teacher_lefthandspeed', 'student_lefthandspeed']],
+  include_network: true,
   defaultWindowSize: 5,
 };
 const ids = w => [...w.document.querySelectorAll('.tab-button')].map(b => b.dataset.tab);
@@ -72,6 +73,16 @@ test('the network tab registers in the core like any other', async () => {
 test('it is hidden when there is no cross-wavelet analysis', async () => {
   const w = await boot({ ...CONFIG, include_crosswavelet: [] }, {});
   assert.ok(!ids(w).includes('network'));
+});
+
+test('it does not appear merely because cross-wavelet results exist', async () => {
+  // Regression: the gate was "there is cross-wavelet data", so migrating an
+  // unrelated study gained a network tab it never had — and this tab reads node
+  // identities out of data type names, so it would have drawn nonsense.
+  const cfg = { ...CONFIG };
+  delete cfg.include_network;
+  const w = await boot(cfg, { 'assets/crosswavelet/s1_crosswavelet_data.json': cwPayload() });
+  assert.ok(!ids(w).includes('network'), 'the network tab must be opted into');
 });
 
 test('it renders into its own container and touches no other pane', async () => {

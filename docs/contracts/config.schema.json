@@ -209,6 +209,10 @@
           }
         }
       }
+    },
+    "include_network": {
+      "type": "boolean",
+      "description": "tab-owned (network): the cross-effector coherence graph. Opt-in, because it reads node identities out of data type names (person + body part) and would draw nonsense for a study that names its measures differently."
     }
   }
 }
