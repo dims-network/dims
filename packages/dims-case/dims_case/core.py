@@ -53,37 +53,50 @@ SHARED_STEPS = {"step_RQA.py", "step_cRQA.py", "step_crosswavelet.py",
                 "requirements.txt"}
 
 
-PRE_COMMIT = '''#!/bin/sh
-# Refuses to stage data in a private case.
+# Both hooks ask the same question of a different set of paths, so the question
+# is written once. A study that answered it two slightly different ways would be
+# worse than a study with one hook.
+_HOOK = '''#!/bin/sh
+# __TITLE__
 #
-# This is the guard that matters: it stops data BEFORE it enters history, where
-# removing it means a rewrite and the data has usually already been pushed.
 # A .gitignore is not this guard -- `git add -f` walks straight through one.
-python3 - "$@" <<'PY' || exit 1
-import json, subprocess, sys
+__PROLOGUE__python3 - "$@" <<'PY' || exit 1
+import json, os, subprocess, sys
+
+# The core's own list is the fallback. Without it, a dims-case.json that has
+# lost its "restricted" key -- or was written by hand from the example in the
+# contract, which omitted it -- disables the guard silently, which is the one
+# failure a privacy guard may never have. The server-side check already has
+# this fallback; the hook did not.
+DEFAULT_RESTRICTED = ['assets/videos', 'assets/timeseries', 'assets/transcripts', 'assets/elan', 'assets/motion_tracking']
+
+def run(*args):
+    out = subprocess.run(["git", *args], capture_output=True, text=True)
+    return out.stdout.split() if out.returncode == 0 else []
+
 try:
     case = json.load(open("dims-case.json"))
 except (OSError, ValueError):
     sys.exit(0)
 if case.get("visibility") != "private":
     sys.exit(0)
+
 allow = case.get("publishable") or []
-staged = subprocess.run(["git", "diff", "--cached", "--name-only"],
-                        capture_output=True, text=True).stdout.split()
-restricted = case.get("restricted") or []
-bad = []
-for f in staged:
-    if not any(f.startswith(r) for r in restricted):
-        continue
-    if any(f.startswith(a) for a in allow):
-        continue
-    if f.endswith(("MANIFEST.json", ".gitkeep")):
-        continue
-    bad.append(f)
+restricted = case.get("restricted") or DEFAULT_RESTRICTED
+
+__COLLECT__
+
+bad = sorted({f for f in candidates
+              if any(f.startswith(r) for r in restricted)
+              and not any(f.startswith(a) for a in allow)
+              # A manifest carries names and checksums, never content.
+              and not f.endswith(("MANIFEST.json", ".gitkeep"))})
 if bad:
     print("BLOCKED: this study is declared private and these are data files:")
     for f in bad:
         print("  " + f)
+    print("")
+    print("__ADVICE__")
     print("")
     print("If one of these is genuinely publishable, add its directory to")
     print("\\"publishable\\" in dims-case.json. Do not use --no-verify: CI")
@@ -91,6 +104,53 @@ if bad:
     sys.exit(1)
 PY
 '''
+
+
+PRE_COMMIT = (_HOOK
+    .replace("__PROLOGUE__", "")
+    .replace("__TITLE__", "Refuses to stage data in a private case.")
+    .replace("__COLLECT__", "candidates = run(\"diff\", \"--cached\", \"--name-only\")")
+    .replace("__ADVICE__",
+             "Nothing has been committed. Unstage them and try again."))
+
+
+# The index is empty at push time, so the pre-commit body -- which is what this
+# hook used to be, byte for byte -- inspected nothing and passed every push.
+# What a push actually offers is a range of commits per ref, on stdin.
+PRE_PUSH = (_HOOK
+    .replace("__PROLOGUE__",
+             "# git writes the refs being pushed on stdin, and the heredoc\n"
+             "# below is itself stdin -- so they are captured first and passed\n"
+             "# as an argument. Reading stdin inside the script would read the\n"
+             "# script.\n"
+             "DIMS_PUSH_REFS=$(cat)\n"
+             "export DIMS_PUSH_REFS\n")
+    .replace("__TITLE__", "Refuses to push data in a private case.")
+    .replace("__COLLECT__", '''candidates = []
+for line in os.environ.get("DIMS_PUSH_REFS", "").splitlines():
+    parts = line.split()
+    if len(parts) != 4:
+        continue
+    _local_ref, local_sha, _remote_ref, remote_sha = parts
+    if local_sha.strip("0") == "":
+        continue                      # deleting a branch pushes no content
+    if remote_sha.strip("0") == "":
+        # A new branch: everything on it that the remote does not already have.
+        commits = run("rev-list", local_sha, "--not", "--remotes")
+    else:
+        commits = run("rev-list", remote_sha + ".." + local_sha)
+    # Every path the range touches, not just the paths still present at the
+    # tip. Data added and then deleted a commit later is still in the history
+    # this push would publish, and removing it afterwards means a rewrite.
+    for commit in commits:
+        candidates += run("diff-tree", "-r", "--no-commit-id",
+                          "--name-only", commit)
+    # And the tree being pushed, which is what the server-side guard reads.
+    candidates += run("ls-tree", "-r", "--name-only", local_sha)''')
+    .replace("__ADVICE__",
+             "Nothing has been pushed. These are in commits you already made, "
+             "so removing the file is not enough -- the history has to be "
+             "rewritten before this push can succeed."))
 
 
 CI_YML = """name: CI
@@ -405,19 +465,43 @@ def verify_vendor(dest, strict=False):
     return problems
 
 
-def _install_private_bits(dest):
+GITIGNORE_MARK = "# private study: data lives outside the repo"
+
+
+def _write_hooks(dest):
+    """Install both hooks, overwriting whatever is there.
+
+    Hooks are generated code, like index.html and the workflows, so a core
+    bump has to refresh them -- otherwise a study keeps the hooks it was
+    created with, and a fix to a guard never reaches the study that needs it.
+    That is why case-karnatak still carried a pre-push that inspected the
+    staging area and passed every push.
+    """
     hooks = os.path.join(dest, ".githooks")
     os.makedirs(hooks, exist_ok=True)
-    for name in ("pre-commit", "pre-push"):
-        p = os.path.join(hooks, name)
-        with open(p, "w") as fh:
-            fh.write(PRE_COMMIT)
-        os.chmod(p, 0o755)
-    with open(os.path.join(dest, ".gitignore"), "a") as fh:
-        fh.write("\n# private study: data lives outside the repo\n")
-        for r in RESTRICTED:
-            fh.write(f"{r}/*\n!{r}/.gitkeep\n")
-        fh.write("data.local.json\n")
+    for name, body in (("pre-commit", PRE_COMMIT), ("pre-push", PRE_PUSH)):
+        path = os.path.join(hooks, name)
+        with open(path, "w") as fh:
+            fh.write(body)
+        os.chmod(path, 0o755)
+
+
+def _install_private_bits(dest):
+    _write_hooks(dest)
+
+    # Appending unconditionally is how this block ended up in one .gitignore
+    # twice: `adopt` wrote it and a later call wrote it again.
+    gitignore = os.path.join(dest, ".gitignore")
+    existing = open(gitignore).read() if os.path.exists(gitignore) else ""
+    if GITIGNORE_MARK not in existing:
+        with open(gitignore, "a") as fh:
+            if existing and not existing.endswith("\n"):
+                fh.write("\n")
+            fh.write("\n" + GITIGNORE_MARK + "\n")
+            for r in RESTRICTED:
+                fh.write(f"{r}/*\n!{r}/.gitkeep\n")
+            fh.write("data.local.json\n")
+
     example = os.path.join(dest, "data.local.json.example")
     if not os.path.exists(example):
         with open(example, "w") as fh:

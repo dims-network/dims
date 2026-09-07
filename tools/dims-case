@@ -21,9 +21,10 @@ sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "packages", "dims-case"))
 
 from dims_case.core import (          # noqa: E402
-    CORE_ROOT, RESTRICTED, SHARED_STEPS, SCAFFOLD, VENDOR, PRE_COMMIT,
+    CORE_ROOT, RESTRICTED, SHARED_STEPS, SCAFFOLD, VENDOR,
     _core_version, _dir_hash, _install_private_bits, _register_study_tabs,
-    _write_index, _write_vendor, _write_workflows, verify_vendor,
+    _write_hooks, _write_index, _write_vendor, _write_workflows,
+    verify_vendor,
 )
 
 
@@ -52,21 +53,11 @@ def cmd_new(args):
     _write_workflows(dest, args.visibility)
 
     if args.visibility == "private":
-        hooks = os.path.join(dest, ".githooks")
-        os.makedirs(hooks, exist_ok=True)
-        for name in ("pre-commit", "pre-push"):
-            p = os.path.join(hooks, name)
-            with open(p, "w") as fh:
-                fh.write(PRE_COMMIT)
-            os.chmod(p, 0o755)
-        with open(os.path.join(dest, ".gitignore"), "a") as fh:
-            fh.write("\n# private study: data lives outside the repo\n")
-            for r in RESTRICTED:
-                fh.write(f"{r}/*\n!{r}/.gitkeep\n")
-            fh.write("data.local.json\n")
-        with open(os.path.join(dest, "data.local.json.example"), "w") as fh:
-            json.dump({"assetsRoot": "/absolute/path/to/the/data"}, fh, indent=2)
-            fh.write("\n")
+        # The same call `adopt` makes. This block used to be a second copy of
+        # it, and the copies had already diverged over whether an existing
+        # data.local.json.example may be overwritten -- so a study created here
+        # and a study adopted here were not the same study.
+        _install_private_bits(dest)
 
     print(f"created {dest}")
     print(f"  visibility: {args.visibility}")
@@ -197,6 +188,11 @@ def cmd_sync(args):
     # refreshes them too. Otherwise a study keeps whatever CI it was created
     # with, which is how five repos ended up with five drifted copies.
     _write_workflows(dest, case.get("visibility", "public"))
+    # So is the pair of hooks a private study is guarded by. A fix to one of
+    # them has to reach the studies that already exist, and a bump is how
+    # anything else reaches them.
+    if case.get("visibility") == "private":
+        _write_hooks(dest)
     with open(case_path, "w") as fh:
         json.dump(case, fh, indent=2)
         fh.write("\n")

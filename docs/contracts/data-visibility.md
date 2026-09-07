@@ -12,14 +12,26 @@ than by memory.
 {
   "case": "karnatak",
   "visibility": "private",
-  "dimsCore": "1.2.0",
-  "publishable": []
+  "dimsCore": "1.3.1",
+  "publishable": [],
+  "restricted": [
+    "assets/videos",
+    "assets/timeseries",
+    "assets/transcripts",
+    "assets/elan",
+    "assets/motion_tracking"
+  ]
 }
 ```
 
 `visibility` is `"public"` or `"private"`, chosen once when the case is created.
 `publishable` is a **default-deny allowlist**: for a private case, nothing under
-`assets/` may be committed unless a path here says so.
+`assets/` may be committed unless a path here says so. `restricted` is what the
+allowlist opens exceptions to; `dims-case new` writes it, and every guard reads
+it from here so the rule lives in one place. If it is absent the guards fall
+back to the core's own list rather than passing everything — an earlier version
+of this example omitted the key, and a study written by hand from it had guards
+that declared themselves private and blocked nothing.
 
 ## What `private` turns on
 
@@ -32,8 +44,8 @@ Four independent guards, ordered by how early they catch the mistake:
 3. **CI** — fails if any *tracked* file matches a restricted path, and fails if
    `"visibility": "private"` while the GitHub repo is public. That last check
    catches the case nobody plans for: someone flipping visibility months later.
-4. **`AGENTS.md` banner** — states the rule where an automated contributor will
-   read it before touching anything.
+4. **`AGENTS.md`** in the core repository — states the rule where an automated
+   contributor reads it before touching anything.
 
 Enable the hooks once per clone:
 
@@ -52,9 +64,14 @@ gets disabled.
 - Data lives **outside the repo**, at a path named in `data.local.json`
   (untracked). `serve.py` and `dims-analysis` both resolve assets through it, so
   everything runs against real data with an empty tracked `assets/`.
-- `assets/MANIFEST.json` is tracked and holds **names, checksums and provenance
-  — never content**, so CI and the config validator can confirm a case is
-  complete without ever seeing the data.
+- `assets/MANIFEST.json` is tracked and holds **names, sizes and checksums —
+  never content**, so a rebuild can be confirmed complete without anyone seeing
+  the data. Write it with `dims-analysis manifest` (or `build_assets.py
+  --write-manifest`) once the assets are right; check it with `dims-analysis
+  manifest --check`, which compares names and sizes, or `--check --deep`, which
+  verifies the checksums and on a study with video takes minutes. Both hooks
+  and the CI guard exempt this file by name, which is exactly why it may never
+  carry content.
 - Private cases are not wired to GitHub Pages. They are served locally.
 
 ## Going public

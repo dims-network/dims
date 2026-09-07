@@ -137,6 +137,48 @@ def _wrote_something(before: dict, after: dict) -> bool:
     return False
 
 
+def cmd_manifest(args) -> int:
+    """Write `assets/MANIFEST.json`, or check the assets against it.
+
+    A private study's data is outside git, so this file is the only thing in
+    the repository that says what a complete set of assets looks like. After a
+    rebuild it answers the question a green exit code cannot: did it produce
+    everything?
+    """
+    from dims_analysis.common import manifest as mf
+
+    where = mf.path_for(args.project_dir)
+    if not args.check:
+        m = mf.write(args.project_dir, deep=not args.no_checksums)
+        kind = "with checksums" if m["checksums"] else "names and sizes only"
+        n = len(m["files"])
+        print(f"wrote {where}: {n} file{'' if n == 1 else 's'}, {kind}")
+        return 0
+
+    result = mf.compare(args.project_dir, deep=args.deep)
+    if result is None:
+        print(f"error: no manifest at {where}. Write one with "
+              f"`dims-analysis manifest`.", file=sys.stderr)
+        return 2
+    missing, changed, extra = result
+    for rel in missing:
+        print(f"missing: {rel}")
+    for rel in changed:
+        print(f"differs: {rel}")
+    for rel in extra:
+        print(f"not in the manifest: {rel}")
+    if missing or changed:
+        print(f"\n{len(missing)} missing, {len(changed)} different. The rebuild "
+              f"is not complete.", file=sys.stderr)
+        return 1
+    # Extra files are not a failure: a study may hold working files the
+    # manifest was not asked about.
+    print(f"assets match the manifest ({len(mf.load(args.project_dir)['files'])} files"
+          + (", checksums verified" if args.deep else ", names and sizes")
+          + (f"; {len(extra)} not listed" if extra else "") + ")")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="dims-analysis", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="command", required=True)
@@ -151,6 +193,16 @@ def main(argv=None) -> int:
 
     l = sub.add_parser("list", help="show the registered steps")
     l.set_defaults(func=cmd_list)
+
+    m = sub.add_parser("manifest", help="record or verify what assets/ should hold")
+    m.add_argument("--project-dir", default=".")
+    m.add_argument("--check", action="store_true",
+                   help="compare the recorded manifest with what is on disk")
+    m.add_argument("--deep", action="store_true",
+                   help="with --check, verify checksums as well as sizes")
+    m.add_argument("--no-checksums", action="store_true",
+                   help="when writing, record names and sizes only (fast on video)")
+    m.set_defaults(func=cmd_manifest)
 
     args = p.parse_args(argv)
     return args.func(args)

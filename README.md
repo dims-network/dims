@@ -48,6 +48,7 @@ read individually; you should not need to read this whole directory to start.
 | Set up a new study | [`docs/contracts/case.md`](docs/contracts/case.md) |
 | Check whether a study's data is sound | [`packages/dims-notebooks/`](packages/dims-notebooks/) |
 | Understand how it all fits | [`docs/architecture.md`](docs/architecture.md) |
+| Contribute as an **automated agent** | [`AGENTS.md`](AGENTS.md) |
 
 ### The five rules
 
