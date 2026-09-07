@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# "dims" is already taken on PyPI by an unrelated project, so the distribution
+# carries the network's name. The import packages keep their own names.
+name = "dims-network"
+version = "1.2.0"
+description = "DIMS — tools for exploring dynamic interactions and multimodal signals: recurrence quantification, wavelet coherence, and a dashboard for looking at them against video."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "DIMS-network contributors" }]
+keywords = ["multimodal", "interaction", "time series", "recurrence quantification",
+            "wavelet coherence", "behavioural research"]
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+]
+
+# The analyses, and nothing else. A machine that only computes results should
+# not install a web framework to do it.
+dependencies = [
+  "numpy>=1.24.0",
+  "scipy>=1.10.0",
+  "pandas>=2.0.0",
+  "pycwt",
+]
+
+[project.optional-dependencies]
+# The no-code wizard. Flask lives here rather than in the base dependencies so
+# `pip install dims-network` stays a scientific install.
+builder = [
+  "flask>=3.0",
+  "imageio-ffmpeg>=0.4",
+]
+# The sanity-check notebooks.
+notebooks = [
+  "matplotlib>=3.7.0",
+  "jupyterlab>=4.0",
+]
+dev = [
+  "pytest>=7",
+  "jsonschema>=4",
+]
+
+[project.urls]
+Homepage = "https://dims-network.github.io/"
+Source = "https://github.com/dims-network/dims"
+Issues = "https://github.com/dims-network/dims/issues"
+
+[project.scripts]
+dims-analysis = "dims_analysis.cli:main"
+dims-case = "dims_case.cli:main"
+dims-builder = "dims_builder.__main__:main"
+
+# Analyses are discovered through this group, so one published in a separate
+# package joins the pipeline with no change here.
+[project.entry-points."dims.steps"]
+rqa = "dims_analysis.steps.rqa:Step"
+crqa = "dims_analysis.steps.crqa:Step"
+crosswavelet = "dims_analysis.steps.crosswavelet:Step"
+
+[tool.setuptools.packages.find]
+where = ["packages/dims-analysis", "packages/dims-case", "apps/builder"]
+include = ["dims_analysis*", "dims_case*", "dims_builder*"]
+
+[tool.setuptools.package-data]
+dims_builder = ["static/*", "static/**/*"]

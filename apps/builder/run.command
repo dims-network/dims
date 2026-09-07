@@ -32,4 +32,4 @@ echo "Installing builder dependencies (first run only)..."
 "$PY" -m pip install -r requirements.txt
 
 echo "Starting DIMS Dashboard Builder..."
-"$PY" builder.py
+"$PY" -m dims_builder

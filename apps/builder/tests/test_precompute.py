@@ -9,7 +9,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.precompute import discover_steps, _enabled, run_precompute  # noqa: E402
+from dims_builder.precompute import discover_steps, _enabled, run_precompute  # noqa: E402
 
 
 def make_project(tmp_path, scripts=("step_RQA.py", "step_cRQA.py", "step_crosswavelet.py")):
@@ -54,7 +54,7 @@ def test_config_gates_are_matched_case_insensitively(cfg, key, expected):
 
 def test_nothing_enabled_is_reported_clearly(tmp_path, monkeypatch):
     proj = make_project(tmp_path)
-    monkeypatch.setattr("app.precompute.create_venv", lambda p: iter(["venv ok\n"]))
+    monkeypatch.setattr("dims_builder.precompute.create_venv", lambda p: iter(["venv ok\n"]))
     out = "".join(run_precompute(proj, config={}))
     assert "No analyses are enabled" in out
     assert "Precompute complete" in out
@@ -64,13 +64,13 @@ def test_a_failing_step_stops_the_run_and_says_so(tmp_path, monkeypatch):
     """Continuing past a failure produced output that was partly missing and
     looked complete."""
     proj = make_project(tmp_path)
-    monkeypatch.setattr("app.precompute.create_venv", lambda p: iter(["venv ok\n"]))
+    monkeypatch.setattr("dims_builder.precompute.create_venv", lambda p: iter(["venv ok\n"]))
 
     def fake_step(project, step_id, script, out_dir, extra=None):
         yield f"running {step_id}\n"
         yield "__EXIT__:1\n" if step_id == "rqa" else "__EXIT__:0\n"
 
-    monkeypatch.setattr("app.precompute._run_step", fake_step)
+    monkeypatch.setattr("dims_builder.precompute._run_step", fake_step)
     out = "".join(run_precompute(proj, config={
         "include_RQA": ["a"], "include_crosswavelet": [["a", "b"]]}))
 
@@ -81,8 +81,8 @@ def test_a_failing_step_stops_the_run_and_says_so(tmp_path, monkeypatch):
 
 def test_a_clean_run_reports_success(tmp_path, monkeypatch):
     proj = make_project(tmp_path)
-    monkeypatch.setattr("app.precompute.create_venv", lambda p: iter(["venv ok\n"]))
-    monkeypatch.setattr("app.precompute._run_step",
+    monkeypatch.setattr("dims_builder.precompute.create_venv", lambda p: iter(["venv ok\n"]))
+    monkeypatch.setattr("dims_builder.precompute._run_step",
                         lambda *a, **k: iter([f"ok\n", "__EXIT__:0\n"]))
     out = "".join(run_precompute(proj, config={"include_RQA": ["a"]}))
     assert "Precompute complete" in out and "FAILED" not in out
@@ -91,8 +91,8 @@ def test_a_clean_run_reports_success(tmp_path, monkeypatch):
 def test_the_old_boolean_signature_still_works(tmp_path, monkeypatch):
     """An older caller must not break just because the interface improved."""
     proj = make_project(tmp_path)
-    monkeypatch.setattr("app.precompute.create_venv", lambda p: iter(["venv ok\n"]))
-    monkeypatch.setattr("app.precompute._run_step",
+    monkeypatch.setattr("dims_builder.precompute.create_venv", lambda p: iter(["venv ok\n"]))
+    monkeypatch.setattr("dims_builder.precompute._run_step",
                         lambda *a, **k: iter(["ok\n", "__EXIT__:0\n"]))
     out = "".join(run_precompute(proj, do_rqa=True, do_crosswavelet=False, do_crqa=False))
     assert "Running rqa" in out and "Running crosswavelet" not in out

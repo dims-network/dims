@@ -1,3 +1,35 @@
+Metadata-Version: 2.4
+Name: dims-network
+Version: 1.2.0
+Summary: DIMS — tools for exploring dynamic interactions and multimodal signals: recurrence quantification, wavelet coherence, and a dashboard for looking at them against video.
+Author: DIMS-network contributors
+License: MIT
+Project-URL: Homepage, https://dims-network.github.io/
+Project-URL: Source, https://github.com/dims-network/dims
+Project-URL: Issues, https://github.com/dims-network/dims/issues
+Keywords: multimodal,interaction,time series,recurrence quantification,wavelet coherence,behavioural research
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: pycwt
+Provides-Extra: builder
+Requires-Dist: flask>=3.0; extra == "builder"
+Requires-Dist: imageio-ffmpeg>=0.4; extra == "builder"
+Provides-Extra: notebooks
+Requires-Dist: matplotlib>=3.7.0; extra == "notebooks"
+Requires-Dist: jupyterlab>=4.0; extra == "notebooks"
+Provides-Extra: dev
+Requires-Dist: pytest>=7; extra == "dev"
+Requires-Dist: jsonschema>=4; extra == "dev"
+Dynamic: license-file
+
 # DIMS
 
 Open tools for exploring **dynamic interactions and multimodal signals** — time
@@ -12,26 +44,11 @@ only `config.json`, their data, and a pinned version of this core.
 packages/dims-core/          the host: config, video, the time bus, the tab registry
 packages/dims-tabs/          every tab, one self-registering file each
 packages/dims-analysis/      the Python analyses, a pip package
-packages/dims-case/          creating a study and keeping its core honest
 packages/dims-case-scaffold/ what a new study starts from
 packages/dims-notebooks/     sanity checks, as notebooks you can run on a study
 apps/builder/                the no-code wizard
 docs/contracts/              the contracts — read one, not all of them
 ```
-
-## Install
-
-```sh
-pip install dims-network              # the analyses, and dims-analysis / dims-case
-pip install "dims-network[builder]"   # adds the no-code wizard: dims-builder
-pip install "dims-network[notebooks]" # adds the sanity-check notebooks
-```
-
-One distribution, one version. Flask is behind the `builder` extra, so a machine
-that only computes results does not install a web framework to do it.
-
-*(Not on PyPI yet — `pip install -e .` from a checkout for now. The name is
-`dims-network` because `dims` is taken by an unrelated project.)*
 
 ## Working on DIMS
 

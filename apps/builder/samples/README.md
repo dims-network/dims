@@ -33,7 +33,7 @@ ideal for trying **pairwise** cross-wavelet / cross-RQA (e.g. compute
 
 ## How to test
 
-1. From the builder root: `python builder.py` (browser opens to the wizard).
+1. Run `dims-builder` (browser opens to the wizard).
 2. **Step 1** — pick an empty output folder; for an offline run choose
    "local template folder" and point it at your local
    `DIMS_dashboard_template`. Set a title.

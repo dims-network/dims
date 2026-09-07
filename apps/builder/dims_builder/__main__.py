@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """DIMS Dashboard Builder — launcher.
 
-Starts the Flask wizard server and opens the browser. No-code entry point:
-just run `python builder.py`.
+Starts the Flask wizard and opens a browser. The no-code entry point:
+
+    pip install "dims-network[builder]"
+    dims-builder
+
+Still runnable from a checkout with `python -m dims_builder`.
 """
 import os
 import socket
 import threading
 import webbrowser
 
-from app.server import create_app
+from dims_builder.server import create_app
 
 
 def _find_free_port(preferred=5000):

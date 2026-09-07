@@ -1,0 +1,9 @@
+[console_scripts]
+dims-analysis = dims_analysis.cli:main
+dims-builder = dims_builder.__main__:main
+dims-case = dims_case.cli:main
+
+[dims.steps]
+crosswavelet = dims_analysis.steps.crosswavelet:Step
+crqa = dims_analysis.steps.crqa:Step
+rqa = dims_analysis.steps.rqa:Step

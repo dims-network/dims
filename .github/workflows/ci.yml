@@ -107,3 +107,33 @@ jobs:
                   print(f"::error file={f}::not a usable notebook"); bad = 1
           sys.exit(bad)
           PY
+
+  builder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install with the builder extra
+        run: python -m pip install -q -e ".[builder,dev]"
+      - name: Tests
+        working-directory: apps/builder
+        run: python -m pytest tests -q
+      - name: The wizard builds a complete study
+        run: |
+          python - <<'PY'
+          import json, os, sys, tempfile
+          sys.path.insert(0, "apps/builder")
+          from dims_builder.server import create_app
+          out = os.path.join(tempfile.mkdtemp(), "study")
+          r = create_app().test_client().post("/api/project",
+                                              json={"output_dir": out, "template": "bundled"})
+          assert r.status_code == 200, r.get_json()
+          # A generated study must be complete: the wizard's user is the one
+          # least able to work out why a dashboard is missing its core.
+          for need in ("config.json", "index.html", "serve.py", "dims-case.json",
+                       "vendor/dims-core", "vendor/dims-tabs"):
+              assert os.path.exists(os.path.join(out, need)), f"missing {need}"
+          print("generated study is complete")
+          PY

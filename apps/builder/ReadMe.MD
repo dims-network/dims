@@ -1,14 +1,17 @@
 # DIMS Dashboard Builder
 
-A no-code, point-and-click tool for building a [DIMS dashboard](https://github.com/dims-network/DIMS_dashboard_template)
-from your own recordings — **no JSON editing, no file renaming, no terminal scripts**.
+A no-code wizard: point it at your recordings, time series and annotations, and
+it produces a working DIMS dashboard.
 
-It opens a wizard in your browser, lets you drag-and-drop your videos, time-series
-CSVs and transcripts, runs the optional analyses (RQA, cross-wavelet) for you, and
-produces a ready-to-deploy dashboard folder.
+```sh
+pip install "dims-network[builder]"
+dims-builder
+```
 
-> This tool does **not** modify the template. It acquires a fresh copy of the
-> template, fills it in, and leaves you a self-contained, deployable project.
+It lives in the DIMS monorepo alongside the core it builds against, so a study
+it generates is identical to one made with `dims-case` — same scaffold, same
+pinned core, same checks. It used to carry its own copy of the dashboard, kept
+in step by hand; that copy is gone.
 
 ## Quick start
 
@@ -20,14 +23,14 @@ Or manually (also the simplest way to avoid the macOS prompt below):
 
 ```bash
 pip install -r requirements.txt
-python builder.py
+dims-builder
 ```
 
 > **macOS, first run only:** if you downloaded the ZIP you may see *“Apple could not
 > verify ‘run.command’ is free of malware.”* Click **Done**, then go to
 > **System Settings → Privacy & Security**, scroll to **Security**, and click
 > **Open Anyway**. This is macOS flagging any downloaded unsigned script; it happens
-> once. (Running `python builder.py` in a terminal skips it entirely.)
+> once. (Running `dims-builder` in a terminal skips it entirely.)
 
 Your browser opens to the wizard. Follow the 7 steps:
 

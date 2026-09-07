@@ -4,6 +4,7 @@ This module never reimplements the template's analysis logic; it only copies
 the template tree and arranges user files into the template's strict layout.
 """
 import json
+import json
 import os
 import re
 import shutil
@@ -28,21 +29,32 @@ CONFIG_KEYS = [
 
 DEFAULT_TEMPLATE_URL = "https://github.com/dims-network/DIMS_dashboard_template"
 
-# The builder ships with a full copy of the DIMS dashboard template, so a
-# non-technical user needs neither git nor an internet connection to build a
-# dashboard. This bundled copy is the default source. `template/` sits next to
-# the `app/` package at the repo root.
-BUNDLED_TEMPLATE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "template")
+# The scaffold a new study starts from. It used to be a copy of the dashboard
+# vendored into this repo as a git subtree, kept in step by hand with
+# scripts/update-template.sh -- the last copy of the dashboard code left in the
+# ecosystem, and the last thing that could drift.
+#
+# Now that the builder lives in the same repository as the core, it points
+# straight at the scaffold. There is nothing to synchronise because there is
+# nothing to copy.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))          # apps/builder/app/project.py -> repo root
+BUNDLED_TEMPLATE = os.path.join(_REPO_ROOT, "packages", "dims-case-scaffold")
 
 # Markers that a directory really is the DIMS template scaffold.
-TEMPLATE_MARKERS = ["config.json", "serve.py", "opt", "assets"]
+# What makes a directory a dashboard scaffold. "opt" used to be here, back when
+# every project carried its own copy of the analysis scripts; those come from
+# the dims-analysis package now, so a project without opt/ is normal.
+TEMPLATE_MARKERS = ["config.json", "serve.py", "assets"]
 
-# Template files that are *code* (analysis scripts in opt/, the frontend, the
-# deploy workflow). These are refreshed into an existing project on every acquire
-# so a project built from an older template picks up new scripts (e.g. a newly
-# added opt/step_cRQA.py) and frontend fixes. Everything else in the project —
-# config.json and the user's assets/ — is data and is left untouched.
-TEMPLATE_CODE = ("opt", "js", "css", "index.html", "serve.py", ".github", "ReadMe.MD")
+# Scaffold files that are *code*, refreshed into an existing project on every
+# build so a project made from an older core picks up fixes. Everything else --
+# config.json and the user's assets/ -- is the study's own and is left alone.
+#
+# The dashboard itself is no longer copied file by file: it arrives as a pinned,
+# vendored core written by `dims-case`. What remains here is the page that loads
+# it and the local preview server.
+TEMPLATE_CODE = ("index.html", "serve.py", ".github", "vendor")
 
 _IGNORE = shutil.ignore_patterns(".git", "__pycache__", ".venv", "node_modules")
 
@@ -157,8 +169,30 @@ def acquire_template(output_dir: str, source: str) -> None:
     finally:
         cleanup()
 
+    # Write the pinned core, exactly as `dims-case` does. Both callers go
+    # through dims_case.core so a study built by the wizard and one built from
+    # the command line are the same study -- the wizard's user is the one least
+    # able to debug a difference.
+    try:
+        from dims_case.core import _write_vendor, _write_index, _core_version
+        _write_index(output_dir)
+        hashes = _write_vendor(output_dir)
+        case_path = os.path.join(output_dir, "dims-case.json")
+        if not os.path.exists(case_path):
+            with open(case_path, "w") as fh:
+                json.dump({"case": os.path.basename(os.path.abspath(output_dir)),
+                           "visibility": "private",   # the safe default; the wizard asks
+                           "dimsCore": _core_version(),
+                           "publishable": [],
+                           "vendorHashes": hashes}, fh, indent=2)
+                fh.write("\n")
+    except ImportError as exc:
+        raise ProjectError(
+            "Could not write the dashboard core into the project "
+            f"({exc}). Install with: pip install 'dims-network[builder]'") from exc
+
     if not is_template_dir(output_dir):
-        raise ProjectError("Acquired template is missing expected files (config.json/serve.py/opt/assets).")
+        raise ProjectError("Acquired scaffold is missing expected files (config.json/serve.py/assets).")
 
 
 def place_asset(output_dir: str, staged_path: str, role: str, video_id: str, data_type: str = "") -> str:
