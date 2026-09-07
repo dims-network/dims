@@ -11,6 +11,10 @@ import pycwt as wavelet
 from pycwt.helpers import find
 import json
 import os
+
+# Absolute, not relative: the tests load these steps by file path, where a
+# relative import has no parent package to resolve against.
+from dims_analysis.common import assets as _assets
 import argparse
 from scipy import signal
 import warnings
@@ -1062,7 +1066,15 @@ def main():
     args = parser.parse_args()
     
     # Override global settings if command-line args provided
-    global VERBOSE, DEBUG_MODE, _EFFECTIVE_OUTPUT_DIR
+    global VERBOSE, DEBUG_MODE, _EFFECTIVE_OUTPUT_DIR, INPUT_DIR
+    # A private study's data lives outside the repository, at the path
+    # data.local.json names. Without this, running a step from the case
+    # directory finds nothing and blames the input files.
+    _note = _assets.describe()
+    if _note:
+        print(_note)
+    INPUT_DIR = _assets.resolve(INPUT_DIR)
+    args.output_dir = _assets.resolve(args.output_dir)
     _EFFECTIVE_OUTPUT_DIR = args.output_dir
     if args.verbose:
         VERBOSE = True

@@ -29,6 +29,10 @@ import pandas as pd
 from scipy.spatial.distance import cdist
 import json
 import os
+
+# Absolute, not relative: the tests load these steps by file path, where a
+# relative import has no parent package to resolve against.
+from dims_analysis.common import assets as _assets
 import argparse
 
 # Browser payloads are rounded to significant figures; see the module docstring
@@ -274,6 +278,10 @@ def main():
         print("Error: 'videoIDs' list is empty in config.")
         return
 
+    _note = _assets.describe()
+    if _note:
+        print(_note)
+    args.output_dir = _assets.resolve(args.output_dir)
     os.makedirs(args.output_dir, exist_ok=True)
 
     for vid in video_ids:
