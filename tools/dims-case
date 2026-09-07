@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""dims-case — create a study repo, or refresh its vendored core.
+
+A case repo holds config, data, and a pinned copy of the core. It holds no code
+of its own: `vendor/` is written by this tool and verified by CI against the
+release named in dims-case.json.
+
+    dims-case new  <name> --visibility public|private [--dir PATH]
+    dims-case sync <path> [--version VERSION]
+    dims-case check <path>
+
+`sync` is what the version-bump bot runs. `check` is what CI runs.
+"""
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+CORE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+VENDOR = {
+    "packages/dims-core": "vendor/dims-core",
+    "packages/dims-tabs": "vendor/dims-tabs",
+}
+SCAFFOLD = "packages/dims-case-scaffold"
+
+# Data that must never be committed in a private case. Default-deny: a study
+# opts individual directories back in through "publishable".
+RESTRICTED = ["assets/videos", "assets/timeseries", "assets/transcripts",
+              "assets/elan", "assets/motion_tracking"]
+
+PRE_COMMIT = '''#!/bin/sh
+# Refuses to stage data in a private case.
+#
+# This is the guard that matters: it stops data BEFORE it enters history, where
+# removing it means a rewrite and the data has usually already been pushed.
+# A .gitignore is not this guard -- `git add -f` walks straight through one.
+python3 - "$@" <<'PY' || exit 1
+import json, subprocess, sys
+try:
+    case = json.load(open("dims-case.json"))
+except (OSError, ValueError):
+    sys.exit(0)
+if case.get("visibility") != "private":
+    sys.exit(0)
+allow = case.get("publishable") or []
+staged = subprocess.run(["git", "diff", "--cached", "--name-only"],
+                        capture_output=True, text=True).stdout.split()
+restricted = case.get("restricted") or []
+bad = []
+for f in staged:
+    if not any(f.startswith(r) for r in restricted):
+        continue
+    if any(f.startswith(a) for a in allow):
+        continue
+    if f.endswith(("MANIFEST.json", ".gitkeep")):
+        continue
+    bad.append(f)
+if bad:
+    print("BLOCKED: this study is declared private and these are data files:")
+    for f in bad:
+        print("  " + f)
+    print("")
+    print("If one of these is genuinely publishable, add its directory to")
+    print("\\"publishable\\" in dims-case.json. Do not use --no-verify: CI")
+    print("checks the same thing and will fail the branch.")
+    sys.exit(1)
+PY
+'''
+
+
+def _dir_hash(path):
+    """Stable hash of a directory's contents, for the vendor integrity check."""
+    h = hashlib.sha256()
+    for root, dirs, files in os.walk(path):
+        dirs.sort()
+        for name in sorted(files):
+            if name.startswith("."):
+                continue
+            full = os.path.join(root, name)
+            h.update(os.path.relpath(full, path).encode())
+            with open(full, "rb") as fh:
+                h.update(fh.read())
+    return h.hexdigest()
+
+
+def _core_version():
+    try:
+        out = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
+                             cwd=CORE_ROOT, capture_output=True, text=True)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip().lstrip("v")
+    except OSError:
+        pass
+    return "0.0.0-dev"
+
+
+def _write_vendor(dest):
+    for src_rel, dst_rel in VENDOR.items():
+        src, dst = os.path.join(CORE_ROOT, src_rel), os.path.join(dest, dst_rel)
+        if os.path.exists(dst):
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns("test", "node_modules", "*.md"))
+    return {rel: _dir_hash(os.path.join(dest, rel)) for rel in VENDOR.values()}
+
+
+def cmd_new(args):
+    dest = os.path.abspath(args.dir or f"case-{args.name}")
+    if os.path.exists(dest) and os.listdir(dest):
+        sys.exit(f"error: {dest} exists and is not empty")
+
+    shutil.copytree(os.path.join(CORE_ROOT, SCAFFOLD), dest, dirs_exist_ok=True)
+    hashes = _write_vendor(dest)
+
+    case = {
+        "case": args.name,
+        "visibility": args.visibility,
+        "dimsCore": _core_version(),
+        "publishable": [],
+        # The hook and CI both read this, so the rule exists once rather than
+        # in two places that can disagree.
+        "restricted": RESTRICTED,
+        "vendorHashes": hashes,
+    }
+    with open(os.path.join(dest, "dims-case.json"), "w") as fh:
+        json.dump(case, fh, indent=2)
+        fh.write("\n")
+
+    if args.visibility == "private":
+        hooks = os.path.join(dest, ".githooks")
+        os.makedirs(hooks, exist_ok=True)
+        for name in ("pre-commit", "pre-push"):
+            p = os.path.join(hooks, name)
+            with open(p, "w") as fh:
+                fh.write(PRE_COMMIT)
+            os.chmod(p, 0o755)
+        with open(os.path.join(dest, ".gitignore"), "a") as fh:
+            fh.write("\n# private study: data lives outside the repo\n")
+            for r in RESTRICTED:
+                fh.write(f"{r}/*\n!{r}/.gitkeep\n")
+            fh.write("data.local.json\n")
+        with open(os.path.join(dest, "data.local.json.example"), "w") as fh:
+            json.dump({"assetsRoot": "/absolute/path/to/the/data"}, fh, indent=2)
+            fh.write("\n")
+
+    print(f"created {dest}")
+    print(f"  visibility: {args.visibility}")
+    print(f"  core:       {case['dimsCore']}")
+    if args.visibility == "private":
+        print("  next:       git init && git config core.hooksPath .githooks")
+        print("              cp data.local.json.example data.local.json  and edit it")
+    return 0
+
+
+def cmd_sync(args):
+    dest = os.path.abspath(args.path)
+    case_path = os.path.join(dest, "dims-case.json")
+    case = json.load(open(case_path))
+    old = case.get("dimsCore")
+    case["dimsCore"] = args.version or _core_version()
+    case["vendorHashes"] = _write_vendor(dest)
+    with open(case_path, "w") as fh:
+        json.dump(case, fh, indent=2)
+        fh.write("\n")
+    print(f"{case['case']}: {old} -> {case['dimsCore']}")
+    return 0
+
+
+def cmd_check(args):
+    dest = os.path.abspath(args.path)
+    case = json.load(open(os.path.join(dest, "dims-case.json")))
+    recorded = case.get("vendorHashes") or {}
+    failed = False
+    for rel in VENDOR.values():
+        actual = _dir_hash(os.path.join(dest, rel))
+        if recorded.get(rel) != actual:
+            print(f"::error::{rel} does not match the pinned core "
+                  f"{case.get('dimsCore')}. Never edit vendored code -- fix it "
+                  f"in dims-network/dims and bump the pin.")
+            failed = True
+    if not failed:
+        print(f"vendored core matches {case.get('dimsCore')}")
+    return 1 if failed else 0
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="dims-case", description=__doc__.splitlines()[0])
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    n = sub.add_parser("new", help="create a study repo")
+    n.add_argument("name")
+    n.add_argument("--visibility", required=True, choices=["public", "private"],
+                   help="the researcher's decision, recorded. Never inferred.")
+    n.add_argument("--dir")
+    n.set_defaults(func=cmd_new)
+
+    s = sub.add_parser("sync", help="refresh the vendored core (what the bot runs)")
+    s.add_argument("path")
+    s.add_argument("--version")
+    s.set_defaults(func=cmd_sync)
+
+    c = sub.add_parser("check", help="verify the vendored core (what CI runs)")
+    c.add_argument("path")
+    c.set_defaults(func=cmd_check)
+
+    args = p.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

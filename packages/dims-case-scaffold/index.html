@@ -13,28 +13,31 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     
     <!-- Theme tokens (single source of truth for all colors) -->
-    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="vendor/dims-core/css/theme.css">
     <!-- Your stylesheets -->
-    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="vendor/dims-core/css/reset.css">
 
     <link rel="icon" type="image/png" href="assets/branding/dims-mark.png">
     
     <!-- Your custom scripts -->
-    <!-- The host first, then one file per tab. Order matters: a tab file
-         registers into the host, so the host must exist. Remove a line and
-         that tab is gone; add one and it appears. -->
-    <script src="js/video-component.js"></script>
-    <script src="js/dims-core.js"></script>
-    <script src="js/tabs/timeseries.js"></script>
-    <script src="js/tabs/rqa.js"></script>
-    <script src="js/tabs/crosswavelet.js"></script>
-    <script src="js/tabs/crqa.js"></script>
-    <script src="js/tabs/elan.js"></script>
+    <!-- vendor/ is a pinned copy of the core, written by tooling and verified
+         by CI against the release named in dims-case.json. Never edit it: fix
+         the core and bump the pin.
+
+         The host first, then one file per tab. Order matters, because a tab
+         registers into the host. Remove a line and that tab is gone. -->
+    <script src="vendor/dims-core/video-component.js"></script>
+    <script src="vendor/dims-core/dims-core.js"></script>
+    <script src="vendor/dims-tabs/timeseries.js"></script>
+    <script src="vendor/dims-tabs/rqa.js"></script>
+    <script src="vendor/dims-tabs/crosswavelet.js"></script>
+    <script src="vendor/dims-tabs/crqa.js"></script>
+    <script src="vendor/dims-tabs/elan.js"></script>
     <!-- Optional tabs: delete a line to remove that tab. Each is inert unless
          its config key is set, so leaving them costs nothing. -->
-    <script src="js/tabs/trajectory.js"></script>
-    <script src="js/tabs/dtw.js"></script>
-    <script src="js/tabs/network.js"></script>
+    <script src="vendor/dims-tabs/trajectory.js"></script>
+    <script src="vendor/dims-tabs/dtw.js"></script>
+    <script src="vendor/dims-tabs/network.js"></script>
 </head>
 <body>
     <div class="container">
