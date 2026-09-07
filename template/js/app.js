@@ -1315,6 +1315,12 @@ if (arrowData.x.length > 0) {
 
     setupHeader() {
         try {
+            // The browser tab is how you tell two dashboards apart when both
+            // are open, so it must carry the study name. It was hardcoded to
+            // "DIMS Dashboard" in every case repo, which made a mis-served
+            // dashboard indistinguishable from the right one.
+            if (this.config.title) document.title = this.config.title;
+
             const subtitleEl = document.getElementById('subtitle');
             const authorsEl = document.getElementById('authors');
             const contactsEl = document.getElementById('contacts');
