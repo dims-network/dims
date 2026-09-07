@@ -47,3 +47,24 @@ jobs:
             [ -e "$f" ] || { echo "::error file=AGENTS.md::points at missing '$f'"; fail=1; }
           done < <(grep -o '`docs/[^`]*`' AGENTS.md | tr -d '`' | sort -u)
           exit $fail
+
+  analysis-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        working-directory: packages/dims-analysis
+        run: python -m pip install -q -e ".[dev]"
+      - name: Steps must be discoverable
+        run: |
+          out=$(dims-analysis list)
+          echo "$out"
+          for s in rqa crqa crosswavelet; do
+            echo "$out" | grep -q "^  $s " || { echo "::error::step '$s' is not registered"; exit 1; }
+          done
+      - name: Tests
+        working-directory: packages/dims-analysis
+        run: python -m pytest tests/ -q
