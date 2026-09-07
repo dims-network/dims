@@ -85,12 +85,22 @@ test('it renders into its own container and touches no other pane', async () => 
     'it must not draw into another tab\'s pane');
 });
 
-test('crosswaveletSuffix is honoured, so a corrected run can sit beside the original', async () => {
-  const w = await boot(
-    { ...CONFIG, crosswaveletSuffix: '_wtcfix' },
-    { 'assets/crosswavelet/s1_crosswavelet_data_wtcfix.json': cwPayload() },
-  );
+test('the output suffix is gone, and stays gone', async () => {
+  // crosswaveletSuffix let a corrected run sit beside the original while the
+  // correction was being validated. That comparison is finished; keeping a
+  // variant-output mechanism is just a way to end up with two answers again.
+  const fs = require('fs');
+  const path = require('path');
+  const { ROOT } = require('./harness.js');
+  for (const rel of ['packages/dims-tabs/crosswavelet.js', 'packages/dims-tabs/network.js']) {
+    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    assert.ok(!src.includes('crosswaveletSuffix'), `${rel} still reads crosswaveletSuffix`);
+    assert.ok(!src.includes('_wtcfix'), `${rel} still references the variant suffix`);
+  }
+
+  // and the plain path is what actually gets fetched
+  const w = await boot(CONFIG, { 'assets/crosswavelet/s1_crosswavelet_data.json': cwPayload() });
   w.dimsApp.switchTab('network');
   await new Promise(r => setTimeout(r, 60));
-  assert.ok(w.dimsApp.crossWaveletData, 'the suffixed file should have been loaded');
+  assert.ok(w.dimsApp.crossWaveletData, 'the unsuffixed file should have been loaded');
 });
