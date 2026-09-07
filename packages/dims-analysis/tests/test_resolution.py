@@ -81,3 +81,40 @@ def test_phase_is_averaged_as_an_angle():
     src = open(os.path.join(HERE, "dims_analysis", "steps", "crosswavelet.py")).read()
     assert "np.angle(_reduce_time(_reduce_freq(np.exp(1j" in src, \
         "phase must be reduced via complex exponentials, not averaged directly"
+
+
+def test_no_power_means_undefined_coherence_not_perfect_coherence():
+    """A real failure, from a real study.
+
+    In a tabletop-game study the velocity signals are exactly zero about half
+    the time, because the pieces are not moving. The smoothed denominator then
+    collapses toward zero, the ratio explodes — 176 was observed — and clipping
+    it to 1.0 painted "perfect coupling" across every stretch where nothing
+    happened.
+
+    Those cells have no coherence to report. They must be undefined, and travel
+    to the browser as null so it draws a gap.
+    """
+    src = open(os.path.join(HERE, "dims_analysis", "steps", "crosswavelet.py")).read()
+
+    assert "np.clip(WCO, 0.0, 1.0)" in src
+    assert "undefined" in src, "degenerate cells must be marked, not clipped"
+    # the give-away of the old behaviour: a bare clip with only an epsilon guard
+    assert "np.abs(S12) ** 2 / (S1 * S2 + 1e-30)" not in src, \
+        "an epsilon is not enough when both signals are genuinely silent"
+
+
+def test_json_carries_no_bare_nan():
+    """json.dump writes a bare NaN token, which JSON.parse rejects outright, so
+    one undefined cell would make a study's output unreadable in a browser."""
+    src = open(os.path.join(HERE, "dims_analysis", "steps", "crosswavelet.py")).read()
+    assert "_json_safe" in src
+    for field in ("'coherence': _json_safe", "'power': _json_safe", "'phase': _json_safe"):
+        assert field in src, f"{field} must go through the NaN-to-null conversion"
+
+
+def test_statistics_survive_undefined_cells():
+    """One undefined cell must not turn every summary into NaN."""
+    src = open(os.path.join(HERE, "dims_analysis", "steps", "crosswavelet.py")).read()
+    assert "coi_mask | ~np.isfinite" in src, \
+        "undefined cells must be masked out of the statistics too"

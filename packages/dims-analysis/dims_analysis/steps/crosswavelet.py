@@ -490,12 +490,35 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # absorbs floating-point overshoot only -- it is NOT the old saturating
     # clamp. If it ever has real work to do, the formula is wrong again, so
     # we check rather than silently clamp.
-    WCO = np.real(np.abs(S12) ** 2 / (S1 * S2 + 1e-30))
-    _overshoot = float(np.nanmax(WCO)) if WCO.size else 0.0
-    if _overshoot > 1.0 + 1e-6:
-        print(f"  WARNING: coherence exceeded 1 by {_overshoot - 1.0:.2e} "
-              f"-- normalisation may be wrong")
-    WCO = np.clip(WCO, 0.0, 1.0)
+    # Where neither signal has power in a band, coherence is undefined -- not 1.
+    #
+    # This is not hypothetical. In a study of a tabletop game the velocity
+    # signals are exactly zero about half the time, because the pieces are not
+    # moving. There S1*S2 collapses toward zero, the ratio explodes (observed:
+    # 176), and clipping it to 1.0 paints "perfect coupling" across every
+    # stretch where nothing happened. That is the same mistake as the defect
+    # this function was written to fix, arriving from a different direction.
+    #
+    # Such cells are marked undefined and travel as null to the browser, which
+    # draws a gap. A gap is honest; a bright band is not.
+    denom = np.real(S1 * S2)
+    positive = denom[denom > 0]
+    floor = 1e-10 * np.median(positive) if positive.size else 0.0
+
+    with np.errstate(divide='ignore', invalid='ignore'):
+        WCO = np.real(np.abs(S12) ** 2 / denom)
+
+    undefined = ~np.isfinite(WCO) | (denom <= floor)
+    # A value materially above 1 cannot be a coherence; it means the denominator
+    # was degenerate here, so the cell is undefined rather than saturated.
+    undefined |= WCO > 1.0 + 1e-6
+    WCO = np.where(undefined, np.nan, np.clip(WCO, 0.0, 1.0))
+
+    if undefined.any():
+        frac = float(undefined.mean())
+        if VERBOSE or frac > 0.02:
+            print(f"  {frac:.1%} of cells have too little power to define coherence "
+                  f"(drawn as gaps, not as 1.0)")
 
     # 95% coherence level under an AR(1) null (see _wct_significance_level).
     # This is what makes an individual coherence value interpretable: without
@@ -628,16 +651,23 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
                       [None if not np.isfinite(v) else float(v)
                        for v in sig95_wtc_ds])
 
+    def _json_safe(a):
+        """NaN has no JSON literal, and JSON.parse rejects the bare token that
+        json.dump would write. Undefined cells travel as null, which the browser
+        draws as a gap."""
+        a = np.asarray(a, dtype=float)
+        return np.where(np.isfinite(a), a, None).tolist()
+
     return {
         'time': time_ds.tolist(),
         'freqs': freqs_ds.tolist(),
         'period': period_ds.tolist(),
         'scales': scales_ds.tolist(),
-        'power': power_ds.tolist(),
-        'phase': phase_ds.tolist(),
-        'coherence': coherence_ds.tolist(),
+        'power': _json_safe(power_ds),
+        'phase': _json_safe(phase_ds),
+        'coherence': _json_safe(coherence_ds),
         'coi': coi_ds.tolist(),
-        'sig95_xwt': sig95_xwt_ds.tolist(),
+        'sig95_xwt': _json_safe(sig95_xwt_ds),
         'sig95_wtc': sig95_wtc_json,
         'signif_xwt': signif_xwt_ds.tolist(),
         'global_power': global_power_ds.tolist(),
@@ -673,7 +703,10 @@ def calculate_summary_statistics(cwt_results, time, scale_avg_power, scale_avg_s
     
     # Mask out COI regions
     power_valid = np.ma.masked_array(power, coi_mask)
-    coherence_valid = np.ma.masked_array(coherence, coi_mask)
+    # Undefined cells (too little power to define coherence) are masked out of
+    # the statistics as well, otherwise one of them turns every summary NaN.
+    coherence_valid = np.ma.masked_array(
+        coherence, coi_mask | ~np.isfinite(np.asarray(coherence, dtype=float)))
     
     # Dominant frequency at each time point (outside COI)
     dominant_freq_idx = np.ma.argmax(power_valid, axis=0)
@@ -689,7 +722,9 @@ def calculate_summary_statistics(cwt_results, time, scale_avg_power, scale_avg_s
     mean_phase_by_freq = np.angle(np.mean(np.exp(1j * phase), axis=1))
     
     # Time-frequency regions of high coherence
-    high_coherence_regions = coherence > HIGH_COHERENCE_THRESHOLD
+    with np.errstate(invalid='ignore'):
+        high_coherence_regions = np.asarray(coherence) > HIGH_COHERENCE_THRESHOLD
+    high_coherence_regions &= np.isfinite(np.asarray(coherence, dtype=float))
     
     # Calculate percent of time each frequency shows high coherence
     high_coherence_by_freq = np.sum(high_coherence_regions & ~coi_mask, axis=1) / np.maximum(np.sum(~coi_mask, axis=1), 1)
@@ -703,7 +738,8 @@ def calculate_summary_statistics(cwt_results, time, scale_avg_power, scale_avg_s
     wtc_signif_fraction = None
     if sig95_wtc is not None:
         level = np.asarray(sig95_wtc, dtype=float)[:, np.newaxis]
-        usable = ~coi_mask & np.isfinite(level)      # broadcasts over time
+        usable = (~coi_mask & np.isfinite(level)
+                  & np.isfinite(np.asarray(coherence, dtype=float)))
         n_usable = int(np.sum(usable))
         if n_usable > 0:
             wtc_signif_fraction = float(np.sum((coherence > level) & usable) / n_usable)
