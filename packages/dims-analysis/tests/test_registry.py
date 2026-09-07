@@ -46,3 +46,42 @@ def test_params_let_config_override_step_defaults():
     ctx = StepContext(".", {"analysis": {"rqa": {"window": 5.0}}})
     p = ctx.params(S(), {"window": 20.0, "step": 1.0})
     assert p["window"] == 5.0 and p["step"] == 1.0
+
+
+def test_crosswavelet_tuning_comes_from_config(tmp_path):
+    """A study must be able to change these without forking the script.
+
+    Karnatak previously maintained its own copy of the entire cross-wavelet
+    step in order to change two numbers -- a period cap and a scale-averaging
+    band. That copy is why the coherence fix could not travel back upstream for
+    months.
+    """
+    import importlib.util, os
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(here, "dims_analysis", "steps", "crosswavelet.py")
+    spec = importlib.util.spec_from_file_location("cw_under_test", path)
+    cw = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cw)
+
+    assert cw._tuning({}) == {}, "no tuning means module defaults"
+    cfg = {"analysis": {"crosswavelet": {"maxPeriod": 12.0, "scaleAvgBand": [0.0, 12.0]}}}
+    assert cw._tuning(cfg)["maxPeriod"] == 12.0
+    assert cw._tuning(cfg)["scaleAvgBand"] == [0.0, 12.0]
+
+    # and the cap actually reaches the transform
+    import inspect
+    assert "max_period" in inspect.signature(cw.compute_cross_wavelet_standard).parameters
+    src = inspect.getsource(cw.process_cross_wavelet_pair)
+    assert 'max_period=_tuning(config).get("maxPeriod")' in src, \
+        "the caller must pass the study's period cap through"
+
+
+def test_no_output_suffix_remains():
+    """The _wtcfix suffix was scaffolding for comparing two branches. Once the
+    correction is the only version, a variant-output mechanism is just a way to
+    end up with two answers again."""
+    import os
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src = open(os.path.join(here, "dims_analysis", "steps", "crosswavelet.py")).read()
+    assert "OUTPUT_SUFFIX" not in src
+    assert "_wtcfix" not in src

@@ -38,14 +38,14 @@ jobs:
           sys.exit(1 if errs else 0)
           PY
 
-      # AGENTS.md routes to contracts; a dead link there sends a contributor
-      # nowhere, which defeats the point of having a map.
-      - name: Every file AGENTS.md points at must exist
+      # The README routes to the contracts; a dead link there sends a
+      # contributor nowhere, which defeats the point of having a map.
+      - name: Every file the README points at must exist
         run: |
           fail=0
           while read -r f; do
-            [ -e "$f" ] || { echo "::error file=AGENTS.md::points at missing '$f'"; fail=1; }
-          done < <(grep -o '`docs/[^`]*`' AGENTS.md | tr -d '`' | sort -u)
+            [ -e "$f" ] || { echo "::error file=README.md::points at missing '$f'"; fail=1; }
+          done < <(grep -oE '\(docs/[^)]*\)' README.md | tr -d '()' | sort -u)
           exit $fail
 
   analysis-package:

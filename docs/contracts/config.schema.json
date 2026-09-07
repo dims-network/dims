@@ -4,9 +4,11 @@
   "title": "DIMS dashboard config.json",
   "description": "Describes one study. Written by hand or by the builder, read by the dashboard and by every analysis step. Before this schema existed there were three mutually incompatible dialects in use; keys marked 'tab-owned' come from tabs that were built in separate forks.",
   "type": "object",
-  "required": ["videoIDs", "dataTypes"],
+  "required": [
+    "videoIDs",
+    "dataTypes"
+  ],
   "additionalProperties": true,
-
   "$defs": {
     "pairList": {
       "description": "Either explicit pairs [[a,b],[a,c]], or a legacy flat list [a,b,c] which is expanded to all combinations. Both forms are supported; prefer pairs. anyOf, not oneOf: an empty list is valid under both branches, and oneOf would reject it.",
@@ -15,60 +17,93 @@
           "type": "array",
           "items": {
             "type": "array",
-            "items": { "type": "string" },
-            "minItems": 2, "maxItems": 2
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
           }
         },
-        { "type": "array", "items": { "type": "string" } }
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       ]
     }
   },
-
   "properties": {
     "videoIDs": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string", "pattern": "^[^_]*(_[^_]+)*$" },
+      "items": {
+        "type": "string",
+        "pattern": "^[^_]*(_[^_]+)*$"
+      },
       "description": "Session identifiers. Each must have assets/videos/{videoID}.mp4 unless a videoSrcTemplate is set."
     },
     "dataTypes": {
       "type": "object",
       "description": "Per video, the measures available. Each implies assets/timeseries/{videoID}_{dataType}.csv.",
-      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
     },
-
     "include_RQA": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Data types to run recurrence quantification on. Empty or absent disables the tab."
     },
-    "include_cRQA": { "$ref": "#/$defs/pairList", "description": "Pairs for cross-recurrence analysis." },
-    "include_crosswavelet": { "$ref": "#/$defs/pairList", "description": "Pairs for cross-wavelet and coherence." },
-    "include_elan": { "type": "boolean", "description": "Show ELAN annotations from assets/elan/{videoID}.eaf." },
-
-    "crosswaveletSuffix": {
-      "type": "string",
-      "description": "Selects a variant cross-wavelet output, e.g. '_wtcfix' reads {videoID}_crosswavelet_data_wtcfix.json. Lets a recomputed result coexist with an older one.",
-      "default": ""
+    "include_cRQA": {
+      "$ref": "#/$defs/pairList",
+      "description": "Pairs for cross-recurrence analysis."
     },
-
+    "include_crosswavelet": {
+      "$ref": "#/$defs/pairList",
+      "description": "Pairs for cross-wavelet and coherence."
+    },
+    "include_elan": {
+      "type": "boolean",
+      "description": "Show ELAN annotations from assets/elan/{videoID}.eaf."
+    },
     "defaultWindowSize": {
-      "type": "number", "exclusiveMinimum": 0,
+      "type": "number",
+      "exclusiveMinimum": 0,
       "description": "Half-width, in seconds, of the window around the playhead."
     },
-
-    "title":    { "type": "string" },
-    "subtitle": { "type": "string" },
-    "authors":  { "type": "string" },
-    "contacts": { "type": "string" },
-
+    "title": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "string"
+    },
+    "authors": {
+      "type": "string"
+    },
+    "contacts": {
+      "type": "string"
+    },
     "perspectives": {
-      "type": "array", "items": { "type": "string" },
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
       "description": "tab-owned (video): named camera angles, e.g. wide/parent/child."
     },
     "videoPerspectives": {
       "type": "object",
-      "additionalProperties": { "type": "array", "items": { "type": "string" } },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
       "description": "tab-owned (video): which perspectives exist per video."
     },
     "videoSrcTemplate": {
@@ -79,23 +114,42 @@
       "type": "string",
       "description": "tab-owned (video): used when the chosen perspective is missing."
     },
-
-    "include_trajectory":  { "type": "boolean", "description": "tab-owned (trajectory)." },
+    "include_trajectory": {
+      "type": "boolean",
+      "description": "tab-owned (trajectory)."
+    },
     "trajectory_settings": {
       "type": "object",
       "description": "tab-owned (trajectory): background image and field geometry.",
       "properties": {
-        "imagePath":   { "type": "string" },
-        "startX":      { "type": "number" },
-        "startY":      { "type": "number" },
-        "fieldWidth":  { "type": "number" },
-        "fieldHeight": { "type": "number" }
+        "imagePath": {
+          "type": "string"
+        },
+        "startX": {
+          "type": "number"
+        },
+        "startY": {
+          "type": "number"
+        },
+        "fieldWidth": {
+          "type": "number"
+        },
+        "fieldHeight": {
+          "type": "number"
+        }
       }
     },
     "trajectory_tracks": {
       "type": "object",
       "description": "tab-owned (trajectory): per-video background image.",
-      "additionalProperties": { "type": "object", "properties": { "image": { "type": "string" } } }
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string"
+          }
+        }
+      }
     },
     "path_images": {
       "type": "object",
@@ -103,12 +157,58 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "x0": { "type": "number" }, "y0": { "type": "number" },
-          "x1": { "type": "number" }, "y1": { "type": "number" }
+          "x0": {
+            "type": "number"
+          },
+          "y0": {
+            "type": "number"
+          },
+          "x1": {
+            "type": "number"
+          },
+          "y1": {
+            "type": "number"
+          }
         }
       }
     },
-
-    "include_dtw": { "type": "boolean", "description": "tab-owned (dtw). Beta." }
+    "include_dtw": {
+      "type": "boolean",
+      "description": "tab-owned (dtw). Beta."
+    },
+    "analysis": {
+      "type": "object",
+      "description": "Per-analysis tuning, keyed by step id. Exists so a study can change a parameter without maintaining its own copy of an analysis script -- which is what one fork previously had to do. Units here are always seconds, never multiples of the sampling interval.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "maxPeriod": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Longest period to compute, in seconds."
+          },
+          "scaleAvgBand": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            },
+            "description": "Scale-averaging band [min, max], in seconds."
+          },
+          "window": {
+            "type": "number",
+            "description": "Windowed-metric window, in seconds."
+          },
+          "step": {
+            "type": "number",
+            "description": "Windowed-metric step, in seconds."
+          }
+        }
+      }
+    }
   }
 }
