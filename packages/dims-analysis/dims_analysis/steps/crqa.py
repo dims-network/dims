@@ -33,6 +33,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
@@ -215,6 +216,30 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
 # MAIN
 # ============================================================================
 
+def save_full_resolution(out_dir, video_id, pair_key, entry, time_vals, ts1, ts2):
+    """The analysis, beside the browser payload. See common/npz.py.
+
+    Not the cross-recurrence matrix: it is quadratic in the recording. What is
+    stored is the windowed metrics at full resolution, both prepared signals and
+    the threshold -- enough to rebuild the matrix with one cdist at whatever
+    resolution the reader can afford.
+    """
+    wm = entry.get('windowed_metrics') or {}
+    arrays = {
+        'time': np.asarray(time_vals, dtype=np.float64),
+        'signal_x': np.asarray(ts1, dtype=np.float64),
+        'signal_y': np.asarray(ts2, dtype=np.float64),
+        'threshold': np.asarray([entry.get('threshold', np.nan)], dtype=np.float64),
+        'global_recurrence_rate': np.asarray(
+            [entry.get('global_recurrence_rate', np.nan)], dtype=np.float64),
+    }
+    for key in ('time', 'RR', 'DET', 'LAM', 'L_MAX'):
+        if key in wm:
+            arrays[f'windowed_{key}'] = np.asarray(wm[key], dtype=np.float64)
+    return _npz.add_group(os.path.join(out_dir, f"{video_id}_crqa.npz"),
+                          pair_key, arrays)
+
+
 def main():
     global INPUT_DIR
     parser = argparse.ArgumentParser(description='Generate cross-RQA data for the DIMS Dashboard')
@@ -340,6 +365,11 @@ def main():
                     'step_size_sec': args.step,
                 },
             }
+            try:
+                save_full_resolution(args.output_dir, vid, pair_key,
+                                     video_results[pair_key], time_vals, ts1_1d, ts2_1d)
+            except Exception as exc:  # noqa: BLE001 - never lose a run over this
+                print(f"  WARNING: could not write full-resolution output ({exc})")
             print(f"  > {pair_key}: matrix {len(time_vis)}x{len(time_vis)}, "
                   f"{len(sparse_matrix)} recurrent points, {len(windowed_metrics['time'])} windows")
 

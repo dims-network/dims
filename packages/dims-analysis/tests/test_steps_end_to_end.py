@@ -96,3 +96,61 @@ def test_the_resolved_input_is_where_the_data_actually_is(tmp_path, step):
         + proc.stdout
     )
     assert "Missing:" not in proc.stdout, proc.stdout
+
+
+NPZ_NAME = {"rqa": "{v}_rqa.npz", "crqa": "{v}_crqa.npz",
+            "crosswavelet": "{v}_crosswavelet.npz"}
+
+
+@pytest.mark.parametrize("step", STEPS)
+def test_every_step_writes_the_analysis_beside_the_payload(tmp_path, step):
+    """assets.md calls them two artifacts, not one. Only crosswavelet complied.
+
+    What goes in differs by analysis and that is not stylistic: a cross-wavelet
+    field is linear in the recording, a recurrence matrix is quadratic. The
+    recurrence steps therefore store the windowed metrics at full resolution,
+    the prepared signals and the threshold -- bounded, and what a reader
+    actually continues from.
+    """
+    import numpy as np
+
+    project, assets = _study(tmp_path, external=False)
+    proc = _run(step, project)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+    out_dir = assets / step
+    npz_path = out_dir / NPZ_NAME[step].format(v="v1")
+    assert npz_path.exists(), (
+        f"{step} wrote no full-resolution artifact.\n{proc.stdout}")
+
+    with np.load(npz_path) as z:
+        groups = {n.split("/")[0] for n in z.files}
+        assert groups, "the archive has no groups"
+        arrays = {n.split("/", 1)[1] for n in z.files if n.startswith(f"{sorted(groups)[0]}/")}
+
+    if step == "crosswavelet":
+        assert "coherence" in arrays and "sig95_wtc" in arrays
+    else:
+        assert "windowed_RR" in arrays, arrays
+        assert "threshold" in arrays, arrays
+        assert any(a.startswith("signal") for a in arrays), arrays
+
+
+@pytest.mark.parametrize("step", ["rqa", "crqa"])
+def test_the_recurrence_npz_keeps_more_than_the_payload(tmp_path, step):
+    """The point of the second artifact: the JSON is reduced, this is not."""
+    import json
+
+    import numpy as np
+
+    project, assets = _study(tmp_path, external=False)
+    assert _run(step, project).returncode == 0
+
+    payload = json.loads(next((assets / step).glob("*_data.json")).read_text())
+    key = "rqa_data" if step == "rqa" else "crqa_data"
+    entry = next(iter(payload[key].values()))
+    drawn = len(entry["visualization"]["time"])
+
+    with np.load(next((assets / step).glob("*.npz"))) as z:
+        full = len(z[next(n for n in z.files if n.endswith("/time"))])
+    assert full >= drawn, "the archive holds less than the picture"

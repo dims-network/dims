@@ -16,6 +16,7 @@ import os
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
+from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
@@ -233,10 +234,42 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
         'full_data': {
             'n_points': len(data_clean),
             'time_range': [float(time_clean[0]), float(time_clean[-1])]
-        }
+        },
+        # Removed by the caller before the payload is written; they exist so the
+        # full-resolution .npz does not have to re-read and re-clean the CSV.
+        '_time': time_clean,
+        '_signal': data_clean,
     }
 
     return result
+
+
+def save_full_resolution(out_dir, video_id, data_type, result, time_clean, data_clean):
+    """The analysis, beside the browser payload. See common/npz.py.
+
+    Not the recurrence matrix: it is quadratic in the recording and the full
+    Karnatak lesson would be 3.4 billion cells. What is stored is what a reader
+    actually continues from -- the windowed metrics at full resolution, the
+    prepared signal, and the threshold -- from which the matrix is one cdist
+    away at whatever resolution they can afford.
+    """
+    import numpy as _np
+    if time_clean is None or data_clean is None:
+        raise ValueError("no full-resolution series to save")
+    wm = result.get('windowed_metrics') or {}
+    arrays = {
+        'time': _np.asarray(time_clean, dtype=_np.float64),
+        'signal': _np.asarray(data_clean, dtype=_np.float64),
+        'threshold': _np.asarray([result.get('threshold', _np.nan)], dtype=_np.float64),
+        'recurrence_rate': _np.asarray([result.get('recurrence_rate', _np.nan)],
+                                       dtype=_np.float64),
+    }
+    for key in ('time', 'RR', 'DET', 'LAM', 'L_MAX'):
+        if key in wm:
+            arrays[f'windowed_{key}'] = _np.asarray(wm[key], dtype=_np.float64)
+    return _npz.add_group(os.path.join(out_dir, f"{video_id}_rqa.npz"),
+                          data_type, arrays)
+
 
 def main():
     global INPUT_DIR
@@ -279,7 +312,16 @@ def main():
             result = process_rqa_for_datatype(video_id, data_type,
                                               window_sec=args.window, step_sec=args.step)
             if result:
+                # The full-resolution arrays travel on the result under private
+                # keys and are removed before the browser payload is built.
+                full_time = result.pop('_time', None)
+                full_signal = result.pop('_signal', None)
                 rqa_results[data_type] = result
+                try:
+                    save_full_resolution(args.output_dir, video_id, data_type,
+                                         result, full_time, full_signal)
+                except Exception as exc:  # noqa: BLE001 - never lose a run over this
+                    print(f"  WARNING: could not write full-resolution output ({exc})")
         
         # Save combined data
         if rqa_results:
