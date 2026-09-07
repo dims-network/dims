@@ -7,6 +7,32 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v1.3.2
+
+The guards `docs/contracts/data-visibility.md` promises a private study. Three
+of the four did not exist as described. **A private study should bump to this
+release**: `dims-case sync` refreshes the hooks, which it previously never did.
+
+- **The pre-push hook does something.** It was a byte-for-byte copy of
+  pre-commit, so it inspected the staging area — empty at push time — and
+  passed every push. It now reads the refs being pushed and inspects every
+  commit in the range, so data that a later commit deleted is still caught: it
+  is in the history the push would publish.
+- **A missing `restricted` key no longer disables the hooks.** The contract's
+  own example omitted the key, so a `dims-case.json` written by hand from the
+  documentation declared a study private and blocked nothing. Both hooks now
+  fall back to the core's list, as the CI guard already did.
+- **`assets/MANIFEST.json` exists.** Both hooks and the CI guard already
+  exempted it by name — an exemption for a file nothing wrote. `dims-analysis
+  manifest` records names, sizes and checksums, never content, which is what
+  makes that exemption safe; `--check` says whether a rebuild produced
+  everything, which on a study whose data lives outside git nothing else could
+  answer. `build_assets.py` reports it, and `--write-manifest` records it.
+- **`dims-case sync` refreshes the hooks**, which are generated code like
+  `index.html` and the workflows. Without it a fix to a guard never reached the
+  study holding the data.
+- **`AGENTS.md`** is written; the issue template had linked to a 404.
+
 ## v1.3.1
 
 Tooling only. No study's `vendor/` bytes change between 1.3.0 and 1.3.1, so a
