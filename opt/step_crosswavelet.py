@@ -39,6 +39,19 @@ SIGNIFICANCE_LEVEL = 0.95   # Confidence level for significance testing (0.95 = 
 USE_AR1_NOISE = True        # Use AR1 noise model for significance (vs white noise)
 MONTE_CARLO_ITERATIONS = 0  # Number of Monte Carlo iterations (0 = use theoretical)
 
+# Significance for the *coherence* itself, which is a different question from
+# sig95_xwt. sig95_xwt asks "is there more joint energy here than red noise
+# would give?" -- a statement about power. Coherence asks "is the phase lag
+# steadier than red noise would give?", and it needs its own null, because a
+# coherence estimate does not sit at 0 under independence: it is a ratio taken
+# over a smoothing neighbourhood, so a handful of random phases still average
+# to something well above zero. Measured on the Karnatak data the 95% level is
+# ~0.59 and two independent signals score ~0.25 on average -- so an edge value
+# of 0.27 is indistinguishable from no coupling at all, which is not something
+# the raw number reveals. Only a Monte Carlo against AR(1) surrogates gives it.
+WCT_SIGNIF_ENABLED = True   # Compute the Monte Carlo coherence significance level
+WCT_SIGNIF_MC_COUNT = 100   # Surrogate pairs per null (pycwt default is 300)
+
 # ---------- Scale-Averaged Band Parameters ----------
 SCALE_AVG_BAND_AUTO = True  # Auto-calculate scale-averaging band
 SCALE_AVG_MIN_PERIOD = 2.0  # Minimum period for scale-averaging (in time units)
@@ -46,10 +59,16 @@ SCALE_AVG_MAX_PERIOD = 8.0  # Maximum period for scale-averaging (in time units)
 # Note: If auto, uses 2*dt to min(8*dt, max_period/2)
 
 # ---------- Coherence Calculation Parameters ----------
-COHERENCE_SMOOTH_TIME = True    # Apply temporal smoothing for coherence
-COHERENCE_SMOOTH_SCALE = True   # Apply scale smoothing for coherence
-COHERENCE_TIME_FACTOR = 1.0     # Time smoothing factor (higher = more smoothing)
-COHERENCE_SCALE_WIDTH = 0.6      # Scale smoothing width in DJ units
+# DEPRECATED / UNUSED since the coherence rewrite (see compute_cross_wavelet_standard).
+# Smoothing is now delegated to pycwt's validated operator for the chosen mother
+# wavelet, which supplies its own time and scale kernels; these four knobs
+# belonged to the hand-rolled smoother that produced the power-tracking
+# coherence. They are kept only so that an existing config or script that
+# references them does not break, and they have no effect.
+COHERENCE_SMOOTH_TIME = True    # DEPRECATED, no effect
+COHERENCE_SMOOTH_SCALE = True   # DEPRECATED, no effect
+COHERENCE_TIME_FACTOR = 1.0     # DEPRECATED, no effect
+COHERENCE_SCALE_WIDTH = 0.6     # DEPRECATED, no effect
 
 # ---------- Visualization/Storage Parameters ----------
 MAX_TIME_POINTS_VIZ = 500    # Maximum time points for visualization (downsampling)
@@ -177,6 +196,72 @@ def _ar1_alpha(data):
         # Keep it in a sane red-noise range (avoid >=1, which breaks significance).
         return min(max(alpha, 0.0), 0.95)
 
+# Monte Carlo coherence nulls, memoised for the lifetime of the process.
+# The null depends only on the AR(1) coefficients and the wavelet grid, not on
+# the data, so every pair in a video reuses the same one or two results. Without
+# this each pair would pay the full ~30 s.
+_WCT_SIGNIF_CACHE = {}
+
+def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet):
+    """95% coherence level under an AR(1) null, as a per-scale vector.
+
+    Returns None if the Monte Carlo is disabled or fails, in which case the
+    caller simply omits the field and the dashboard falls back to its older
+    power-significance mask.
+
+    Two pycwt quirks are handled here:
+
+    * Its on-disk cache is unusable. The cache filename is built from
+      ``arctanh(alpha * 4)``, which is NaN for any alpha > 0.25 -- so every
+      realistic red-noise coefficient collides into a single
+      ``wct_sig_nan_nan_...`` file and you silently get back a null computed for
+      different coefficients. We always pass cache=False and memoise ourselves.
+    * For the largest scales, which lie entirely inside the cone of influence,
+      it returns 0 rather than NaN. Zero would mean "every cell is significant",
+      the exact opposite of the truth, so those rows are turned into NaN and the
+      consumer skips them.
+
+    ``n_scales`` is ``len(scales)`` as returned by ``wavelet.cwt``, NOT the J
+    passed to it. With the default J_AUTO, J is a float (e.g. 95.55): cwt
+    rounds it up to 97 scales while ``wct_significance(int(J))`` returns 96, and
+    the length guard at the call site would then discard the field on every
+    single run. Deriving J from the scale count keeps the two aligned.
+
+    Cost is independent of the recording length: pycwt sizes its own surrogates
+    from the scale range, so a 2-minute and a 20-minute video pay the same.
+    """
+    if not WCT_SIGNIF_ENABLED:
+        return None
+
+    # Round the coefficients: the null is very insensitive to alpha (the 95%
+    # level moves by <0.04 across alpha 0.90-0.97), so pairs that agree to two
+    # decimals can share a result.
+    key = (round(float(alpha1), 2), round(float(alpha2), 2),
+           round(float(dt), 6), round(float(dj), 6), round(float(s0), 6),
+           int(n_scales))
+    if key in _WCT_SIGNIF_CACHE:
+        return _WCT_SIGNIF_CACHE[key]
+
+    try:
+        # pycwt sizes its output with np.zeros(J + 1), so J here is the number
+        # of scales minus one, and must be a Python int (it rejects a float).
+        level = wavelet.wct_significance(
+            float(alpha1), float(alpha2), dt, dj, s0, int(n_scales) - 1,
+            significance_level=SIGNIFICANCE_LEVEL, wavelet=mother_wavelet,
+            mc_count=WCT_SIGNIF_MC_COUNT, progress=False, cache=False
+        )
+    except Exception as exc:  # noqa: BLE001 -- never fail the whole step over this
+        if VERBOSE:
+            print(f"  WARNING: coherence significance failed ({exc}); "
+                  f"field omitted")
+        _WCT_SIGNIF_CACHE[key] = None
+        return None
+
+    level = np.asarray(level, dtype=float).ravel()
+    level[~np.isfinite(level) | (level <= 0)] = np.nan   # COI-only scales
+    _WCT_SIGNIF_CACHE[key] = level
+    return level
+
 def compute_cross_wavelet_standard(data1, data2, time, dt,
                                    mother=MOTHER_WAVELET, omega0=OMEGA0,
                                    dj=DJ, s0=None, J=None):
@@ -259,75 +344,61 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     sig95_xwt = np.ones([1, N]) * signif_xwt[:, None]
     sig95_xwt = power / sig95_xwt
     
-    # Calculate wavelet coherence (requires smoothing)
-    def smooth_wavelet(W, scales, dt, dj, mother):
-        """Smooth wavelet spectrum in both time and scale."""
-        # Smooth in time
-        smooth_time = np.zeros_like(W)
-        n_time = W.shape[1]
-        
-        for i, scale in enumerate(scales):
-            # Smoothing window size proportional to scale
-            if COHERENCE_SMOOTH_TIME:
-                window_size = int(scale / dt * COHERENCE_TIME_FACTOR)
-                if window_size < 3:
-                    window_size = 3
-                if window_size % 2 == 0:
-                    window_size += 1
-                
-                # Apply smoothing - ensure output matches expected length
-                kernel = np.ones(window_size) / window_size
-                convolved = np.convolve(np.abs(W[i, :])**2, kernel, mode='same')
-                
-                # Handle any size mismatches from convolution
-                if len(convolved) != n_time:
-                    if len(convolved) > n_time:
-                        # Truncate to match expected size
-                        convolved = convolved[:n_time]
-                    else:
-                        # Pad to match expected size (edge mode preserves boundaries)
-                        pad_width = n_time - len(convolved)
-                        convolved = np.pad(convolved, (0, pad_width), mode='edge')
-                
-                smooth_time[i, :] = convolved
-            else:
-                smooth_time[i, :] = np.abs(W[i, :])**2
-        
-        # Smooth in scale
-        if COHERENCE_SMOOTH_SCALE:
-            smooth_scale = np.zeros_like(smooth_time)
-            n_scales = smooth_time.shape[0]
-            scale_window = int(COHERENCE_SCALE_WIDTH / dj)
-            if scale_window < 1:
-                scale_window = 1
-            
-            for j in range(n_time):
-                kernel = np.ones(scale_window) / scale_window
-                convolved = np.convolve(smooth_time[:, j], kernel, mode='same')
-                
-                # Handle any size mismatches
-                if len(convolved) != n_scales:
-                    if len(convolved) > n_scales:
-                        convolved = convolved[:n_scales]
-                    else:
-                        pad_width = n_scales - len(convolved)
-                        convolved = np.pad(convolved, (0, pad_width), mode='edge')
-                
-                smooth_scale[:, j] = convolved
-        else:
-            smooth_scale = smooth_time
-        
-        return smooth_scale
-    
-    # Calculate smoothed spectra for coherence
-    S1 = smooth_wavelet(W1, scales, dt, dj, mother_wavelet)
-    S2 = smooth_wavelet(W2, scales, dt, dj, mother_wavelet)
-    S12 = smooth_wavelet(XWT, scales, dt, dj, mother_wavelet)
-    
-    # Wavelet coherence
-    WCO = np.abs(S12) / np.sqrt(S1 * S2)
-    WCO = np.minimum(WCO, 1.0)  # Ensure coherence <= 1
-    
+    # ------------------------------------------------------------------
+    # Wavelet coherence (Torrence & Webster 1999):
+    #
+    #            | S( s^-1 * W1 * conj(W2) ) |^2
+    #   R^2 = ---------------------------------------
+    #         S( s^-1 |W1|^2 ) * S( s^-1 |W2|^2 )
+    #
+    # The smoothing operator S MUST be applied to the *complex* cross
+    # spectrum. Where the phase relationship is unstable the complex terms
+    # cancel under smoothing and coherence drops -- that cancellation is the
+    # entire content of the measure.
+    #
+    # A previous implementation here rolled its own smoother that took
+    # np.abs(W)**2 of every argument, including the complex XWT. That
+    # destroyed phase before smoothing (so the numerator could never cancel)
+    # and left the expression unnormalised -- O(|W|^4) over O(|W|^2) -- which
+    # was masked by clipping the result at 1.0. The stored field ended up
+    # tracking power instead of phase coupling: ~57-62% of cells sat at
+    # exactly 1.0 and it correlated +0.87 with log power. See
+    # notebooks/coherence_period_bands.ipynb in DIMS_Dashboard_Karnatak for
+    # the full diagnosis.
+    #
+    # We now delegate the smoothing to pycwt's validated operator, which
+    # applies the scale normalisation and the correct time/scale kernels for
+    # the chosen mother wavelet.
+    # ------------------------------------------------------------------
+    scales_2d = np.ones([1, N]) * scales[:, None]
+    S1 = mother_wavelet.smooth(np.abs(W1) ** 2 / scales_2d, dt, dj, scales)
+    S2 = mother_wavelet.smooth(np.abs(W2) ** 2 / scales_2d, dt, dj, scales)
+    S12 = mother_wavelet.smooth(XWT / scales_2d, dt, dj, scales)
+
+    # Correctly normalised, this is bounded in [0, 1] by construction. The
+    # epsilon guards division by zero in all-flat regions, and the clip below
+    # absorbs floating-point overshoot only -- it is NOT the old saturating
+    # clamp. If it ever has real work to do, the formula is wrong again, so
+    # we check rather than silently clamp.
+    WCO = np.real(np.abs(S12) ** 2 / (S1 * S2 + 1e-30))
+    _overshoot = float(np.nanmax(WCO)) if WCO.size else 0.0
+    if _overshoot > 1.0 + 1e-6:
+        print(f"  WARNING: coherence exceeded 1 by {_overshoot - 1.0:.2e} "
+              f"-- normalisation may be wrong")
+    WCO = np.clip(WCO, 0.0, 1.0)
+
+    # 95% coherence level under an AR(1) null (see _wct_significance_level).
+    # This is what makes an individual coherence value interpretable: without
+    # it, 0.27 and 0.55 look like "some coupling" and "more coupling", when in
+    # fact the first is exactly what independent signals produce.
+    sig95_wtc = _wct_significance_level(alpha1, alpha2, dt, dj, s0, len(scales),
+                                        mother_wavelet)
+    if sig95_wtc is not None and len(sig95_wtc) != len(scales):
+        if VERBOSE:
+            print(f"  WARNING: coherence significance length {len(sig95_wtc)} "
+                  f"!= {len(scales)} scales; field omitted")
+        sig95_wtc = None
+
     # Phase angles for plotting (only where coherence is significant)
     phase_angle = np.angle(XWT)
     
@@ -353,6 +424,7 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
         'period': period,
         'coi': coi,
         'sig95_xwt': sig95_xwt,
+        'sig95_wtc': sig95_wtc,
         'signif_xwt': signif_xwt,
         'global_power': global_power,
         'global_signif': global_signif,
@@ -395,13 +467,23 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
     # Downsample 1D arrays - ensure real values only
     coi_ds = np.real(cwt_results['coi'][::time_factor])
     signif_xwt_ds = np.real(cwt_results['signif_xwt'][::freq_factor])
+    # Per-period coherence null; may be absent if the Monte Carlo was skipped.
+    sig95_wtc = cwt_results.get('sig95_wtc')
+    sig95_wtc_ds = (np.real(sig95_wtc[::freq_factor])
+                    if sig95_wtc is not None else None)
     global_power_ds = np.real(cwt_results['global_power'][::freq_factor])
     global_signif_ds = np.real(cwt_results['global_signif'][::freq_factor])
     scale_avg_power_ds = np.real(scale_avg_power[::time_factor])
     
     if VERBOSE and (time_factor > 1 or freq_factor > 1):
         print(f"  Downsampled: time {n_time}->{len(time_ds)}, freq {n_freq}->{len(freqs_ds)}")
-    
+
+    # NaN has no JSON literal and JSON.parse() rejects it outright, so the
+    # unusable (COI-only) scales are emitted as null instead.
+    sig95_wtc_json = (None if sig95_wtc_ds is None else
+                      [None if not np.isfinite(v) else float(v)
+                       for v in sig95_wtc_ds])
+
     return {
         'time': time_ds.tolist(),
         'freqs': freqs_ds.tolist(),
@@ -412,6 +494,7 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
         'coherence': coherence_ds.tolist(),
         'coi': coi_ds.tolist(),
         'sig95_xwt': sig95_xwt_ds.tolist(),
+        'sig95_wtc': sig95_wtc_json,
         'signif_xwt': signif_xwt_ds.tolist(),
         'global_power': global_power_ds.tolist(),
         'global_signif': global_signif_ds.tolist(),
@@ -466,8 +549,26 @@ def calculate_summary_statistics(cwt_results, time, scale_avg_power, scale_avg_s
     
     # Calculate percent of time each frequency shows high coherence
     high_coherence_by_freq = np.sum(high_coherence_regions & ~coi_mask, axis=1) / np.maximum(np.sum(~coi_mask, axis=1), 1)
-    
+
+    # Share of usable cells whose coherence beats the AR(1) coherence null.
+    # This is the number that says whether a pair is coupled at all, and it is
+    # the one to read rather than mean_coherence: under independence it sits at
+    # ~0.05 by construction, so anything near that means "no coupling detected",
+    # however respectable the mean coherence looks.
+    sig95_wtc = cwt_results.get('sig95_wtc')
+    wtc_signif_fraction = None
+    if sig95_wtc is not None:
+        level = np.asarray(sig95_wtc, dtype=float)[:, np.newaxis]
+        usable = ~coi_mask & np.isfinite(level)      # broadcasts over time
+        n_usable = int(np.sum(usable))
+        if n_usable > 0:
+            wtc_signif_fraction = float(np.sum((coherence > level) & usable) / n_usable)
+
     return {
+        'wtc_signif_fraction': wtc_signif_fraction,
+        'wtc_signif_level_median': (float(np.nanmedian(sig95_wtc))
+                                    if sig95_wtc is not None
+                                    and np.any(np.isfinite(sig95_wtc)) else None),
         'global_power': global_power.tolist(),
         'global_signif': global_signif.tolist(),
         'dominant_freqs': dominant_freqs_list,
