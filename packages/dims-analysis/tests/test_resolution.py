@@ -75,6 +75,37 @@ def test_full_resolution_artifact_is_written(tmp_path):
         assert "a_vs_b/coherence" in z.files and "c_vs_d/coherence" in z.files
 
 
+def test_rewriting_a_pair_replaces_it_rather_than_shadowing_it(tmp_path):
+    """Pairs are appended as zip members, which is what keeps a fifteen-pair
+    study from recompressing the whole file fifteen times. Appending the same
+    name twice would leave two members with one name -- a file that loads but
+    quietly serves the stale one. Re-running a pair must replace it."""
+    n_t, n_f = 20, 4
+    def make(fill):
+        return {
+            "period": np.linspace(0.5, 8, n_f),
+            "freqs": np.linspace(2, 0.125, n_f),
+            "coherence": np.full((n_f, n_t), fill, dtype=float),
+            "power": np.zeros((n_f, n_t)),
+            "phase": np.zeros((n_f, n_t)),
+            "coi": np.ones(n_t),
+            "sig95_wtc": np.full(n_f, 0.59),
+        }
+    time = np.arange(n_t) * 0.02
+    args = (str(tmp_path), "vid1", "a_vs_b")
+    cw.save_full_resolution(*args, make(0.1), time, np.ones(n_t))
+    cw.save_full_resolution(str(tmp_path), "vid1", "other", make(0.5), time, np.ones(n_t))
+    path = cw.save_full_resolution(*args, make(0.9), time, np.ones(n_t))
+
+    import zipfile
+    with zipfile.ZipFile(path) as zf:
+        names = zf.namelist()
+    assert len(names) == len(set(names)), f"duplicate members in the archive: {names}"
+    with np.load(path) as z:
+        assert np.allclose(z["a_vs_b/coherence"], 0.9), "re-run served the stale copy"
+        assert np.allclose(z["other/coherence"], 0.5), "rebuild lost the other pair"
+
+
 def test_phase_is_averaged_as_an_angle():
     """Averaging +179 and -179 degrees numerically gives 0, which is the
     opposite of the truth. The reduction must go through the unit circle."""

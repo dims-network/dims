@@ -43,11 +43,20 @@ function makeEnv({ config, files = {}, scripts }) {
   // Real Plotly attaches an .on() to the plot element; the host uses it to catch
   // clicks on a chart. Without it the load path throws and every later
   // assertion is really testing the error branch.
+  // Real Plotly marks the graph div with .js-plotly-plot and hangs _fullLayout
+  // on it once drawn. Anything that looks for drawn figures -- the resize pass
+  // on tab switch, for one -- finds nothing without them, so the stub sets both
+  // or the test passes while the product is broken.
+  const resized = [];
   const attach = (el) => {
     if (el && typeof el.on !== 'function') {
       el._handlers = {};
       el.on = (ev, fn) => { (el._handlers[ev] = el._handlers[ev] || []).push(fn); };
       el.emit = (ev, payload) => (el._handlers[ev] || []).forEach(fn => fn(payload));
+    }
+    if (el && el.classList) {
+      el.classList.add('js-plotly-plot');
+      el._fullLayout = el._fullLayout || { width: 0, height: 0 };
     }
     return el;
   };
@@ -59,8 +68,9 @@ function makeEnv({ config, files = {}, scripts }) {
     },
     react: (el) => { attach(typeof el === 'string' ? w.document.getElementById(el) : el); return Promise.resolve(); },
     purge: () => {}, relayout: () => Promise.resolve(),
-    Plots: { resize: () => {} },
+    Plots: { resize: (el) => { resized.push(el && el.id); } },
   };
+  w.__resized = resized;
   w.__attachPlotly = attach;
   w.React = { createElement: (...a) => ({ __el: a }), Fragment: 'F' };
   w.ReactDOM = { render: () => {}, createRoot: () => ({ render: () => {} }) };

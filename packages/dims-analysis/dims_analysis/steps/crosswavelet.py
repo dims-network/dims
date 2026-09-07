@@ -138,7 +138,13 @@ COHERENCE_SCALE_WIDTH = 0.6     # DEPRECATED, no effect
 # ---------- Visualization/Storage Parameters ----------
 MAX_TIME_POINTS_VIZ = 500    # Maximum time points for visualization (downsampling)
 MAX_FREQ_POINTS_VIZ = 100    # Maximum frequency points for visualization
-SAVE_FULL_RESOLUTION = False # Also save full resolution data (warning: large files)
+# Full-resolution output is NOT controlled here. It is written as a compressed
+# .npz beside the JSON, on by default, and switched off per study with
+# analysis.crosswavelet.saveFullResolution = false. The old module-level switch
+# embedded full-resolution arrays as JSON *lists* inside the browser payload,
+# which on a two-minute Karnatak recording would have added roughly half a
+# gigabyte of text to a file a browser has to parse. It was removed rather than
+# defaulted off, because the next person to find it would have turned it on.
 OUTPUT_FORMAT = 'json'       # Output format: 'json', 'npz', or 'both'
 
 # ---------- Analysis Coverage Parameters ----------
@@ -947,16 +953,6 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
             'interpolation_method': INTERPOLATION_METHOD
         }
     
-    # Save full resolution if requested
-    if SAVE_FULL_RESOLUTION:
-        result['full_resolution'] = {
-            'power': np.real(cwt_results['power']).tolist(),
-            'coherence': np.real(cwt_results['coherence']).tolist(),
-            'phase': np.real(cwt_results['phase']).tolist()
-        }
-        if VERBOSE:
-            print("  Warning: Full resolution data saved into the JSON (large file)")
-
     # The analysis itself, at the resolution it was computed at. The JSON beside
     # it is a browser payload; this is what a notebook or any downstream
     # analysis should read. Off with
@@ -989,14 +985,6 @@ def save_full_resolution(out_dir, video_id, pair_key, cwt_results, time, scale_a
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, f"{video_id}_crosswavelet.npz")
 
-    existing = {}
-    if os.path.exists(path):
-        try:
-            with np.load(path, allow_pickle=False) as z:
-                existing = {k: z[k] for k in z.files}
-        except Exception:  # noqa: BLE001 - a corrupt file is replaced, not preserved
-            existing = {}
-
     prefix = pair_key.replace('/', '_')
     arrays = {
         f"{prefix}/time": np.asarray(time, dtype=np.float64),
@@ -1011,9 +999,55 @@ def save_full_resolution(out_dir, video_id, pair_key, cwt_results, time, scale_a
     if cwt_results.get('sig95_wtc') is not None:
         arrays[f"{prefix}/sig95_wtc"] = np.asarray(cwt_results['sig95_wtc'], dtype=np.float64)
 
-    existing.update(arrays)
-    np.savez_compressed(path, **existing)
+    # Append rather than rewrite. A .npz is a zip of .npy members, so a new
+    # pair can be added without touching the ones already there. The obvious
+    # implementation -- load everything, add one pair, recompress -- is
+    # quadratic: a study with fifteen pairs recompressed the whole file fifteen
+    # times, and on a twenty-minute recording that is gigabytes of needless work
+    # per video, with every earlier pair held in memory while it happens.
+    if not _append_to_npz(path, arrays):
+        # A name collision (the same pair written twice, e.g. a re-run) or a
+        # corrupt file: fall back to rebuilding the file from scratch.
+        existing = {}
+        if os.path.exists(path):
+            try:
+                with np.load(path, allow_pickle=False) as z:
+                    existing = {k: z[k] for k in z.files}
+            except Exception:  # noqa: BLE001 - a corrupt file is replaced
+                existing = {}
+        existing.update(arrays)
+        np.savez_compressed(path, **existing)
     return path
+
+
+def _append_to_npz(path, arrays):
+    """Add arrays to a .npz as new zip members. False if that is not possible.
+
+    Returns False when any name is already present (the caller then rebuilds the
+    file, so a re-run replaces a pair instead of shadowing it with a duplicate
+    zip entry) or when the existing file cannot be read as a zip.
+    """
+    import zipfile
+    from numpy.lib import format as _npformat
+
+    members = {f"{name}.npy": arr for name, arr in arrays.items()}
+    if os.path.exists(path):
+        try:
+            with zipfile.ZipFile(path) as zf:
+                if set(zf.namelist()) & set(members):
+                    return False
+        except (zipfile.BadZipFile, OSError):
+            return False
+    mode = 'a' if os.path.exists(path) else 'w'
+    try:
+        with zipfile.ZipFile(path, mode=mode, compression=zipfile.ZIP_DEFLATED,
+                             allowZip64=True) as zf:
+            for member, arr in members.items():
+                with zf.open(member, 'w', force_zip64=True) as fh:
+                    _npformat.write_array(fh, np.asarray(arr), allow_pickle=False)
+    except (zipfile.BadZipFile, OSError):
+        return False
+    return True
 
 def main():
     parser = argparse.ArgumentParser(description='Generate Cross-Wavelet data for DIMS Dashboard')
