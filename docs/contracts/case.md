@@ -1,8 +1,16 @@
 # Contract: a case repository
 
 A *case* is one study. It holds its configuration, its data, and a pinned copy
-of the core — and no code of its own. If you are writing code in a case repo,
-it belongs in this monorepo instead.
+of the core.
+
+It holds **no dashboard code**. If you are editing a tab, an analysis or the
+host inside a case repo, it belongs in this monorepo instead.
+
+It may hold **study-specific data preparation** — scripts that turn this study's
+raw recordings and logs into the assets the dashboard reads. Those are part of
+the study, not of DIMS, and belong here. Ortho's `tools/` is the example: it
+builds time series and clips from ORTHO datalogs, and means nothing to any
+other study.
 
 ```
 case-ortho/
@@ -10,9 +18,11 @@ case-ortho/
   config.json           the study (see config.schema.json)
   data.local.json       untracked; where the data really lives (private cases)
   assets/               data, or empty with a MANIFEST for private cases
-  vendor/dims-core/     the pinned core, written by a bot, never by hand
+  vendor/dims-core/     the pinned core, written by tooling, never by hand
+  vendor/dims-tabs/     likewise
   index.html            loads vendor/, generated
-  .github/workflows/    thin callers into the shared reusable workflows
+  tools/                optional: this study's own data preparation
+  .github/workflows/    generated; thin callers into the shared workflows
 ```
 
 ## The pin
@@ -30,8 +40,13 @@ offline and can be archived with a DOI, which a CDN reference could not.
 ## Creating one
 
 ```sh
-dims case new ortho --visibility public
+tools/dims-case new ortho --visibility public      # a fresh study
+tools/dims-case adopt path/ --name ortho --visibility public   # an existing one
 ```
+
+`adopt` is deliberately a separate verb: `new` refuses a non-empty directory so
+it can never write over someone's data, while `adopt` keeps `config.json` and
+`assets/` exactly as they are and only adds what a case needs.
 
 The visibility question is asked once, answered by the researcher, and written
 down. See `data-visibility.md` — for a private case this also installs the
