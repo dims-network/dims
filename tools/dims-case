@@ -469,6 +469,10 @@ def cmd_sync(args):
     case["vendorHashes"] = _write_vendor(dest)
     _write_index(dest)
     _register_study_tabs(dest)
+    # Workflows are generated, like index.html and vendor/, so a core refresh
+    # refreshes them too. Otherwise a study keeps whatever CI it was created
+    # with, which is how five repos ended up with five drifted copies.
+    _write_workflows(dest, case.get("visibility", "public"))
     with open(case_path, "w") as fh:
         json.dump(case, fh, indent=2)
         fh.write("\n")
