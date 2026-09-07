@@ -1,0 +1,34 @@
+Metadata-Version: 2.4
+Name: dims-analysis
+Version: 0.1.0
+Summary: Analyses for DIMS: recurrence quantification, cross-recurrence and cross-wavelet coherence over multimodal time series.
+Author: DIMS-network contributors
+License: MIT
+Keywords: multimodal,time series,recurrence quantification,wavelet coherence,interaction
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: scipy>=1.10.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: pycwt
+Provides-Extra: dev
+Requires-Dist: pytest>=7; extra == "dev"
+Requires-Dist: jsonschema>=4; extra == "dev"
+
+# dims-analysis
+
+The Python analyses behind a DIMS dashboard.
+
+```sh
+pip install -e .
+dims-analysis list
+dims-analysis run --config config.json
+```
+
+Steps are discovered through the `dims.steps` entry point group, so adding one
+never requires editing this package. The contract, with its acceptance checks,
+is in [`docs/contracts/step.md`](../../docs/contracts/step.md).
+
+`run` **fails loudly**: a step that raises makes the command exit non-zero. Its
+predecessor emitted an exit-code sentinel that nothing read, so a crashed
+analysis looked exactly like a successful one.

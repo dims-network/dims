@@ -332,3 +332,36 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# Step contract adapter
+#
+# INTERIM. This wraps the script's existing main() by setting sys.argv, so the
+# step is discoverable and runnable through `dims-analysis` today without
+# rewriting the analysis itself. Replacing it means giving run() the real
+# parameters and dropping main() -- tracked as a follow-up issue.
+# ---------------------------------------------------------------------------
+from dims_analysis.base import Step as _Step
+
+
+class Step(_Step):
+    id = "crqa"
+    config_key = "include_cRQA"
+    output_dir = "assets/crqa"
+    output_name = "{video_id}_crqa_data.json"
+    description = "Cross-recurrence quantification between pairs of series"
+
+    def run(self, config, ctx):
+        import os as _os
+        import sys as _sys
+        cwd = _os.getcwd()
+        argv = _sys.argv[:]
+        try:
+            _os.chdir(ctx.project_dir)
+            _sys.argv = ["crqa", "--config", "config.json",
+                         "--output-dir", ctx.output_path(self, "_").rsplit(_os.sep, 1)[0]]
+            main()
+        finally:
+            _sys.argv = argv
+            _os.chdir(cwd)
