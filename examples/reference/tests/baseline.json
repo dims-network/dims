@@ -164,7 +164,7 @@
       }
     },
     "provenance": {
-      "core_version": "1.5.2",
+      "core_version": "2.0.0",
       "max_freq_points": 100,
       "max_time_points": 500,
       "mc_count": 20,
@@ -247,7 +247,7 @@
       }
     },
     "provenance": {
-      "core_version": "1.5.2",
+      "core_version": "2.0.0",
       "max_points_drawn": 500,
       "target_recurrence": 0.07
     }
@@ -384,7 +384,7 @@
       }
     },
     "provenance": {
-      "core_version": "1.5.2",
+      "core_version": "2.0.0",
       "max_points_drawn": 500,
       "target_recurrence": 0.07
     }

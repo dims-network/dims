@@ -7,6 +7,82 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v2.0.0
+
+**Every RQA, cross-RQA and cross-wavelet output produced before this release is
+unreadable by the new tabs and must be recomputed.** A study that bumps
+`dimsCore` without rebuilding its assets gets empty panels, and that must not be
+something anyone discovers by looking at a dashboard. Rebuild with
+`python build_assets.py`, then `dims-analysis manifest`.
+
+### Why the major bump
+
+Nine defects were found in these outputs over one session, one at a time, each
+by accident. They were not nine unrelated bugs: **nothing stated what an
+analysis output was supposed to be**, so every check could only ask "did it
+crash?" and every fix was local. This release states it — 
+`docs/contracts/analysis-output.md` — and tests it against
+`examples/reference/`, a synthetic study whose answers are known before anything
+runs, which is now a **gate**: CI runs it, and every study's generated
+`core-update.yml` runs it against a candidate release before offering the bump.
+
+### Numbers that move
+
+All three cross-wavelet significance levels were wrong, in the same way. The
+cross-wavelet spectrum is the square root of a product of two chi-squares
+(Torrence & Compo 1998, eq. 30), not a chi-square, and all three used the
+chi-square and evaluated the background at the mean of the two AR(1)
+coefficients rather than combining the two series' own spectra.
+
+- the local level was **1.50× too high** with matched coefficients, 2.39× at
+  α = (0.95, 0.2). The built-in tab draws a phase arrow only where power beats
+  it, so it drew about a third of the arrows it should: on the reference study
+  3.13 % of cells became 9.10 %.
+- the time-averaged level was **1.32–1.37×** too high, the scale-averaged
+  **1.267×**.
+
+`LAM` could exceed 1.0 — a share of points that cannot. The diagonal and
+vertical line scans ignore different things, so they cannot share a denominator;
+correcting DET's had inflated LAM's. On a pure sine LAM was 0.9681 where pyrqa
+gives 0.9548.
+
+A constant signal reported `recurrence_rate = -0.000977517`, a negative share of
+cells, on a dashboard caption. It is refused with a sentence now.
+
+The RQA analysis window was silently overridden — 20 s and 1 s requested,
+10.24 s and 0.5 s used — and computed in samples, so the reported time axis
+moved with the sampling rate. Both are recorded now, asked-for beside used, and
+decided in seconds.
+
+### One file format
+
+`.npz` is gone. Large arrays travel inside the JSON as base64 bitmaps and
+float32 grids, each naming its encoding so a reader that meets an unknown one
+says so rather than drawing an empty panel. Measured on the reference study: RQA
+3.8× smaller, cRQA 2.2×, and the cross-wavelet file a page fetches 2.2×. The
+full-resolution cross-wavelet file is 1.8× *larger* than the archive it
+replaces, which is the stated price of one format with one decoder.
+
+Cross-wavelet writes `{video}_crosswavelet_full.json` in the same schema; the
+recurrence analyses carry their full-resolution signal in their single file.
+
+### New
+
+- **The cross-effector network is a built-in tab**, gated by `include_network`,
+  with grouping from config. It lived in one private study, where it was the
+  only reader of the Monte Carlo coherence null the core computes for everyone.
+  **A study that carries its own `tabs/network.js` must delete it when it
+  bumps**: two tabs cannot share an id, and the built-in wins.
+- **The coherence null runs when something reads it.** Default 100 surrogates
+  when `include_network` is set, 0 otherwise, and an explicit
+  `analysis.crosswavelet.mcCount` always wins. The step says which it chose.
+  `case-demo` and `case-ortho` have no consumer, so their cross-wavelet rebuild
+  drops from hours to seconds.
+- **`--jobs`** computes cross-wavelet pairs concurrently, byte-identically:
+  95.3 s against 37.1 s on the reference study with a cold null cache.
+- The cross-wavelet tab reports what share of cells beat chance, or says the
+  null was not computed and names the setting that would produce it.
+
 ## v1.5.2
 
 **A reduction cap that is actually a cap.** `factor_for` floor-divided, so
