@@ -49,6 +49,10 @@ RESTRICTED = ["assets/videos", "assets/timeseries", "assets/transcripts",
               "assets/elan", "assets/motion_tracking"]
 
 
+# The names are historical on purpose: these are the files a study carried in
+# its own `opt/` before the shared analyses became the dims-analysis package, and
+# recognising them is how `adopt` clears the leftovers. They are data about the
+# past, not a stale reference to fix.
 SHARED_STEPS = {"step_RQA.py", "step_cRQA.py", "step_crosswavelet.py",
                 "requirements.txt"}
 

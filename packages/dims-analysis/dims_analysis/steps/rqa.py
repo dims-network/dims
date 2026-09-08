@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
-"""
-generate_rqa.py - Generate Recurrence Quantification Analysis data for DIMS Dashboard
+"""Recurrence quantification analysis of one time series against itself.
 
-Usage:
-    python generate_rqa.py --config config.json --output-dir assets/rqa
+Where a signal repeats its own earlier states: a recurrence plot per measure,
+plus DET, LAM, RR and L_MAX over a sliding window. Runs for every data type
+named in `include_RQA`, and writes `assets/rqa/{video}_rqa_data.json`.
+
+Run it through the pipeline, which is how a study runs it:
+
+    dims-analysis run --config config.json            # every enabled analysis
+    dims-analysis run --config config.json --steps rqa
+
+Tuning is `analysis.rqa` in the study's config -- window, step and
+targetRecurrence, all in seconds except the last, which is a fraction. See
+docs/contracts/analysis-output.md.
 """
 
 import numpy as np

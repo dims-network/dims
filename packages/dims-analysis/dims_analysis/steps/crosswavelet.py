@@ -1,9 +1,24 @@
 #!/usr/bin/env python3
-"""
-optional_step_crosswavelet.py https://pycwt.readthedocs.io/en/latest/tutorial/cwt/
+"""Cross-wavelet power, coherence and phase between two time series.
 
-Usage:
-    python optional_step_crosswavelet.py --config config.json --output-dir assets/rqa
+Which timescales two signals share, how strongly, and who leads. Runs for every
+pair in `include_crosswavelet` and writes
+`assets/crosswavelet/{video}_crosswavelet_data.json`, plus a `_full.json` at the
+resolution the analysis ran at.
+
+Follows Torrence & Compo (1998) through `pycwt`; the paper and every constant
+taken from it are in `examples/reference/`. Coherence needs a Monte Carlo null
+against AR(1) surrogates, which is the slow part of this whole pipeline: it runs
+when something in the study reads it (`include_network`) and is skipped
+otherwise. See docs/contracts/analysis-output.md, A7 and A8.
+
+Run it through the pipeline, which is how a study runs it:
+
+    dims-analysis run --config config.json
+    dims-analysis run --config config.json --steps crosswavelet --jobs 8
+
+Tuning is `analysis.crosswavelet`: mcCount, maxTimePoints, maxFreqPoints,
+scaleAvgBand, maxPeriod, saveFullResolution.
 """
 import numpy as np
 import pandas as pd

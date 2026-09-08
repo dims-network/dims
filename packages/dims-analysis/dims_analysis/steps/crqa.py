@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""
-step_cRQA.py - Generate Cross-Recurrence Quantification Analysis data for the DIMS Dashboard.
+"""Cross-recurrence between two time series.
 
-Cross-RQA quantifies recurrence between TWO different time series (e.g. a teacher
-and a student signal), as opposed to step_RQA.py which analyses a single series
-against itself.
+Where two signals repeat *each other*, and with what delay -- a teacher and a
+student, say -- as opposed to `rqa.py`, which compares one series against
+itself. Runs for every pair in `include_cRQA` and writes
+`assets/crqa/{video}_crqa_data.json`.
 
-This step produces, per data-type pair:
-  1. The FULL cross-recurrence plot (RP) - every recurrent point, downsampled to
-     <=500x500 for the browser (same scheme as step_RQA.py). This is what the
-     dashboard renders.
-  2. Windowed RQA metrics (RR / DET / LAM / L_MAX) computed on the FULL-resolution
-     matrix by sliding a square window along the line of synchronization (the main
-     diagonal), so coupling strength can be tracked over time.
+Per pair:
 
-Reads 'videoIDs' and 'include_cRQA' from config.json. 'include_cRQA' is a list of
-pairs, each a 2-element list of data-types to compare, e.g.
-    "include_cRQA": [["bodysync", "neuralsync"]]
-Loads assets/timeseries/{videoID}_{dataType}.csv and writes
-    assets/crqa/{videoID}_crqa_data.json
+  1. The full cross-recurrence plot, reduced to at most 500x500 for the browser
+     by the density-preserving rule in common/reduce.py. Striding would delete
+     the off-diagonal line a lagged coupling *is*.
+  2. Windowed RR, DET, LAM and L_MAX along the line of synchronisation.
+  3. Both prepared signals at full resolution, from which the matrix is one
+     `cdist` away -- it is quadratic in the recording and is never stored.
 
-Usage:
-    python step_cRQA.py --config config.json --output-dir assets/crqa
+Run it through the pipeline, which is how a study runs it:
+
+    dims-analysis run --config config.json
+    dims-analysis run --config config.json --steps crqa
+
+Tuning is `analysis.crqa`: window, step and targetRecurrence. See
+docs/contracts/analysis-output.md.
 """
 
 import numpy as np
