@@ -27,8 +27,8 @@ in the same commit, so it cannot rot unnoticed.
   'use strict';
 
   window.DIMS.registerTab({
-    id:    'network',                  // also names the pane: #networkContainer
-    label: 'Cross-Effector Network',   // the button text
+    id:    'trajectory',               // also names the pane: #trajectoryContainer
+    label: 'Trajectories',             // the button text
     order: 50,                         // sort order; built-ins use 10..50
 
     // Shown only when this returns true. Read config, nothing else.

@@ -39,6 +39,40 @@ def series(path, seed, lag=0):
             fh.write(f"{ti:.4f},{vi:.6f}\n")
 
 
+def effectors(directory):
+    """Three measures with a coupling structure whose answer is known.
+
+    `eff_a` and `eff_b` share most of a red-noise component; `eff_c` shares
+    none. A correct network therefore draws one solid edge and two dashed ones,
+    and that is the only test of what the network tab is *for*.
+
+    Coupling by sharing red noise rather than by adding a shared sinusoid, and
+    the difference is not cosmetic: the AR(1) null assumes both signals are red
+    noise, so a signal carrying a deterministic rhythm breaks the assumption and
+    even unrelated partners read as coupled. Measured on a first attempt that
+    used a shared 3 s sine, the *unrelated* pairs read 0.30 and 0.42 above
+    chance against the 0.05 independence should give.
+    """
+    def ar1(alpha, seed, n):
+        rng = np.random.default_rng(seed)
+        x = np.zeros(n)
+        for i in range(1, n):
+            x[i] = alpha * x[i - 1] + rng.standard_normal()
+        return (x - x.mean()) / x.std()
+
+    n = 512
+    common = ar1(0.85, 30, n)
+    for name, seed, shared in (("eff_a", 31, 0.7), ("eff_b", 32, 0.7),
+                               ("eff_c", 33, 0.0)):
+        own = ar1(0.85, seed, n)
+        v = shared * common + (1 - shared) * own if shared else own
+        v = (v - v.mean()) / v.std()
+        with open(os.path.join(directory, f"s2_{name}.csv"), "w") as fh:
+            fh.write("Time,value\n")
+            for i, vi in enumerate(v):
+                fh.write(f"{i * DT:.4f},{vi:.6f}\n")
+
+
 def encodings():
     """Vectors for the browser decoder, packed by the Python side.
 
@@ -141,6 +175,34 @@ def main():
         dst = os.path.join(HERE, "s1_crosswavelet_no_null.json")
         shutil.copyfile(src, dst)
         written.append(("s1_crosswavelet_no_null.json", os.path.getsize(dst)))
+
+        # A second recording with three effectors, for the network tab.
+        effectors(ts)
+        network_config = {
+            "title": "Fixture", "videoIDs": ["s2"],
+            "dataTypes": {"s2": ["eff_a", "eff_b", "eff_c"]},
+            "include_crosswavelet": [["eff_a", "eff_b"], ["eff_a", "eff_c"],
+                                     ["eff_b", "eff_c"]],
+            "include_network": {"groups": [{"match": "^eff", "label": "Effectors"}]},
+            "analysis": {"crosswavelet": {"maxTimePoints": 60,
+                                          "maxFreqPoints": 24,
+                                          "mcCount": 20}},
+        }
+        with open(os.path.join(work, "config.json"), "w") as fh:
+            json.dump(network_config, fh, indent=2)
+        run = subprocess.run(
+            [sys.executable, "-m", "dims_analysis.cli", "run",
+             "--config", "config.json", "--steps", "crosswavelet"],
+            cwd=work, capture_output=True, text=True)
+        if run.returncode != 0:
+            sys.exit("the network run failed:\n" + run.stdout[-3000:] + run.stderr[-3000:])
+        src = os.path.join(work, "assets", "crosswavelet", "s2_crosswavelet_data.json")
+        dst = os.path.join(HERE, "s2_crosswavelet_data.json")
+        shutil.copyfile(src, dst)
+        written.append(("s2_crosswavelet_data.json", os.path.getsize(dst)))
+        with open(os.path.join(HERE, "network_config.json"), "w") as fh:
+            json.dump(network_config, fh, indent=2)
+            fh.write("\n")
 
         enc = os.path.join(HERE, "encodings.json")
         with open(enc, "w") as fh:

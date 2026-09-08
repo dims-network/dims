@@ -110,8 +110,13 @@ full schema is [`config.schema.json`](contracts/config.schema.json).
   "include_cRQA":        [["bodysync", "neuralsync"]],
   "include_crosswavelet": [["bodysync", "neuralsync"]],
 
-  // Tabs that need no analysis are plain switches.
-  "include_elan": true
+  // Tabs that need no analysis of their own are plain switches.
+  "include_elan": true,
+
+  // The cross-effector network draws its edges from the cross-wavelet output
+  // above, and switching it on also switches on the Monte Carlo coherence
+  // null -- without which no edge can be told from chance.
+  "include_network": true
 }
 ```
 
