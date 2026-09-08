@@ -237,7 +237,7 @@
       }
     },
     "include_network": {
-      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core since v2.0.0 -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them.",
+      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core since v2.0.0 -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them. Every edge also reports what share of the window had both measures active, which assumes a measure whose near-zero means \"not moving\" -- a speed or another magnitude. It is reported and never acted on, and is omitted entirely when the raw series are not loaded.",
       "oneOf": [
         {
           "type": "boolean"
@@ -258,7 +258,7 @@
                 "properties": {
                   "match": {
                     "type": "string",
-                    "description": "Case-insensitive regular expression on the data type name."
+                    "description": "Case-insensitive regular expression on the data type name. With layout \"figure\" the part of the name it matches is stripped before the body part is read, so `^teacher` turns `teacher_righthandspeed` into `righthandspeed`."
                   },
                   "label": {
                     "type": "string"
@@ -278,6 +278,15 @@
               },
               "minItems": 2,
               "maxItems": 2
+            },
+            "layout": {
+              "type": "string",
+              "enum": [
+                "columns",
+                "figure"
+              ],
+              "default": "columns",
+              "description": "How the nodes are placed. \"columns\" (the default) stacks each group in a column. \"figure\" draws a body per group and puts each measure where its body part is, reading a token out of the measure's name after the group prefix -- head/nose, lefthand, righthand, torso, hip, foot; anything else is stacked beside the figure rather than dropped. Say it explicitly: a measure called `eff_hand_l` would otherwise get a person drawn around it."
             }
           }
         }

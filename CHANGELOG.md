@@ -7,6 +7,44 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v2.1.0
+
+**The cross-effector network draws people again, and every control it had is
+back.** v2.0.0 made the network a built-in tab and rewrote it generically —
+1245 lines became 400, and most of what the tab *did* went with them. What was
+left drew two columns of dots joined by dashes, with a thick black bar down each
+column.
+
+The bar was a plain bug: every measure in a group sat at the same x, so the
+three within-group edges were one line drawn three times. Edges are bowed
+quadratic curves now, each by an amount of its own, so nothing hides under
+anything else.
+
+Restored, all of it configurable rather than hard-coded:
+
+- **`include_network.layout: "figure"`** draws a body per group and puts each
+  measure where its body part is, reading the part from the measure's name after
+  the group prefix. A measure the vocabulary does not recognise is placed beside
+  the figure rather than dropped. The default stays `"columns"` — a study says it
+  is about bodies, because a measure called `eff_hand_l` would otherwise get a
+  person drawn around it.
+- **Click an edge** for that pair's cross-wavelet detail, drawn by the
+  cross-wavelet tab's own renderer.
+- **Width relative to the edges on screen**, with a sensitivity control.
+  Coherence sits in a narrow band, so an absolute 0–1 scale makes every line
+  identical. At-chance edges are hairlines and stay out of the scale: stretching
+  noise across the stroke range is how a chart makes it look like structure.
+- **A period band, and a pair list** — hiding a pair also removes it from the
+  width pivot, so the rest rescale against each other.
+- **Whole recording or the window around the playhead**, with a way back. The
+  host only ever sets the playhead, so there was none.
+- **Movement context**: what share of the window had both measures active, with
+  low-movement edges drawn faint. Coherence is amplitude-normalised on purpose,
+  so a thick edge can rest on almost no movement. It assumes a measure whose
+  near-zero means "not moving", is reported and never acted on, and is omitted
+  when the raw series are not loaded.
+- **The long explanation** behind an (i), whose open state survives a redraw.
+
 ## v2.0.1
 
 **Deleting a study-owned tab left its `<script>` tag behind.** `dims-case sync`
