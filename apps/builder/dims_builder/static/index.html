@@ -41,8 +41,7 @@
         <small id="dir-hint">A new or empty folder. The dashboard is created inside it.</small>
       </label>
 
-      <div id="new-only">
-        <fieldset class="src">
+      <fieldset class="src" id="new-only">
           <legend>Who may see this data?</legend>
           <label class="radio"><input type="radio" name="vis" value="private" checked />
             <strong>Private</strong> — recordings of identifiable people</label>
@@ -53,8 +52,10 @@
             <strong>Public</strong> — the data may be published</label>
           <small class="src-note">Assets are committed with the study and a
             GitHub Pages workflow is included.</small>
-        </fieldset>
+      </fieldset>
+      <div class="note" id="open-visibility" hidden></div>
 
+      <div id="details">
         <h3>Dashboard details</h3>
         <label>Title <input id="title" type="text" placeholder="My study" /></label>
         <label>Subtitle <input id="subtitle" type="text" placeholder="Optional one-liner" /></label>

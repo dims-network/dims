@@ -169,3 +169,28 @@ def test_a_template_source_is_neither_asked_for_nor_accepted(client, tmp_path):
     page = client.get("/").get_data(as_text=True)
     assert "Template source" not in page
     assert "scaffold folder on this machine" not in page
+
+
+def test_a_private_study_is_never_told_to_commit_everything(client, tmp_path):
+    """The wizard must not walk its own user into the failure step 1 warns about.
+
+    `git add -A` is the one command the privacy guards exist to intercept, and
+    they only run once the user has pointed git at them -- a thing a person does,
+    in every clone, and may not have done yet. The deploy instructions therefore
+    differ by visibility, and the private one puts `core.hooksPath` before the
+    first commit.
+    """
+    page = client.get("/static/builder.js").get_data(as_text=True)
+    assert "core.hooksPath .githooks" in page
+    assert "do this BEFORE the first commit" in page
+    # And it does not offer to publish a private study without saying what that
+    # means.
+    assert "Publishing it means publishing the recordings" in page
+
+
+def test_the_deploy_instructions_name_the_folder(client, tmp_path):
+    """`cd <your-output-folder>` is a placeholder the builder could have filled
+    in: it knows the folder, and the reader is copy-pasting."""
+    page = client.get("/static/builder.js").get_data(as_text=True)
+    assert "<your-output-folder>" not in page
+    assert "state.outputDir" in page

@@ -67,7 +67,13 @@ function visibility() {
 $$('input[name="mode"]').forEach((r) =>
   r.addEventListener("change", () => {
     const opening = mode() === "open";
+    // Visibility is settled when a study is created -- changing it means
+    // rewriting its guards and workflows, which is `dims-case`'s job, not a
+    // radio button's. Everything else stays editable, because editing it is
+    // what reopening is for: the title is the likeliest thing anyone comes
+    // back to change.
     $("#new-only").hidden = opening;
+    $("#open-visibility").hidden = true;
     $("#btn-create").textContent = opening ? "Open study \u2192" : "Create study \u2192";
     $("#dir-hint").textContent = opening
       ? "The folder of a study the builder made earlier."
@@ -87,8 +93,15 @@ $("#btn-create").addEventListener("click", async () => {
         body: JSON.stringify({ output_dir: dir }),
       });
       state.opened = true;
+      state.outputDir = r.output_dir;
       state.files = r.files || [];
       applyOpenedConfig(r.config || {}, r.visibility);
+      const vis = $("#open-visibility");
+      vis.hidden = false;
+      vis.innerHTML = `This study is <strong>${r.visibility}</strong>. ` +
+        "To change that, edit <code>visibility</code> in its " +
+        "<code>dims-case.json</code> and run <code>dims-case sync</code> — it " +
+        "rewrites the guards and workflows, which a setting here could not do.";
       renderFiles();
       setMsg(1, `Opened ${r.output_dir} \u2014 ${state.files.length} file(s), ` +
                 `built with core ${r.dims_core || "unknown"}.`, "ok");
@@ -118,6 +131,7 @@ $("#btn-create").addEventListener("click", async () => {
         },
       }),
     });
+    state.outputDir = r.output_dir;
     setMsg(1, (r.reused ? "Refreshed " : "Created ") + r.output_dir +
               ` (core ${r.dims_core}).`, "ok");
     showPrivacyNote(r.visibility, r.hooks_command);
@@ -1058,10 +1072,30 @@ function renderPrivacyReminder() {
 }
 
 function renderDeploy() {
-  $("#deploy-cmds").textContent =
-`# Your finished dashboard lives in your output folder.
-# Deploy to GitHub Pages:
-cd <your-output-folder>
+  const dir = state.outputDir || "<your study folder>";
+  // A private study must not be handed `git add -A`. That is the one command
+  // the guards exist to intercept, and they only run once the user has pointed
+  // git at them -- which is a thing a person does, in every clone, and might
+  // not have done yet. Telling them to run it anyway would be the wizard
+  // walking its own user into the failure it spent step 1 warning about.
+  $("#deploy-cmds").textContent = state.visibility === "private"
+? `# This study is private: its recordings must not enter git history.
+cd ${dir}
+git init
+git config core.hooksPath .githooks     # do this BEFORE the first commit
+git add -A                              # the hook refuses anything restricted
+git commit -m "DIMS dashboard"
+
+# The dashboard code and config are committed; assets/ stays out, and
+# data.local.json points the study at wherever the recordings really live.
+# To show it to someone, serve it locally:
+python serve.py                         # http://localhost:8000
+
+# Publishing it means publishing the recordings. If that is what you want,
+# say so deliberately: set "visibility": "public" in dims-case.json and list
+# what may be published under "publishable".`
+: `# This study is public: assets are committed with it.
+cd ${dir}
 git init && git add -A && git commit -m "DIMS dashboard"
 git branch -M main
 git remote add origin https://github.com/<you>/<repo>.git
