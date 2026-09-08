@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+
+# builder runtime state
+# Uploads the wizard has staged but not yet placed in a study. The path
+# moved when the package was renamed app/ -> dims_builder/, and the old
+# pattern kept matching nothing -- so a test run left 72 MB of sample
+# media sitting untracked in the working tree, one `git add -A` from a
+# commit.
+dims_builder/_staging/
+
+# Studies the wizard generated while someone was trying it out. Names a
+# person would plausibly use for a throwaway output folder -- never a
+# directory this repository has, which is what `test/` used to risk: it
+# would have silently swallowed apps/builder/test/ had anyone made one.
+output/
+my-study/
+*.local

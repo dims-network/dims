@@ -1,0 +1,207 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax-and-config:
+    uses: dims-network/.github/.github/workflows/reusable-dashboard-ci.yml@main
+    with:
+      python_paths: "packages/dims-analysis packages/dims-case packages/dims-case-scaffold apps/builder tools"
+      js_glob: "packages/dims-core/*.js packages/dims-tabs/*.js"
+      # The scaffold's config.json is not a study's: it names no recordings
+      # until someone fills it in. The `contracts` job below validates it as
+      # what it is, which this generic check cannot.
+      config_path: ""
+      check_assets: false
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -q jsonschema
+
+      # The schema is the contract every case repo is validated against, so a
+      # schema that does not describe the real configs is worse than none.
+      - name: The schema describes the scaffold once a study fills it in
+        run: |
+          python - <<'PY'
+          import json, jsonschema, sys
+          schema = json.load(open("docs/contracts/config.schema.json"))
+          jsonschema.Draft202012Validator.check_schema(schema)
+          cfg = json.load(open("packages/dims-case-scaffold/config.json"))
+
+          # The scaffold must ship NO study. It used to carry a session1 /
+          # session2 fixture and a hardcoded author, so every project ever
+          # created inherited someone else's study and had to notice.
+          bad = []
+          if cfg.get("videoIDs"):
+              bad.append(f"videoIDs is not empty: {cfg['videoIDs']}")
+          if cfg.get("dataTypes"):
+              bad.append(f"dataTypes is not empty: {list(cfg['dataTypes'])}")
+          for k in ("authors", "contacts"):
+              if cfg.get(k):
+                  bad.append(f"{k} is filled in: {cfg[k]!r}")
+          for msg in bad:
+              print(f"::error file=packages/dims-case-scaffold/config.json::{msg}")
+
+          # And with a study filled in, it must satisfy the schema every case
+          # repo is validated against. `minItems: 1` on videoIDs is correct for
+          # a study and wrong for a scaffold, so the scaffold is checked in the
+          # state it is actually used in.
+          filled = dict(cfg)
+          filled["videoIDs"] = ["s01"]
+          filled["dataTypes"] = {"s01": ["bodysync"]}
+          errs = list(jsonschema.Draft202012Validator(schema).iter_errors(filled))
+          for e in errs:
+              print(f"::error::{list(e.path)}: {e.message}")
+          sys.exit(1 if errs or bad else 0)
+          PY
+
+      # The README routes to the contracts; a dead link there sends a
+      # contributor nowhere, which defeats the point of having a map.
+      - name: Every file the README points at must exist
+        run: |
+          fail=0
+          while read -r f; do
+            [ -e "$f" ] || { echo "::error file=README.md::points at missing '$f'"; fail=1; }
+          done < <(grep -oE '\(docs/[^)]*\)' README.md | tr -d '()' | sort -u)
+          exit $fail
+
+  analysis-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        working-directory: packages/dims-analysis
+        run: python -m pip install -q -e ".[dev]"
+      - name: Steps must be discoverable
+        run: |
+          out=$(dims-analysis list)
+          echo "$out"
+          for s in rqa crqa crosswavelet; do
+            echo "$out" | grep -q "^  $s " || { echo "::error::step '$s' is not registered"; exit 1; }
+          done
+      - name: Tests
+        working-directory: packages/dims-analysis
+        run: python -m pytest tests/ -q
+
+  # The analyses answering correctly, not merely running. Every other test in
+  # this repository can only ask "did it crash?" -- on real data `DET = 0.2571`
+  # is a number nobody can check. `examples/reference/` is a synthetic study
+  # whose answers are arithmetic: a 2 s sine recurs at 2 s, a 0.4 s lag sits
+  # 0.4 s off the diagonal, two independent red noises beat a 95 % level 5 % of
+  # the time, and the wavelet constants are Torrence & Compo's published ones.
+  #
+  # This job is why a case repo can trust a release. The analyses are not
+  # vendored -- a study installs them from the core it pins -- so a defect that
+  # gets past here reaches every study that bumps, which is exactly how the
+  # ones already found got where they were.
+  reference-study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # pyrqa computes through OpenCL and has no CPU fallback; pocl is the
+      # runtime that gives a runner one.
+      - name: OpenCL runtime for pyrqa
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq pocl-opencl-icd
+
+      - name: Install
+        run: |
+          python -m pip install -q -e packages/dims-analysis
+          python -m pip install -q pytest pyrqa
+
+      # The pyrqa tests are `importorskip`ed, so a runner without it stays green
+      # while the independent oracle for DET, LAM and RR silently does not run.
+      # A gate that can pass without checking anything is not a gate.
+      - name: The independent oracle must actually be available
+        run: |
+          python - <<'PY'
+          import pyrqa.computation, pyrqa.time_series
+          from pyrqa.analysis_type import Classic
+          print("pyrqa available")
+          PY
+
+      - name: The reference study answers what it should
+        run: python -m pytest tests/reference -q -rs
+
+  dashboard-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install test tooling
+        working-directory: packages/dims-core/test
+        run: npm install --no-audit --no-fund
+      - name: Tests
+        working-directory: packages/dims-core/test
+        run: node --test
+
+  notebooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        working-directory: packages/dims-notebooks
+        run: python -m pip install -q numpy pandas pytest
+      - name: The checks must catch what they were written for
+        working-directory: packages/dims-notebooks
+        run: python -m pytest tests/ -q
+      - name: Notebooks are valid
+        run: |
+          python - <<'PY'
+          import json, glob, sys
+          bad = 0
+          for f in glob.glob("packages/dims-notebooks/*.ipynb"):
+              d = json.load(open(f))
+              if d.get("nbformat") != 4 or not d.get("cells"):
+                  print(f"::error file={f}::not a usable notebook"); bad = 1
+          sys.exit(bad)
+          PY
+
+  builder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install with the builder extra
+        run: python -m pip install -q -e ".[builder,dev]"
+      - name: Tests
+        working-directory: apps/builder
+        run: python -m pytest tests -q
+      - name: The wizard builds a complete study
+        run: |
+          python - <<'PY'
+          import json, os, sys, tempfile
+          sys.path.insert(0, "apps/builder")
+          from dims_builder.server import create_app
+          out = os.path.join(tempfile.mkdtemp(), "study")
+          r = create_app().test_client().post("/api/project",
+                                              json={"output_dir": out, "template": "bundled"})
+          assert r.status_code == 200, r.get_json()
+          # A generated study must be complete: the wizard's user is the one
+          # least able to work out why a dashboard is missing its core.
+          for need in ("config.json", "index.html", "serve.py", "dims-case.json",
+                       "vendor/dims-core", "vendor/dims-tabs"):
+              assert os.path.exists(os.path.join(out, need)), f"missing {need}"
+          print("generated study is complete")
+          PY

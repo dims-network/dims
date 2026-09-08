@@ -1,0 +1,45 @@
+name: Module proposal
+description: Propose an analysis or tab that plugs in from outside DIMS.
+labels: ["type:feat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DIMS is meant to be extended from outside. An analysis registers through
+        a `dims.steps` entry point; a tab is one self-registering file. Neither
+        requires a change to the core.
+
+        Read `docs/contracts/step.md` or `docs/contracts/tab.md` first — they are
+        short, and each ends with the acceptance check your module must pass.
+  - type: input
+    id: name
+    attributes:
+      label: Module name
+    validations: { required: true }
+  - type: input
+    id: origin
+    attributes:
+      label: Where it comes from
+      placeholder: e.g. an EnvisionBox coding module, a lab pipeline, a published method
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Analysis (Python step)
+        - Tab (visualisation)
+        - Producer (emits time series for DIMS to read)
+    validations: { required: true }
+  - type: textarea
+    id: io
+    attributes:
+      label: Inputs and outputs
+      description: >
+        What it reads and what it writes. For a producer, the seam is usually
+        just a CSV with a Time column in seconds — see docs/contracts/assets.md.
+    validations: { required: true }
+  - type: input
+    id: licence
+    attributes:
+      label: Licence
+      description: DIMS is MIT. Incompatible licences need discussing first.

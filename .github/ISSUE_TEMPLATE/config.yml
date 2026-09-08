@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Try it first
+    url: https://dims-network.github.io/case-demo/
+    about: A live dashboard, in case what you are reporting is visible there too.
+  - name: How DIMS is put together
+    url: https://github.com/dims-network/dims/blob/main/README.md
+    about: What the pieces are, and which contract to read for the task you have.

@@ -1,0 +1,42 @@
+{
+  "title": "Fixture",
+  "videoIDs": [
+    "s2"
+  ],
+  "dataTypes": {
+    "s2": [
+      "eff_a",
+      "eff_b",
+      "eff_c"
+    ]
+  },
+  "include_crosswavelet": [
+    [
+      "eff_a",
+      "eff_b"
+    ],
+    [
+      "eff_a",
+      "eff_c"
+    ],
+    [
+      "eff_b",
+      "eff_c"
+    ]
+  ],
+  "include_network": {
+    "groups": [
+      {
+        "match": "^eff",
+        "label": "Effectors"
+      }
+    ]
+  },
+  "analysis": {
+    "crosswavelet": {
+      "maxTimePoints": 60,
+      "maxFreqPoints": 24,
+      "mcCount": 20
+    }
+  }
+}

@@ -1,14 +1,15 @@
+.claude/
+CLAUDE.md
 __pycache__/
 *.pyc
-.venv/
-venv/
 .DS_Store
+node_modules/
+.venv/
 
-# builder runtime state
-app/_staging/
-app/_state.json
-
-# generated dashboard projects (don't commit user output)
-output/
-test/
-*.local
+# builder-generated artifact (cleaned requirements written into a project's opt/)
+opt/_requirements.builder.txt
+assets/
+# Build artefacts. `pip install -e .` -- which the README instructs -- rewrites
+# these on every run, and a permanently dirty tree trains people to ignore
+# `git status`, which is how an accidental `git add -A` sweeps something in.
+*.egg-info/

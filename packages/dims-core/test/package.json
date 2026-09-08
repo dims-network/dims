@@ -1,0 +1,11 @@
+{
+  "name": "dims-core-test",
+  "private": true,
+  "description": "Headless tests for the dashboard host. TEST TOOLING ONLY — the dashboard itself has no build step and no runtime dependencies, and must keep opening from a plain file server. Nothing in here is shipped or vendored into a case repo.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.0"
+  }
+}
