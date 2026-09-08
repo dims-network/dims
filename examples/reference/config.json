@@ -14,19 +14,31 @@
       "noise_b",
       "quantised",
       "sine",
-      "sine_lagged"
+      "sine_lagged",
+      "sine_x10",
+      "sine_2x"
     ]
   },
   "include_RQA": [
     "sine",
     "noise_a",
     "quantised",
-    "flat"
+    "flat",
+    "sine_x10",
+    "sine_2x"
   ],
   "include_cRQA": [
     [
       "sine",
       "sine_lagged"
+    ],
+    [
+      "noise_a",
+      "noise_b"
+    ],
+    [
+      "sine",
+      "sine"
     ]
   ],
   "include_crosswavelet": [
@@ -49,6 +61,14 @@
     [
       "eff_hand_r",
       "eff_other"
+    ],
+    [
+      "sine",
+      "sine"
+    ],
+    [
+      "sine",
+      "sine_x10"
     ]
   ],
   "include_network": true,

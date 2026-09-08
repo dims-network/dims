@@ -107,6 +107,11 @@ def signals() -> dict[str, np.ndarray]:
         # for real -- a piece at rest gives ties -- and reaches 12.7 % against
         # a 7 % target with nothing said about it.
         "quantised": np.round(sine * 1.5) / 1.5,
+        # The same signal, ten times larger. Every analysis here normalises by
+        # the standard deviation, so the result must not move at all -- only
+        # the distance threshold, which scales with it. A normalisation that
+        # went missing would show up here and nowhere else.
+        "sine_x10": sine * 10.0,
         # Three "effectors", with the coupling structure a cross-effector
         # network exists to find -- and deliberately the same shape as the real
         # Karnatak result: within-person coupling real, between-person at
@@ -118,9 +123,10 @@ def signals() -> dict[str, np.ndarray]:
     }
 
 
-def write_series(directory: str, name: str, values: np.ndarray) -> str:
+def write_series(directory: str, name: str, values: np.ndarray,
+                 t: np.ndarray | None = None) -> str:
     path = os.path.join(directory, f"reference_{name}.csv")
-    t = time_axis()
+    t = time_axis() if t is None else t
     with open(path, "w") as fh:
         fh.write("Time,value\n")
         for ti, vi in zip(t, values):
@@ -133,9 +139,20 @@ def config() -> dict:
         "title": "DIMS reference study",
         "subtitle": "Synthetic signals with known answers",
         "videoIDs": ["reference"],
-        "dataTypes": {"reference": sorted(signals())},
-        "include_RQA": ["sine", "noise_a", "quantised", "flat"],
-        "include_cRQA": [["sine", "sine_lagged"]],
+        "dataTypes": {"reference": sorted(signals()) + ["sine_2x"]},
+        "include_RQA": ["sine", "noise_a", "quantised", "flat",
+                        "sine_x10", "sine_2x"],
+        "include_cRQA": [
+            ["sine", "sine_lagged"],
+            # The contrast: no relationship to find. cRQA's metrics must
+            # separate these as sharply as RQA's separate a sine from noise.
+            ["noise_a", "noise_b"],
+            # A signal against itself. Cross-recurrence has no line of identity
+            # to exclude -- the two series are different by construction -- so
+            # this is the case where that assumption is false, and it is worth
+            # knowing what the metrics do with it.
+            ["sine", "sine"],
+        ],
         "include_crosswavelet": [
             ["sine", "sine_lagged"],
             ["noise_a", "noise_b"],
@@ -144,6 +161,15 @@ def config() -> dict:
             ["eff_hand_l", "eff_hand_r"],
             ["eff_hand_l", "eff_other"],
             ["eff_hand_r", "eff_other"],
+            # A signal against itself: coherence must be 1 everywhere it is
+            # defined. Degenerate, and the strongest single invariant the
+            # measure has.
+            ["sine", "sine"],
+            # The same signal ten times larger. Coherence is
+            # amplitude-normalised by construction, so this must be identical
+            # to sine_vs_sine -- a normalisation that went missing shows up
+            # here and nowhere else.
+            ["sine", "sine_x10"],
         ],
         # The cross-effector network reads every pair of these. Its presence is
         # also what would switch the coherence null on by default, if mcCount
@@ -170,6 +196,14 @@ def main() -> None:
     written = []
     for name, values in sorted(signals().items()):
         written.append(os.path.basename(write_series(assets, name, values)))
+
+    # The same 2 s sine over the same 20.48 s, sampled twice as fast. What an
+    # analysis reports in *seconds* must not depend on the sampling rate; a
+    # unit error is otherwise invisible, because every number stays plausible.
+    fast_t = np.arange(N * 2) * (DT / 2)
+    fast = np.sin(2 * np.pi * (1.0 / PERIOD) * fast_t)
+    written.append(os.path.basename(
+        write_series(assets, "sine_2x", fast, t=fast_t)))
 
     with open(os.path.join(HERE, "config.json"), "w") as fh:
         json.dump(config(), fh, indent=2)

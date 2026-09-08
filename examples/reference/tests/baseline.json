@@ -69,6 +69,23 @@
         ],
         "wtc_signif_fraction": 0.0482318
       },
+      "sine_vs_sine": {
+        "alpha1": 0.95,
+        "alpha2": 0.95,
+        "mean_coherence": 1.0,
+        "mean_coherence_outside_coi": 1.0,
+        "mean_phase_rad": -0.0,
+        "mean_power": 7.864886,
+        "mean_sig95_wtc": 0.602932,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "wtc_signif_fraction": 1.0
+      },
       "sine_vs_sine_lagged": {
         "alpha1": 0.95,
         "alpha2": 0.95,
@@ -85,6 +102,23 @@
           19.4089
         ],
         "wtc_signif_fraction": 0.999661
+      },
+      "sine_vs_sine_x10": {
+        "alpha1": 0.95,
+        "alpha2": 0.95,
+        "mean_coherence": 1.0,
+        "mean_coherence_outside_coi": 1.0,
+        "mean_phase_rad": 0.0,
+        "mean_power": 7.864886,
+        "mean_sig95_wtc": 0.602932,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "wtc_signif_fraction": 1.0
       }
     },
     "provenance": {
@@ -98,6 +132,49 @@
   },
   "crqa": {
     "entries": {
+      "noise_a_vs_noise_b": {
+        "diagonal_offsets": [],
+        "matrix_size": 341,
+        "mean_DET": 0.293229,
+        "mean_LAM": 0.388171,
+        "mean_RR": 0.069123,
+        "rate_drawn": 0.0700372,
+        "rate_full": 0.0700006,
+        "recurrence_rate": null,
+        "recurrent_cells": 8144,
+        "reduction_factor": 3,
+        "target_recurrence": null,
+        "threshold": 0.126505,
+        "warned": false
+      },
+      "sine_vs_sine": {
+        "diagonal_offsets": [
+          -167,
+          -166,
+          -134,
+          -133,
+          -100,
+          -67,
+          -66,
+          -34,
+          -33,
+          0,
+          33,
+          34
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.898823,
+        "mean_LAM": 0.947135,
+        "mean_RR": 0.070235,
+        "rate_drawn": 0.0699254,
+        "rate_full": 0.0700016,
+        "recurrence_rate": null,
+        "recurrent_cells": 8131,
+        "reduction_factor": 3,
+        "target_recurrence": null,
+        "threshold": 0.0836886,
+        "warned": false
+      },
       "sine_vs_sine_lagged": {
         "diagonal_offsets": [
           -160,
@@ -141,7 +218,7 @@
         ],
         "matrix_size": 341,
         "mean_DET": 0.300346,
-        "mean_LAM": 0.402242,
+        "mean_LAM": 0.39157,
         "mean_RR": 0.071868,
         "rate_drawn": 0.0709746,
         "rate_full": 0.0709095,
@@ -169,7 +246,7 @@
         ],
         "matrix_size": 341,
         "mean_DET": 0.992438,
-        "mean_LAM": 1.005204,
+        "mean_LAM": 0.999375,
         "mean_RR": 0.335642,
         "rate_drawn": 0.337579,
         "rate_full": 0.337677,
@@ -197,7 +274,62 @@
         ],
         "matrix_size": 341,
         "mean_DET": 0.899161,
-        "mean_LAM": 0.986754,
+        "mean_LAM": 0.95994,
+        "mean_RR": 0.070081,
+        "rate_drawn": 0.0715938,
+        "rate_full": 0.0716743,
+        "recurrence_rate": 0.0707669,
+        "recurrent_cells": 8325,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.0854155,
+        "warned": false
+      },
+      "sine_2x": {
+        "diagonal_offsets": [
+          -200,
+          -160,
+          -120,
+          -80,
+          -40,
+          0,
+          40,
+          80,
+          120,
+          160,
+          200
+        ],
+        "matrix_size": 409,
+        "mean_DET": 0.984729,
+        "mean_LAM": 0.999703,
+        "mean_RR": 0.069676,
+        "rate_drawn": 0.0705221,
+        "rate_full": 0.0706635,
+        "recurrence_rate": 0.0702095,
+        "recurrent_cells": 11797,
+        "reduction_factor": 5,
+        "target_recurrence": 0.07,
+        "threshold": 0.083669,
+        "warned": false
+      },
+      "sine_x10": {
+        "diagonal_offsets": [
+          -167,
+          -166,
+          -134,
+          -133,
+          -100,
+          -67,
+          -66,
+          -34,
+          -33,
+          0,
+          33,
+          34
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.899161,
+        "mean_LAM": 0.95994,
         "mean_RR": 0.070081,
         "rate_drawn": 0.0715938,
         "rate_full": 0.0716743,

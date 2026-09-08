@@ -21,6 +21,8 @@ cells by construction.
 | `noise_a`, `noise_b` | independent AR(1), a known *absence* of relationship |
 | `flat` | zero variance — the degenerate case |
 | `quantised` | many equal distances, so a 7 % target cannot be met |
+| `sine_x10` | the same sine, ten times larger — every analysis normalises, so nothing may change |
+| `sine_2x` | the same 2 s sine over the same 20.48 s, sampled twice as fast |
 | `eff_hand_l`, `eff_hand_r`, `eff_other` | three effectors: the first two share 70 % of their variation, the third shares none |
 
 The three effectors carry the structure a cross-effector network exists to
@@ -48,6 +50,9 @@ The assertions live beside the data, one file per analysis:
 | `tests/test_crqa.py` | the known lag, 20 samples off the diagonal |
 | `tests/test_crosswavelet.py` | the known phase, the chance level, and the Monte Carlo that produces it |
 | `tests/test_network.py` | what the cross-effector network needs from a payload, and how it breaks |
+| `tests/test_metrics.py` | RR, DET, LAM and L_MAX, for **both** RQA and cross-RQA, against pyrqa |
+| `tests/test_coherence_metrics.py` | cross-wavelet: the scale axis, amplitude invariance, and the signature of the defect this project was rebuilt around |
+| `tests/test_determinism.py` | two runs give identical output; one step does not erase another |
 | `tests/test_baseline.py` | every number, pinned against `baseline.json` |
 
 ## Running them while changing things
@@ -95,3 +100,24 @@ specification for work that has not landed yet, and strictness means they fail
 the moment they start passing, so a fix cannot go unnoticed.
 
 Requirements this study exists to check: `docs/contracts/analysis-output.md`.
+
+
+## What these tests have found so far
+
+Not hypothetical: each of these was live in the shipped code when the reference
+study was built, and each was found by giving the analyses data whose answer
+was already known.
+
+| found | what it was |
+|---|---|
+| `recurrence_rate = -0.000977517` | a constant signal normalised to NaN, so the matrix came out empty and the line of identity was subtracted from zero. A negative share of cells, on a dashboard caption. |
+| `LAM = 1.0137` | a share of points above 1. The diagonal and vertical line scans ignore different things, so they cannot share a denominator — fixing DET's had inflated LAM's. pyrqa said which of the two values was right. |
+| 33.7 % against a 7 % target | a quantised signal puts the threshold percentile on a plateau. Recorded now, with a warning that DET and LAM are not comparable across different achieved rates. |
+| the cross-wavelet cap | 1024 samples against a 500-point cap drew 512 — the step computed its own reduction factors by floor division. |
+| `numpy.randn` | pycwt's red-noise generator branches at exactly zero autocorrelation and calls a function removed in NumPy 2, so white noise silently lost its chance level. |
+
+Three things were also measured and turned out **not** to be defects, which is
+the other half of the value: DET on a pure sine is 0.899 and not ~1.0; the
+coherence chance level barely responds to how red the noise is; and the fraction
+of cells above that level is 0.05 only when the cone of influence is excluded —
+including it gives 0.126.

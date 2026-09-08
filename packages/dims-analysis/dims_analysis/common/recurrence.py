@@ -141,27 +141,42 @@ def _runs(line, min_len: int) -> list:
 
 def window_metrics(matrix, dt: float, min_line: int = 2,
                    self_paired: bool = False) -> tuple:
-    """(RR, DET, LAM, L_MAX) over one window, with a consistent denominator.
+    """(RR, DET, LAM, L_MAX) over one window, each with its own denominator.
 
-    DET and LAM are shares of the recurrent points that lie on lines. Whatever
-    the line extraction ignores, the denominator must ignore too, or the metric
-    is deflated by construction.
+    DET and LAM are shares of the recurrent points that lie on lines, and the
+    rule is that whatever a line extraction ignores, its denominator must
+    ignore too. **The two extractions ignore different things**, so they cannot
+    share one:
+
+      * the diagonal scan skips the line of identity (`k == 0`), so DET's
+        denominator excludes those `n` points;
+      * the vertical scan does not skip anything, so LAM's denominator is every
+        recurrent point.
+
+    One shared denominator got this wrong in both directions in turn. It first
+    deflated DET, by excluding the identity line from the numerator and not the
+    denominator -- 17-25 % low on real data. Correcting that by subtracting `n`
+    from the shared denominator then **inflated LAM**, whose numerator does
+    include those points: measured on a pure sine, LAM came out 0.9681 where
+    pyrqa gives 0.9548, and on other signals it exceeded 1.0 -- which a share
+    of points cannot do. With the denominators separated, LAM is 0.9548, the
+    same to four decimals as the published implementation.
     """
     m = np.asarray(matrix)
     if m.size == 0:
         return 0.0, 0.0, 0.0, 0.0
 
     rr = recurrence_rate(m, self_paired)
-    counted = float(np.sum(m))
-    if self_paired:
-        counted -= min(m.shape)      # the same points the line extraction skips
-    if counted <= 0:
+    recurrent = float(np.sum(m))
+    # DET's population: what the diagonal scan could have found.
+    diagonal_population = recurrent - (min(m.shape) if self_paired else 0)
+    if recurrent <= 0 or diagonal_population <= 0:
         return float(rr), 0.0, 0.0, 0.0
 
     diag = line_lengths(m, "diagonal", min_line, self_paired)
     vert = line_lengths(m, "vertical", min_line)
 
-    det = float(np.sum(diag) / counted)
-    lam = float(np.sum(vert) / counted)
+    det = float(np.sum(diag) / diagonal_population)
+    lam = float(np.sum(vert) / recurrent)
     l_max = float(np.max(diag) * dt) if diag.size else 0.0
     return float(rr), det, lam, l_max
