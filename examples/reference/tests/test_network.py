@@ -107,18 +107,38 @@ def test_the_null_has_one_entry_per_period_row(network):
             f"{len(v['period'])} period rows")
 
 
-def test_a_row_with_no_usable_null_is_null_and_not_a_number(network):
-    """Period rows lying entirely inside the cone of influence have no
-    estimable threshold. The tab skips those rows. A zero would instead read as
-    "everything here beats chance" and draw a solid edge from nothing."""
-    v = vis(network, COUPLED)
-    levels = v["sig95_wtc"]
-    unusable = [x for x in levels if x is None]
-    assert unusable, (
-        "no row is marked unusable, so this test is not exercising the case it "
-        "describes -- the longest periods should lie inside the cone")
-    assert all(x is None or x > 0 for x in levels), (
-        "a level of exactly 0 means every cell in that row beats chance")
+def test_an_unusable_null_is_null_and_never_a_number(network):
+    """The tab skips rows whose level could not be estimated. A 0 there would
+    instead read as "everything in this row beats chance" and draw a solid edge
+    out of nothing."""
+    for key in (COUPLED,) + UNCOUPLED:
+        levels = vis(network, key)["sig95_wtc"]
+        assert all(x is None or x > 0 for x in levels), (
+            f"{key} has a level of exactly 0, which no cell can fail to beat")
+
+
+def test_a_period_row_inside_the_cone_reduces_to_null_not_to_zero():
+    """Constructed, because the reference study no longer produces one.
+
+    Rows lying entirely inside the cone of influence have no estimable
+    threshold, and the frequency reduction averages neighbouring rows -- so a
+    NaN row must not drag its neighbour to NaN, and a row that is *all* NaN
+    must stay NaN rather than becoming 0. Both directions matter: the first
+    would lose good rows, the second would mark a whole period band as
+    always-significant.
+
+    This stopped happening in the study itself once the reduction cap was
+    fixed, and the test that noticed said so rather than passing vacuously.
+    The reduction was inlined in the middle of a 90-line function until this
+    test needed to call it, which is its own small finding.
+    """
+    from dims_analysis.steps import crosswavelet as cw
+
+    levels = np.array([0.6, 0.61, np.nan, np.nan, 0.62, np.nan], dtype=float)
+    reduced = cw._reduce_null(levels, 2)
+    assert np.isnan(reduced[1]), "a pair of unusable rows must stay unusable"
+    assert not np.isnan(reduced[0]), "two usable rows must survive"
+    assert np.isclose(reduced[2], 0.62), "a half-usable pair keeps the usable half"
 
 
 def test_the_coherence_grid_matches_its_axes(network):

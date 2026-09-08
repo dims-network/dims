@@ -17,6 +17,7 @@ import os
 from dims_analysis.common import assets as _assets
 from dims_analysis.common import coherence as _coh
 from dims_analysis.common import config as _config
+from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
 import argparse
 from scipy import signal
@@ -140,9 +141,14 @@ DEFAULT_MC_COUNT_WITH_CONSUMER = 100
 def _payload_provenance(config):
     """Recorded per file: the core that produced it and the surrogate count."""
     from dims_analysis.common.payload import provenance
+    tune = _tuning(config)
     return provenance(mc_count=mc_count_for(config),
                       significance_level=SIGNIFICANCE_LEVEL,
-                      wct_signif_seed=WCT_SIGNIF_SEED)
+                      wct_signif_seed=WCT_SIGNIF_SEED,
+                      max_time_points=int(tune.get("maxTimePoints",
+                                                   MAX_TIME_POINTS_VIZ)),
+                      max_freq_points=int(tune.get("maxFreqPoints",
+                                                   MAX_FREQ_POINTS_VIZ)))
 
 
 def mc_count_for(config):
@@ -671,6 +677,30 @@ def _reduce_time(a, factor):
     return t.reshape(*t.shape[:-1], keep // factor, factor).mean(axis=-1)
 
 
+def _reduce_null(levels, factor):
+    """Reduce the coherence null along the period axis, NaN-aware.
+
+    Rows lying entirely inside the cone of influence carry NaN: no threshold
+    could be estimated there. Both directions matter when blocks are averaged.
+    A NaN neighbour must not drag a usable row to NaN, or good rows are lost;
+    and a block that is *all* NaN must stay NaN rather than becoming a number,
+    or a whole period band reads as always-significant.
+
+    Returns None when there is no null to reduce, which is what a study that
+    did not ask for the Monte Carlo produces.
+    """
+    if levels is None:
+        return None
+    values = np.asarray(levels, dtype=float)
+    if factor <= 1:
+        return np.real(values)
+    keep = (len(values) // factor) * factor
+    if keep == 0:
+        return np.real(values)
+    with np.errstate(invalid='ignore'):
+        return np.nanmean(values[:keep].reshape(-1, factor), axis=1)
+
+
 def _reduce_freq(a, factor):
     """Block-average along the first (period/frequency) axis."""
     if factor <= 1:
@@ -691,10 +721,13 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
     """
     n_time = len(time)
     n_freq = len(cwt_results['freqs'])
-    
-    # Determine downsampling factors
-    time_factor = max(1, n_time // max_time_points)
-    freq_factor = max(1, n_freq // max_freq_points)
+
+    # `reduce.factor_for`, not floor division. This step computed its own
+    # factors the old way, so the cap was a suggestion: 1024 samples against a
+    # 500-point cap gave factor 2 and drew 512, and 999 gave factor 1 and drew
+    # all 999 -- twice the cap, across every array in the file.
+    time_factor = _reduce.factor_for(n_time, max_time_points)
+    freq_factor = _reduce.factor_for(n_freq, max_freq_points)
     
     # Block-average, not stride. See _reduce_time / _reduce_freq.
     time_ds = _reduce_time(time, time_factor)
@@ -716,16 +749,7 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
     # Per-period coherence null; may be absent if the Monte Carlo was skipped.
     # Averaged with NaN-awareness: COI-only rows are NaN and must not poison
     # their neighbours in a block.
-    sig95_wtc = cwt_results.get('sig95_wtc')
-    if sig95_wtc is None:
-        sig95_wtc_ds = None
-    elif freq_factor <= 1:
-        sig95_wtc_ds = np.real(sig95_wtc)
-    else:
-        _w = np.asarray(sig95_wtc, dtype=float)
-        _keep = (len(_w) // freq_factor) * freq_factor
-        with np.errstate(invalid='ignore'):
-            sig95_wtc_ds = np.nanmean(_w[:_keep].reshape(-1, freq_factor), axis=1)
+    sig95_wtc_ds = _reduce_null(cwt_results.get('sig95_wtc'), freq_factor)
     global_power_ds = np.real(_reduce_freq(cwt_results['global_power'], freq_factor))
     global_signif_ds = np.real(_reduce_freq(cwt_results['global_signif'], freq_factor))
     scale_avg_power_ds = np.real(_reduce_time(scale_avg_power, time_factor))

@@ -260,3 +260,27 @@ def test_the_payload_records_the_surrogate_count_it_used(coherence_study):
     assert prov.get("wct_signif_seed") is not None, (
         "an unseeded Monte Carlo varied by up to 0.04 between runs; the seed "
         "has to be recorded for a result to be reproducible")
+
+
+def test_the_stored_picture_never_exceeds_its_cap(coherence_study):
+    """The cross-wavelet step computed its own reduction factors by floor
+    division, the same bug `reduce.factor_for` had.
+
+    The reference study is 1024 samples against a 500-point cap: floor division
+    gives factor 2 and draws 512 -- over the cap, and every array in the file
+    is that wide. At 999 it gives factor 1 and draws all 999, twice the cap.
+    """
+    study, _ = coherence_study
+    path = os.path.join(study, "assets", "crosswavelet",
+                        "reference_crosswavelet_data.json")
+    with open(path) as fh:
+        payload = json.load(fh)
+    prov = payload["provenance"]
+    for key, entry in payload["crosswavelet_pairs"].items():
+        v = entry["visualization"]
+        assert len(v["time"]) <= prov["max_time_points"], (
+            f"{key} drew {len(v['time'])} time points against a cap of "
+            f"{prov['max_time_points']}")
+        assert len(v["period"]) <= prov["max_freq_points"], (
+            f"{key} drew {len(v['period'])} period rows against a cap of "
+            f"{prov['max_freq_points']}")
