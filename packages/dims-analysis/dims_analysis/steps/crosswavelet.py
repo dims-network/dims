@@ -19,6 +19,7 @@ from dims_analysis.common import coherence as _coh
 from dims_analysis.common import config as _config
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
+from dims_analysis.common import tc98 as _tc98
 import argparse
 from scipy import signal
 import warnings
@@ -483,24 +484,16 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
 
     return level
 
-#: Torrence & Compo (1998) eq. 31: for complex wavelets, nu = 2 and
-#: Z_2(95%) = 3.999. A real-valued wavelet would use Z_1(95%) = 2.182.
-Z2_95 = 3.999
+#: Torrence & Compo (1998) eq. 31 as printed: for complex wavelets, nu = 2 and
+#: Z_2(95%) = 3.999. A real-valued wavelet would use Z_1(95%) = 2.182. The code
+#: derives Z from eq. 30 instead of reading it from here -- the averaged tests
+#: need values at nu the paper does not tabulate -- and `common/tc98.py` says
+#: why. This stays as the published anchor the derivation is tested against.
+Z2_95 = _tc98.Z2_95_PUBLISHED
 
-
-def ar1_background(alpha, period, dt):
-    """The AR(1) Fourier spectrum, Torrence & Compo eq. 16.
-
-        P_k = (1 - a^2) / (1 + a^2 - 2a cos(2 pi k / N))
-
-    evaluated at the Fourier frequency each wavelet scale corresponds to. This
-    is the background both significance tests are against; multiplying it by
-    chi2_2(0.95)/2 reproduces `pycwt.significance` exactly, which is how it was
-    checked.
-    """
-    frequency = dt / np.asarray(period, dtype=float)
-    return ((1 - alpha ** 2)
-            / (1 + alpha ** 2 - 2 * alpha * np.cos(2 * np.pi * frequency)))
+#: Re-exported so a reader of this step, and the reference tests, find the
+#: significance maths where it is used as well as where it is defined.
+ar1_background = _tc98.ar1_background
 
 
 def cross_wavelet_significance(alpha1, alpha2, period, dt,
@@ -511,7 +504,7 @@ def cross_wavelet_significance(alpha1, alpha2, period, dt,
 
     This is **not** the single-spectrum level of eq. 18, and using that one
     here is the defect this replaces. Two things differ: the constant is
-    Z_2(95%)/2 = 1.9995 rather than chi2_2(95%)/2 = 2.9957, and the background
+    Z_2(95%)/2 = 1.9993 rather than chi2_2(95%)/2 = 2.9957, and the background
     is the geometric mean of the two series' own spectra rather than one
     spectrum evaluated at the mean of their two coefficients.
 
@@ -521,19 +514,11 @@ def cross_wavelet_significance(alpha1, alpha2, period, dt,
     `sig95_xwt` was that much too small -- and the cross-wavelet tab draws a
     phase arrow only where it exceeds 1, so it drew far too few.
 
-    `significance_level` is accepted for symmetry with pycwt but only 0.95 has
-    a published Z; anything else raises rather than quietly using the wrong
-    constant.
+    The implementation is `tc98.local_significance`; this wrapper is the name
+    the step and its tests already use.
     """
     level = SIGNIFICANCE_LEVEL if significance_level is None else significance_level
-    if abs(level - 0.95) > 1e-9:
-        raise ValueError(
-            f"Torrence & Compo eq. 31 tabulates Z only at 95% (Z_2 = {Z2_95}); "
-            f"a {level:.0%} cross-wavelet level would need a value this "
-            f"implementation does not have.")
-    background = (ar1_background(alpha1, period, dt)
-                  * ar1_background(alpha2, period, dt))
-    return (Z2_95 / 2.0) * np.sqrt(background)
+    return _tc98.local_significance(alpha1, alpha2, period, dt, level)
 
 
 def compute_cross_wavelet_standard(data1, data2, time, dt,
@@ -685,28 +670,21 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # Global wavelet spectrum (time-averaged)
     global_power = power.mean(axis=1)
     
-    # KNOWN WRONG, and deliberately left so rather than half-corrected.
+    # The 95% level for that time-averaged spectrum. `global_power` is a mean of
+    # |W_x W_y*|, so it needs the cross-wavelet distribution of eq. 30 at the
+    # degrees of freedom time-averaging buys (eq. 23) -- not the single-spectrum
+    # chi-square, and not one spectrum at the mean of the two alphas, which is
+    # what this used to do. Both were the eq. 31 defect, one level up.
     #
-    # This is the same defect that eq. 31 fixed for the local spectrum: it
-    # applies a *single-spectrum* significance to a cross-wavelet quantity, and
-    # evaluates the background at the mean of the two alphas rather than
-    # combining the two spectra. `power` here is |W_x W_y*|.
-    #
-    # Torrence & Compo give eq. 31 only for the local spectrum; the
-    # time-averaged and scale-averaged cross-wavelet distributions are in
-    # Torrence & Webster (1999), which is not in examples/reference/. Guessing
-    # at them would be worse than the current state, which is at least
-    # recorded.
-    #
-    # Nothing reads either field -- grepped across dims-tabs and both studies'
-    # own tabs -- so this is stored, wrong, and unused. It should be corrected
-    # against that paper or removed; there is a test pinning the fact.
-    dof = N - scales
-    global_signif, _ = wavelet.significance(
-        1.0, dt, scales, 1, np.mean([alpha1, alpha2]),
-        significance_level=SIGNIFICANCE_LEVEL, dof=dof, wavelet=mother_wavelet
-    )
-    
+    # `N - scales` is the number of points averaged, reduced towards the long
+    # scales because those are increasingly inside the cone of influence. It is
+    # Torrence & Compo's own convention, kept so this stays comparable with
+    # their code and with pycwt's example.
+    n_averaged = N - scales
+    global_signif = _tc98.time_average_significance(
+        alpha1, alpha2, scales, dt, n_averaged, mother_wavelet,
+        level=SIGNIFICANCE_LEVEL)
+
     return {
         'W1': W1,
         'W2': W2,
@@ -1039,16 +1017,14 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
         scale_avg = power / scale_avg
         scale_avg_power = cwt_results['dj'] * dt / Cdelta * scale_avg[sel, :].sum(axis=0)
         
-        # Significance for scale-averaged power.
-        # KNOWN WRONG in the same way as global_signif above, and unread.
-        scale_avg_signif, _ = wavelet.significance(
-            1.0, dt, cwt_results['scales'], 2, 
-            np.mean([cwt_results['alpha1'], cwt_results['alpha2']]),
-            significance_level=SIGNIFICANCE_LEVEL,
-            dof=[cwt_results['scales'][sel[0]], cwt_results['scales'][sel[-1]]],
-            wavelet=cwt_results['mother']
-        )
-        
+        # The 95% level for it, eqs. 25-28 with the cross-wavelet distribution
+        # of eq. 30 in place of the chi-square -- the third and last place the
+        # eq. 31 defect lived.
+        scale_avg_signif = _tc98.scale_average_significance(
+            cwt_results['alpha1'], cwt_results['alpha2'],
+            cwt_results['scales'], dt, cwt_results['dj'], sel,
+            cwt_results['mother'], level=SIGNIFICANCE_LEVEL)
+
         if VERBOSE:
             print(f"  Scale-averaging band: {avg_period_min:.2f} - {avg_period_max:.2f}")
     else:

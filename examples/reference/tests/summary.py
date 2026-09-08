@@ -78,9 +78,34 @@ def recurrence_summary(entry) -> dict:
     }
 
 
+def _rounded(value, digits=6):
+    return None if value is None else round(float(value), digits)
+
+
+def _rounded_mean(values, digits=6):
+    return None if not values else round(float(np.nanmean(_vector(values))), digits)
+
+
+def _above(value, level):
+    if value is None or level is None:
+        return None
+    return bool(float(value) > float(level))
+
+
+def _fraction_above(values, levels, digits=6):
+    """Share of scales whose averaged power clears its own significance level.
+
+    This is the field's meaning: not the level, but the verdict it produces.
+    """
+    if not values or not levels:
+        return None
+    return round(float(np.mean(_vector(values) > _vector(levels))), digits)
+
+
 def coherence_summary(entry) -> dict:
     """One pair of a cross-wavelet payload."""
     vis = entry["visualization"]
+    statistics = entry.get("statistics") or {}
     coherence = _grid(vis["coherence"])
     period = np.asarray(vis["period"], dtype=float)
     coi = np.asarray(vis["coi"], dtype=float)
@@ -100,7 +125,7 @@ def coherence_summary(entry) -> dict:
         # into 0, which is the defect this pins.
         "mean_phase_rad": round(
             float(np.angle(np.nanmean(np.exp(1j * phase)))), 6),
-        "wtc_signif_fraction": entry["statistics"].get("wtc_signif_fraction"),
+        "wtc_signif_fraction": statistics.get("wtc_signif_fraction"),
         # The *power* significance, which is a different field answering a
         # different question -- and which the baseline was blind to until a
         # 1.5x change in it passed unnoticed. It is what the built-in tab gates
@@ -108,6 +133,23 @@ def coherence_summary(entry) -> dict:
         "mean_sig95_xwt": round(float(np.nanmean(_grid(vis["sig95_xwt"]))), 6),
         "sig95_xwt_above_one": round(
             float(np.nanmean(_grid(vis["sig95_xwt"]) > 1.0)), 6),
+        # The two *averaged* significances. They were unpinned for the same
+        # reason `sig95_xwt` was -- nothing reads them, so nothing noticed they
+        # used the wrong distribution. "Unread" is not a reason to leave a
+        # number unwatched; it is the reason a wrong one survives.
+        #
+        # Pinned as a *meaning* rather than a level: which periods a
+        # time-averaged spectrum calls significant, and whether the
+        # scale-averaged power clears its own bar. Those are what a reader
+        # would act on, and they move when either the distribution or the
+        # background does.
+        "global_power_above_signif": _fraction_above(
+            statistics.get("global_power"), statistics.get("global_signif")),
+        "mean_global_signif": _rounded_mean(statistics.get("global_signif")),
+        "scale_avg_signif": _rounded(statistics.get("scale_avg_signif")),
+        "scale_avg_power_above_signif": _above(
+            statistics.get("scale_avg_power_mean"),
+            statistics.get("scale_avg_signif")),
         "alpha1": entry.get("alpha1"),
         "alpha2": entry.get("alpha2"),
     }

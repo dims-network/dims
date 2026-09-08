@@ -379,7 +379,12 @@ def test_the_cross_wavelet_significance_follows_equation_31():
         expected = (TC_Z2_95 / 2) * np.sqrt(
             ar1_background(alpha1, period, dt) * ar1_background(alpha2, period, dt))
         actual = cw.cross_wavelet_significance(alpha1, alpha2, period, dt)
-        assert np.allclose(actual, expected, rtol=1e-6), (
+        # 1e-3 rather than machine precision, because the code integrates eq. 30
+        # for Z_2 (3.998522) instead of reading the paper's printed 3.999. It
+        # has to: the time-averaged test needs Z at values the paper does not
+        # tabulate, and one derivation used everywhere beats a two-row table.
+        # The gap between the two is 3.7e-4 relative -- four printed digits.
+        assert np.allclose(actual, expected, rtol=1e-3), (
             f"alpha=({alpha1}, {alpha2}): mean ratio "
             f"{float(np.mean(np.asarray(actual) / expected)):.4f} against eq. 31")
 
@@ -404,22 +409,145 @@ def test_the_cross_wavelet_level_is_not_the_single_spectrum_level():
         f"chi2_2(0.95)/Z_2(0.95) = {chi2.ppf(0.95, 2) / TC_Z2_95:.4f}")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Known and unfixed. `global_signif` and `scale_avg_signif` apply a "
-    "single-spectrum significance to a cross-wavelet quantity and evaluate the "
-    "background at the mean of the two alphas -- the same defect eq. 31 fixed "
-    "for the local spectrum. Torrence & Compo give eq. 31 only for the local "
-    "case; the time- and scale-averaged cross-wavelet distributions are in "
-    "Torrence & Webster (1999), which is not in this directory, and guessing "
-    "would be worse than a recorded wrong. Nothing reads either field, so this "
-    "is stored, wrong and unused: correct it against that paper, or delete it."))
-def test_the_averaged_significances_use_the_cross_wavelet_distribution():
-    """The two siblings of the eq. 31 defect, pinned so they are not forgotten.
+# --- the distribution itself, eq. 30 -----------------------------------------
+#
+# Eq. 31 tabulates Z at nu = 1 and 2 only, and for a while that was taken to
+# mean the averaged tests could not be fixed without Torrence & Webster (1999).
+# It was wrong: eq. 30 is stated for general nu, so the whole family follows
+# from this paper. These tests are what establishes that.
+
+#: Eq. 31, printed: Z_1(95%) = 2.182 for real wavelets, Z_2 = 3.999 for complex.
+TC_Z1_95 = 2.182
+
+
+def test_equation_30_is_a_probability_density():
+    """The transcription check: eq. 30 must integrate to 1 at every nu.
+
+    A misread exponent or a dropped Gamma would still produce a plausible
+    curve and a plausible-looking Z; it would not integrate to 1.
+    """
+    from scipy import integrate
+
+    from dims_analysis.common import tc98
+
+    for nu in (1, 2, 3, 4.5, 8, 20, 60):
+        total, _err = integrate.quad(tc98.cross_wavelet_pdf, 0, np.inf,
+                                     args=(nu,), limit=300)
+        assert abs(total - 1.0) < 1e-9, f"eq. 30 at nu = {nu} integrates to {total}"
+
+
+def test_the_derived_z_reproduces_both_published_values():
+    """Z_1 and Z_2 are the only two values the paper prints, and the derivation
+    has to land on both before it can be trusted at a nu it does not print."""
+    from dims_analysis.common import tc98
+
+    assert abs(tc98.cross_wavelet_z(1) - TC_Z1_95) < 5e-4, (
+        f"Z_1(95%) = {tc98.cross_wavelet_z(1):.5f}, paper gives {TC_Z1_95}")
+    assert abs(tc98.cross_wavelet_z(2) - TC_Z2_95) < 5e-4, (
+        f"Z_2(95%) = {tc98.cross_wavelet_z(2):.5f}, paper gives {TC_Z2_95}")
+
+
+def test_the_fast_survival_agrees_with_integrating_equation_30():
+    """Two independent routes to the same probability.
+
+    The analysis cannot integrate eq. 30 directly -- `z^(nu-1)` overflows above
+    nu = 60 and the time-averaged test reaches nu = 431 -- so it integrates the
+    equivalent product form instead. Where both can run, they must agree.
+    """
+    from dims_analysis.common import tc98
+
+    for nu in (1, 2, 4, 16, 60):
+        for z in (0.5, 2.0, float(nu), float(nu) * 1.5):
+            fast = tc98.survival(z, nu)
+            direct = tc98.survival_by_quadrature(z, nu)
+            assert abs(fast - direct) < 2e-7, (
+                f"nu = {nu}, z = {z}: {fast:.12f} vs {direct:.12f}")
+
+
+def test_more_averaging_lowers_the_level():
+    """Z_nu/nu falls monotonically: averaging buys degrees of freedom, and a
+    level that did not respond to that would make long averages look
+    significant when they are not."""
+    from dims_analysis.common import tc98
+
+    nus = np.array([2, 4, 8, 16, 32, 64, 128, 431.0])
+    ratios = tc98.cross_wavelet_z(nus) / nus
+    assert np.all(np.diff(ratios) < 0), f"Z_nu/nu is not decreasing: {ratios}"
+    assert ratios[0] > 1.99 and ratios[-1] < 1.1
+
+
+# --- the two averaged levels, against pycwt with chi2 substituted ------------
+
+def test_the_time_averaged_level_matches_pycwt_when_chi2_is_substituted():
+    """The oracle for eq. 23: everything except the distribution must agree.
+
+    The cross-wavelet time-averaged test differs from `pycwt`'s single-spectrum
+    one in exactly two places -- Z_nu for chi2_nu, and sqrt(P^X P^Y) for one
+    spectrum. Put chi2 back and give it one spectrum twice, and the two must be
+    the same number. That pins the degrees of freedom, the scale axis and the
+    background, leaving only the distribution as this project's own claim.
+    """
+    from unittest import mock
+
+    from scipy.stats import chi2
+
+    from dims_analysis.common import tc98
+
+    n, alpha = 512, 0.7
+    _W, scales, _freqs, _coi, _fft, _f = transform(sine(n))
+    n_averaged = n - scales
+
+    with mock.patch.object(tc98, "cross_wavelet_z",
+                           lambda nu, level=0.95: chi2.ppf(level, np.asarray(nu, float))):
+        ours = tc98.time_average_significance(alpha, alpha, scales, DT,
+                                              n_averaged, MOTHER)
+    theirs, _ = pycwt.significance(1.0, DT, scales, 1, alpha,
+                                   dof=n - scales, wavelet=MOTHER)
+    assert np.allclose(ours, theirs, rtol=1e-12), (
+        f"max relative difference {np.max(np.abs(ours / theirs - 1)):.3e}")
+
+
+def test_the_scale_averaged_level_matches_pycwt_when_chi2_is_substituted():
+    """The same oracle for eqs. 25-28, including the S_avg that cancels.
+
+    The stored quantity is the scale-averaged power itself, so the S_avg of
+    eq. 25 appears twice and drops out. Getting that rearrangement wrong would
+    scale the level by the width of the band -- invisible at one band, wrong at
+    every other.
+    """
+    from unittest import mock
+
+    from pycwt.helpers import find
+    from scipy.stats import chi2
+
+    from dims_analysis.common import tc98
+
+    n, alpha = 512, 0.7
+    _W, scales, freqs, _coi, _fft, _f = transform(sine(n))
+    period = 1.0 / freqs
+
+    for lo, hi in ((0.2, 2.0), (0.1, 0.5), (0.5, 5.0)):
+        sel = find((period >= lo) & (period <= hi))
+        with mock.patch.object(tc98, "cross_wavelet_z",
+                               lambda nu, level=0.95: chi2.ppf(level, np.asarray(nu, float))):
+            ours = tc98.scale_average_significance(alpha, alpha, scales, DT, DJ,
+                                                   sel, MOTHER)
+        theirs, _ = pycwt.significance(
+            1.0, DT, scales, 2, alpha,
+            dof=[scales[sel[0]], scales[sel[-1]]], wavelet=MOTHER)
+        assert abs(ours / float(theirs) - 1) < 1e-12, (
+            f"band {lo}-{hi} s: {ours:.12f} vs {float(theirs):.12f}")
+
+
+def test_the_averaged_levels_use_the_cross_wavelet_distribution():
+    """The two siblings of the eq. 31 defect, now fixed rather than recorded.
 
     A locally correct `sig95_xwt` beside a globally wrong `global_signif` in
     the same file is worse than either alone, because nothing in the payload
-    says which is which.
+    says which is which. Both are now measured against the same two claims eq.
+    31 makes: the cross-wavelet distribution, and the two series' own spectra.
     """
+    from dims_analysis.common import tc98
     from dims_analysis.steps import crosswavelet as cw
 
     n = 512
@@ -427,17 +555,19 @@ def test_the_averaged_significances_use_the_cross_wavelet_distribution():
     period = 1.0 / freqs
     alpha1, alpha2 = 0.9, 0.5
 
-    # What eq. 31's reasoning implies for an averaged quantity: the background
-    # is the geometric mean of the two spectra, whatever the constant becomes.
     combined = np.sqrt(cw.ar1_background(alpha1, period, DT)
                        * cw.ar1_background(alpha2, period, DT))
-    single = cw.ar1_background(float(np.mean([alpha1, alpha2])), period, DT)
+    ours = tc98.time_average_significance(alpha1, alpha2, scales, DT,
+                                          n - scales, MOTHER)
+    nu = tc98.time_average_dof(n - scales, scales, DT, MOTHER.gamma)
+    assert np.allclose(ours, combined * tc98.cross_wavelet_z(nu) / nu, rtol=1e-12), (
+        "the time-averaged level is not (Z_nu/nu) sqrt(P^X P^Y)")
 
-    global_signif, _ = pycwt.significance(
-        1.0, DT, scales, 1, float(np.mean([alpha1, alpha2])),
-        significance_level=0.95, dof=n - scales, wavelet=MOTHER)
-
-    implied = np.asarray(global_signif) / single
-    assert np.allclose(np.asarray(global_signif) / combined, implied, rtol=0.02), (
-        "global_signif is built on the mean-alpha spectrum rather than the "
-        "geometric mean of the two")
+    # And it is a *different* number from what was stored before, in both the
+    # ways it should be: the distribution and the background.
+    was, _ = pycwt.significance(1.0, DT, scales, 1, float(np.mean([alpha1, alpha2])),
+                                dof=n - scales, wavelet=MOTHER)
+    ratio = np.asarray(was) / ours
+    assert 1.1 < float(np.mean(ratio)) < 1.6, (
+        f"the corrected level should sit well below the old one; mean ratio "
+        f"{float(np.mean(ratio)):.4f}")

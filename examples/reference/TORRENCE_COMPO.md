@@ -90,20 +90,73 @@ On the reference study the share of cells the built-in tab would call
 significant went from 3.13 % to 9.10 % once corrected — it was drawing about a
 third of the phase arrows it should.
 
-### Two siblings, still wrong
+## Eq. 30 — where Z_ν comes from, at any ν
 
-The same mistake is in `global_signif` (crosswavelet.py:690) and
-`scale_avg_signif` (:1028), which apply single-spectrum significance to
-cross-wavelet quantities and use the mean of the two α. They are **not** fixed:
-the paper gives eq. 31 only for the *local* spectrum, and the time- and
-scale-averaged cross-wavelet distributions are in Torrence & Webster (1999),
-which is not in this directory. Guessing at them would be worse than a recorded
-wrong.
+Eq. 31 prints Z only at ν = 1 and 2, and for one commit that was taken to mean
+the two *averaged* significance levels could not be corrected without Torrence
+& Webster (1999). **That was wrong**, and the correction is worth stating
+plainly because it turned two recorded defects into two fixes.
 
-Nothing reads either field — checked across `dims-tabs/` and both studies' own
-tabs — so they are computed, stored, and unused. Either correct them against
-that paper or delete them. `test_wavelet_reference.py` carries an
-`xfail(strict=True)` so the decision cannot quietly lapse.
+Immediately above eq. 31, the paper gives the distribution itself, for general
+ν:
+
+    f_ν(z) = 2^(2−ν) / Γ²(ν/2) · z^(ν−1) · K₀(z)                        (30)
+
+"where z is the random variable, Γ is the Gamma function, and K₀ is the
+modified Bessel function of order zero. The cumulative distribution function is
+given by the integral p = ∫₀^{Z_ν(p)} f_ν(z) dz […] Given a probability p, this
+integral can be inverted to find the confidence level Z_ν(p)."
+
+So Z_ν is *defined* by an integral the paper tells you to invert, at whatever ν
+you have. Doing exactly that reproduces both printed values:
+
+| | derived | paper |
+|---|---|---|
+| Z₁(95 %) | 2.18195 | **2.182** |
+| Z₂(95 %) | 3.99852 | **3.999** |
+
+and continues past them, with Z_ν/ν falling as averaging buys degrees of
+freedom:
+
+| ν | 2 | 4 | 8 | 16 | 32 | 128 | 431 |
+|---|---|---|---|---|---|---|---|
+| Z_ν/ν | 1.999 | 1.768 | 1.564 | 1.406 | 1.290 | 1.146 | 1.079 |
+| χ²_ν/ν | 2.996 | 2.372 | 1.938 | 1.644 | 1.444 | 1.214 | 1.115 |
+
+The second row is what the code used to use, at every one of those ν.
+
+`common/tc98.py` holds this. It integrates the equivalent product form —
+z = √(XY) for independent χ²_ν, which is what eq. 30 is derived from — because
+eq. 30 written out overflows double precision above ν = 60 and the
+time-averaged test reaches ν = 431. Both routes are computed and compared
+wherever both can run.
+
+### The two siblings, now fixed
+
+**`global_signif`** — the time-averaged spectrum. Degrees of freedom from
+eq. 23, ν = 2√(1 + (n_a δt / γs)²), with γ = 2.32 from Table 2 and n_a the
+number of points averaged, reduced toward long scales for the cone of
+influence.
+
+**`scale_avg_signif`** — the scale-averaged power, eqs. 25–28. ν comes from
+eq. 28, ν = (2 n_a S_avg / S_mid)·√(1 + (n_a δj / δj₀)²) with δj₀ = 0.60, and
+the level is eq. 26 with √(P^X_j P^Y_j) substituted for P_j in eq. 27. The
+S_avg of eq. 25 appears on both sides and cancels.
+
+How it is checked: substitute χ²_ν back for Z_ν and give the function one
+spectrum twice, and it must reproduce `pycwt.significance` — to 1e-12, measured.
+That pins the degrees of freedom, the scale axis and the background against an
+independent implementation, leaving only the distribution as this project's own
+claim, and that is what the paper's two printed values pin.
+
+Measured effect on the reference study: the time-averaged level was **1.32–1.37×
+too high**, the scale-averaged **1.267×**. For the one genuinely coupled pair
+the verdict moved — the share of periods whose time-averaged cross-power clears
+its own level went from 4.59 % to 8.26 %.
+
+Nothing reads either field yet — checked across `dims-tabs/` and both studies'
+own tabs. They are still computed and stored, now correctly; "unread" is why a
+wrong number survives, not a reason to leave one.
 
 ## What this paper does **not** cover
 
