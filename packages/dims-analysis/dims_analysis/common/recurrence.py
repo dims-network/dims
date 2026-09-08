@@ -43,14 +43,57 @@ def threshold_for_target(distance_matrix, target_recurrence: float,
     return float(np.percentile(values, target_recurrence * 100))
 
 
+#: How far the achieved recurrence rate may sit from the target before it is
+#: worth saying so. DET and LAM depend strongly on the rate, so two recordings
+#: analysed at materially different rates are not comparable -- and that is a
+#: fact about the data, not an error, so it is reported rather than raised.
+RATE_TOLERANCE = 0.01
+
+
+def rate_report(target: float, achieved: float, tolerance: float = RATE_TOLERANCE):
+    """`(target, achieved, warning-or-None)` for the payload.
+
+    The threshold is a percentile of the distance matrix, so a signal with many
+    exactly-equal distances lands on a plateau and the target cannot be hit.
+    That is common in real data -- a game piece at rest, a quantised sensor --
+    and it went unrecorded: an ORTHO series reached 12.7% against a 7% target,
+    and a signal quantised to four levels reaches 33.7%, both silently.
+    """
+    target = float(target)
+    achieved = float(achieved)
+    if abs(achieved - target) <= tolerance:
+        return target, achieved, None
+    return target, achieved, (
+        f"the threshold could not reach the {target:.1%} target; this analysis "
+        f"is at {achieved:.1%}. Many exactly-equal distances (a quantised or "
+        f"partly-still signal) put the percentile on a plateau. Metrics that "
+        f"depend on the recurrence rate, DET and LAM among them, are not "
+        f"comparable with a recording analysed at {target:.1%}.")
+
+
 def recurrence_rate(matrix, self_paired: bool) -> float:
-    """Share of the non-trivial cells that are recurrent."""
+    """Share of the non-trivial cells that are recurrent.
+
+    `self_paired` says the matrix has a line of identity -- every point recurs
+    with itself -- which is not a finding and is removed from both the count
+    and the total. That subtraction is only valid if the line is actually
+    there, and when it is not the result goes **negative**: a constant signal
+    once produced -0.000977517, which is -n/(n^2-n), and it reached a dashboard
+    caption. A negative share of cells is not a small error to tolerate, it is
+    a sign that the input is not a recurrence matrix, so this says so.
+    """
     m = np.asarray(matrix)
     total = m.size
     count = float(np.sum(m))
     if self_paired:
         n = m.shape[0]
-        count -= n           # the line of identity: every point recurs with itself
+        if count < n:
+            raise ValueError(
+                f"self_paired says every point recurs with itself, so a "
+                f"{n}x{n} matrix must have at least {n} recurrent cells; this "
+                f"one has {count:.0f}. Either the matrix is not a recurrence "
+                f"matrix, or it was built from a signal with no variance.")
+        count -= n
         total -= n
     return float(count / total) if total > 0 else 0.0
 

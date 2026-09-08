@@ -65,6 +65,21 @@ def round_payload(obj, figures: int = PAYLOAD_SIGNIFICANT_FIGURES):
     return round_significant(obj, figures)
 
 
+def provenance(**extra) -> dict:
+    """What produced this file, recorded in it.
+
+    An output that does not say how it was made cannot be compared with
+    another. Two real cases: a study computed partly at 100 surrogates and
+    partly at 300 was silently inconsistent because the count was nowhere in
+    the payload; and a recurrence analysis that reached 33.7% against a 7%
+    target looked identical to one that was asked for 33.7%.
+    """
+    from dims_analysis import __version__
+    out = {"core_version": __version__}
+    out.update({k: v for k, v in extra.items() if v is not None})
+    return out
+
+
 def precision_note(figures: int = PAYLOAD_SIGNIFICANT_FIGURES) -> dict:
     """The block every output carries, so the file describes its own precision."""
     return {

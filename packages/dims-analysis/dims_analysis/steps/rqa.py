@@ -17,6 +17,8 @@ import os
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
 from dims_analysis.common import config as _config
+from dims_analysis.common import limits as _limits
+from dims_analysis.common import payload as _payload
 from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
@@ -34,6 +36,12 @@ INPUT_DIR = 'assets/timeseries'
 
 # Fewer points than this cannot support a recurrence estimate worth drawing.
 MIN_DATA_POINTS = 10
+
+#: The recurrence rate the threshold search aims for.
+TARGET_RECURRENCE = 0.07
+
+#: The largest recurrence plot written into a browser payload, per side.
+MAX_POINTS_DRAWN = 500
 
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
@@ -70,7 +78,14 @@ except ImportError:  # standalone script inside a case repo, without the package
 
 
 
-def calculate_recurrence_matrix(time_series, threshold=None, target_recurrence=0.07):
+def _provenance():
+    """What produced this file. See common/payload.py."""
+    return _payload.provenance(target_recurrence=TARGET_RECURRENCE,
+                               max_points_drawn=MAX_POINTS_DRAWN)
+
+
+def calculate_recurrence_matrix(time_series, threshold=None,
+                                target_recurrence=TARGET_RECURRENCE):
     """
     Calculate recurrence matrix for a time series.
     
@@ -155,7 +170,8 @@ def matrix_to_sparse_format(matrix):
     
     return sparse_data
 
-def downsample_for_visualization(time_series, time_values, recurrence_matrix, max_points=500):
+def downsample_for_visualization(time_series, time_values, recurrence_matrix,
+                                 max_points=MAX_POINTS_DRAWN):
     """Reduce for the browser. Returns (data, time, matrix, factor).
 
     The series is block-averaged; the matrix keeps both its structure and its
@@ -191,9 +207,21 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     # One reader, shared with cRQA and the notebooks: canonical Time column,
     # NaNs dropped, sorted by time. This step did not sort, so on an
     # out-of-order CSV it and cRQA disagreed about what the data was.
-    loaded = _series.load_or_none(csv_path, min_points=MIN_DATA_POINTS)
+    # A constant series is refused here rather than producing a confident
+    # nothing: it used to normalise to NaN, fail every threshold comparison,
+    # and report recurrence_rate = -0.000977517.
+    loaded = _series.load_or_none(csv_path, min_points=_limits.MIN_POINTS,
+                                  min_variance=_limits.MIN_VARIANCE)
     time_clean, data_clean = loaded if loaded else (None, None)
     if data_clean is None:
+        return None
+
+    # Quadratic in the length of the recording, so the refusal comes before the
+    # allocation and names the limit. See common/limits.py.
+    try:
+        _limits.check_length(len(data_clean), f"{video_id} {data_type}")
+    except _limits.InputTooLarge as exc:
+        print(f"  [skip] {exc}")
         return None
 
     print(f"  Processing {len(data_clean)} data points")
@@ -215,10 +243,19 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     )
 
     # Prepare output data
+    target, achieved, rate_warning = _rec.rate_report(TARGET_RECURRENCE, rec_rate)
+    if rate_warning:
+        print(f"  WARNING: {rate_warning}")
+
     result = {
         'data_type': data_type,
         'threshold': float(threshold),
         'recurrence_rate': float(rec_rate),
+        # What was asked for, beside what was achieved. Without the first, a
+        # reader cannot tell a 33% rate from a deliberate choice.
+        'target_recurrence': target,
+        'achieved_recurrence': achieved,
+        'recurrence_rate_warning': rate_warning,
         'time_range': [float(time_clean[0]), float(time_clean[-1])],
         'windowed_metrics': windowed_metrics,
         'visualization': {
@@ -343,6 +380,7 @@ def main():
             kept = _results.write_payload(output_path, round_payload({
                 'video_id': video_id,
                 'rqa_data': rqa_results,
+                'provenance': _provenance(),
                 'precision': precision_note(),
             }))
             print(f"\nSaved RQA data to {output_path}")

@@ -220,12 +220,43 @@ def test_the_cache_returns_what_was_computed():
         "the cache is keyed on something it does not actually control")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "pycwt's rednoise() calls numpy.randn, removed in NumPy 2, on its g == 0 "
-    "branch. The AR(1) estimator clamps to [0, 0.95], so a signal with no "
-    "autocorrelation reaches it and loses its chance level -- caught and "
-    "warned about rather than crashing, but the field is then simply absent. "
-    "Clamping the lower bound just above zero fixes it; that is A1 work."))
 def test_a_signal_with_no_autocorrelation_still_gets_a_chance_level():
+    """pycwt's rednoise() takes a separate branch at exactly g == 0 and calls
+    numpy.randn, removed in NumPy 2. The AR(1) estimator used to clamp to
+    [0, 0.95], so white noise -- or anything alternating, which estimates
+    negative -- reached it, raised AttributeError, and quietly lost its
+    coherence null: caught and warned about, then simply absent afterwards.
+
+    The floor is 0.01 now. Measured across alpha 0.3 to 0.97 the 95% level
+    varies by 0.005, inside the Monte Carlo noise, so this changes no result.
+    """
+    from dims_analysis.steps.crosswavelet import AR1_MIN, _ar1_alpha
+
+    rng = np.random.default_rng(0)
+    for name, series in (("white noise", rng.standard_normal(500)),
+                         ("alternating", np.array([1.0, -1.0] * 250))):
+        alpha = _ar1_alpha(series)
+        assert alpha >= AR1_MIN, f"{name} estimated alpha {alpha}"
+
     lv = level(alpha1=0.0, alpha2=0.0, mc_count=20)
-    assert np.isfinite(lv).any(), "alpha = 0 produced no usable level at all"
+    assert np.isfinite(lv).any(), (
+        "a caller passing alpha = 0 got no usable level at all")
+
+
+def test_the_payload_records_the_surrogate_count_it_used(coherence_study):
+    """Absent before, so a study computed partly at 100 and partly at 300 was
+    silently inconsistent -- and nothing in the file could tell you."""
+    study, _ = coherence_study
+    path = os.path.join(study, "assets", "crosswavelet",
+                        "reference_crosswavelet_data.json")
+    with open(path) as fh:
+        prov = json.load(fh).get("provenance")
+    assert prov, "the cross-wavelet payload records nothing about its own making"
+    assert prov.get("mc_count") == 20, (
+        f"the reference study asks for 20 surrogates; the file says "
+        f"{prov.get('mc_count')}")
+    assert prov.get("core_version")
+    assert prov.get("significance_level") == 0.95
+    assert prov.get("wct_signif_seed") is not None, (
+        "an unseeded Monte Carlo varied by up to 0.04 between runs; the seed "
+        "has to be recorded for a result to be reproducible")

@@ -137,6 +137,14 @@ COHERENCE_NULL_CONSUMERS = ("include_network",)
 DEFAULT_MC_COUNT_WITH_CONSUMER = 100
 
 
+def _payload_provenance(config):
+    """Recorded per file: the core that produced it and the surrogate count."""
+    from dims_analysis.common.payload import provenance
+    return provenance(mc_count=mc_count_for(config),
+                      significance_level=SIGNIFICANCE_LEVEL,
+                      wct_signif_seed=WCT_SIGNIF_SEED)
+
+
 def mc_count_for(config):
     """How many surrogates to run, and it is a real decision, not a constant.
 
@@ -293,6 +301,17 @@ def load_and_prepare_timeseries(video_id, data_type, detrend=DETREND_DATA):
     
     return data_normalized, time_clean, dt, std, var
 
+#: The AR(1) coefficient is clamped into this range. The upper bound avoids
+#: >= 1, which breaks the significance test. The lower bound is **not** zero:
+#: pycwt's rednoise() takes a separate branch at exactly g == 0 that calls
+#: numpy.randn, removed in NumPy 2, so a signal with no autocorrelation raised
+#: AttributeError and silently lost its coherence null. 0.01 is inside the
+#: range where the null barely moves -- measured across alpha 0.3 to 0.97 the
+#: 95% level varied by 0.005, within the Monte Carlo noise -- so this changes
+#: no result, it only keeps the code out of a broken branch.
+AR1_MIN, AR1_MAX = 0.01, 0.95
+
+
 def _ar1_alpha(data):
     """Lag-1 autocorrelation (AR1 coefficient) for the red-noise significance test.
 
@@ -302,16 +321,13 @@ def _ar1_alpha(data):
     instead of crashing the whole step.
     """
     try:
-        return wavelet.ar1(data)[0]
+        alpha = float(wavelet.ar1(data)[0])
     except Exception:  # noqa: BLE001 — pycwt raises a bare Warning here
         x = np.asarray(data, dtype=float)
         x = x - np.mean(x)
         denom = np.sum(x * x)
-        if denom <= 0:
-            return 0.0
-        alpha = float(np.sum(x[:-1] * x[1:]) / denom)
-        # Keep it in a sane red-noise range (avoid >=1, which breaks significance).
-        return min(max(alpha, 0.0), 0.95)
+        alpha = 0.0 if denom <= 0 else float(np.sum(x[:-1] * x[1:]) / denom)
+    return min(max(alpha, AR1_MIN), AR1_MAX)
 
 # Monte Carlo coherence nulls are expensive and highly reusable, so they are
 # cached at two levels: in memory for this process, and on disk across runs.
@@ -372,6 +388,12 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
     Cost is independent of the recording length: pycwt sizes its own surrogates
     from the scale range, so a 2-minute and a 20-minute video pay the same.
     """
+    # Clamped here too, not only in _ar1_alpha: this is the function that hands
+    # coefficients to pycwt, whose rednoise() has a separate branch at exactly
+    # g == 0 calling numpy.randn, removed in NumPy 2. A caller passing 0
+    # deserves a level, not an AttributeError swallowed into a missing field.
+    alpha1 = min(max(float(alpha1), AR1_MIN), AR1_MAX)
+    alpha2 = min(max(float(alpha2), AR1_MIN), AR1_MAX)
     if mc_count is None:
         mc_count = WCT_SIGNIF_MC_COUNT
     mc_count = int(mc_count)
@@ -1222,7 +1244,8 @@ def main():
                         'detrend': DETREND_DATA,
                         'edge_taper': EDGE_TAPER
                     },
-                    'processing_info': {
+                    'provenance': _payload_provenance(config),
+        'processing_info': {
                         'pairs_computed': len(cwt_results),
                         'coi_excluded_from_stats': COI_EXCLUDE,
                         'visualization_resolution': f"{MAX_TIME_POINTS_VIZ}x{MAX_FREQ_POINTS_VIZ}"

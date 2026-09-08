@@ -13,6 +13,7 @@ four readers.
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 TIME = "Time"
@@ -30,11 +31,21 @@ def time_column(df) -> str | None:
     return None
 
 
-def load(path: str, min_points: int = 0, value_column: str | None = None):
+def load(path: str, min_points: int = 0, value_column: str | None = None,
+         min_variance: float | None = None):
     """Return (time, values) as float arrays: NaNs dropped, sorted by time.
 
     Raises SeriesError rather than returning a sentinel, so a caller cannot
     forget to check. Callers that want the old behaviour use load_or_none.
+
+    `min_variance` is stated by the caller, like `min_points`, because what
+    counts as too flat depends on the analysis. A recurrence or coherence
+    analysis needs some variation: both normalise by the standard deviation,
+    and a constant series divides by zero. Measured on a constant signal before
+    this check existed, RQA reported `recurrence_rate = -0.000977517` -- a
+    negative fraction of cells, from NaNs failing every threshold comparison so
+    the matrix came out empty and the line of identity was then subtracted from
+    zero. It reached the dashboard as a caption.
     """
     try:
         df = pd.read_csv(path)
@@ -61,10 +72,21 @@ def load(path: str, min_points: int = 0, value_column: str | None = None):
         raise SeriesError(
             f"{path} has {len(sub)} usable points, fewer than the {min_points} "
             f"this analysis needs")
-    return sub[TIME].values.astype(float), sub[value_column].values.astype(float)
+
+    values = sub[value_column].values.astype(float)
+    if min_variance is not None:
+        spread = float(np.std(values))
+        if spread <= min_variance:
+            raise SeriesError(
+                f"{path} column {value_column!r} does not vary (standard "
+                f"deviation {spread:g}); this analysis normalises by it and "
+                f"has nothing to measure. A stuck sensor or an all-zero export "
+                f"looks like this.")
+    return sub[TIME].values.astype(float), values
 
 
-def load_or_none(path: str, min_points: int = 0, prefix: str = "  "):
+def load_or_none(path: str, min_points: int = 0, prefix: str = "  ",
+                 min_variance: float | None = None):
     """load(), reporting the problem and returning None instead.
 
     For the steps, which continue to the next data type rather than stopping.
@@ -77,7 +99,7 @@ def load_or_none(path: str, min_points: int = 0, prefix: str = "  "):
     skip. A function whose name says None has to return None.
     """
     try:
-        return load(path, min_points)
+        return load(path, min_points, min_variance=min_variance)
     except SeriesError as exc:
         print(f"{prefix}Warning: {exc}")
         return None

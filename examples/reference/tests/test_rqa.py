@@ -183,12 +183,6 @@ def test_K4_the_target_recurrence_rate_is_reached_on_clean_signals(recurrence):
             f"{name} reached {rate:.4f} against a {TARGET_RATE} target")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Known, and the spec for the next step: measured on this study, a quantised "
-    "signal achieves 0.337 against a 0.07 target -- nearly five times over -- "
-    "and the payload records neither the target nor a warning. Remove this "
-    "marker when A5 lands; strict=True means it fails the moment it starts "
-    "passing, so the fix cannot go unnoticed."))
 def test_K4_an_unreachable_target_is_reported_not_silently_missed(recurrence):
     """A quantised signal has many exactly-equal distances, so the threshold
     lands on a plateau and the rate overshoots.
@@ -212,20 +206,18 @@ def test_K4_an_unreachable_target_is_reported_not_silently_missed(recurrence):
 
 # --- K7: a signal with no variance -------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Known, and worse than expected: a constant signal produces "
-    "recurrence_rate = -0.000977517. A negative rate is arithmetically "
-    "impossible for a fraction of cells -- it comes from subtracting the line "
-    "of identity from a count that is already zero -- and it reaches the "
-    "dashboard as a caption. Remove this marker when A1 lands."))
 def test_K7_a_constant_signal_has_a_stated_result(recurrence):
-    """Zero variance divides by zero in normalisation -- `rqa.py` has no guard
-    where `crqa.py` has an epsilon. The failure is silent: NaN throughout, then
-    `nan <= threshold` is False everywhere, so the matrix is empty and the rate
-    is 0, reported as a finding.
+    """A constant signal is refused, and the refusal says why.
 
-    Either the step refuses this input, or it produces something documented. It
-    must not produce a confident zero.
+    It used to divide by zero in normalisation -- `rqa.py` had no guard where
+    `crqa.py` had an epsilon -- giving NaN throughout. `nan <= threshold` is
+    False everywhere, so the matrix came out empty, and subtracting the line of
+    identity from a count of zero produced **recurrence_rate =
+    -0.000977517**: a negative share of cells, on a dashboard caption.
+
+    Now `series.load` requires the caller's stated minimum variance and
+    `recurrence_rate` refuses a matrix with no line of identity, so neither the
+    cause nor the symptom can recur.
     """
     study, out = recurrence
     path = os.path.join(study, "assets", "rqa", "reference_rqa_data.json")
@@ -275,3 +267,38 @@ def test_K8_the_drawn_picture_never_exceeds_its_cap(recurrence):
             assert size <= 500, f"{analysis}/{name} drew a {size}-point matrix"
 
 
+
+
+# --- what produced this file -------------------------------------------------
+
+def test_the_payload_records_what_produced_it(recurrence):
+    """An output that does not say how it was made cannot be compared to
+    another. Two real cases: a study computed partly at 100 surrogates and
+    partly at 300 was silently inconsistent because the count appeared nowhere;
+    and an analysis that *reached* 33.7% looked identical to one that was
+    *asked for* 33.7%.
+    """
+    study, _ = recurrence
+    for analysis, container in (("rqa", "rqa_data"), ("crqa", "crqa_data")):
+        path = os.path.join(study, "assets", analysis,
+                            f"reference_{analysis}_data.json")
+        with open(path) as fh:
+            payload = json.load(fh)
+        prov = payload.get("provenance")
+        assert prov, f"{analysis} records nothing about what produced it"
+        assert prov.get("core_version"), f"{analysis} has no core version"
+        assert prov.get("target_recurrence") == TARGET_RATE
+        assert prov.get("max_points_drawn") == 500
+
+
+def test_each_entry_records_the_rate_asked_for_and_the_rate_reached(recurrence):
+    study, _ = recurrence
+    for name in ("sine", "noise_a", "quantised"):
+        e = entry(study, "rqa", "rqa_data", name)
+        assert e["target_recurrence"] == TARGET_RATE
+        assert abs(e["achieved_recurrence"] - e["recurrence_rate"]) < 1e-9
+        # The warning is present exactly when the target was missed.
+        missed = abs(e["achieved_recurrence"] - TARGET_RATE) > 0.01
+        assert bool(e["recurrence_rate_warning"]) == missed, (
+            f"{name}: achieved {e['achieved_recurrence']:.4f} against "
+            f"{TARGET_RATE}, warning={e['recurrence_rate_warning']!r}")

@@ -34,6 +34,8 @@ import os
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
 from dims_analysis.common import config as _config
+from dims_analysis.common import limits as _limits
+from dims_analysis.common import payload as _payload
 from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
 from dims_analysis.common import recurrence as _rec
@@ -183,9 +185,15 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
     except Exception as e:
         print(f"  [Error] Failed to read CSVs: {e}")
         return None, None, None
-    if t1 is None or t2 is None or len(t1) < 10 or len(t2) < 10:
+    if t1 is None or t2 is None or len(t1) < _limits.MIN_POINTS \
+            or len(t2) < _limits.MIN_POINTS:
         print("  [Error] Insufficient or malformed data in one of the series.")
         return None, None, None
+    for name, values in (("first", v1), ("second", v2)):
+        if float(np.std(values)) <= _limits.MIN_VARIANCE:
+            print(f"  [Error] The {name} series does not vary; there is nothing "
+                  f"to measure against it.")
+            return None, None, None
 
     # Common overlapping time range, sampled on a uniform grid at the finer of the
     # two median sampling intervals.
@@ -203,6 +211,14 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
     if n < 10:
         print(f"  [Error] Insufficient overlapping samples ({n}).")
         return None, None, None
+    # The grid takes the finer of the two sampling intervals, so a pair can be
+    # far longer than either series -- and the matrix is quadratic in it.
+    try:
+        _limits.check_length(n, "this pair on its common grid")
+    except _limits.InputTooLarge as exc:
+        print(f"  [skip] {exc}")
+        return None, None, None
+
     common_time = t_start + np.arange(n) * dt
 
     raw_s1 = np.interp(common_time, t1, v1)
@@ -381,6 +397,8 @@ def main():
             output_path = os.path.join(args.output_dir, f"{vid}_crqa_data.json")
             kept = _results.write_payload(output_path, round_payload(
                 {'video_id': vid, 'crqa_data': video_results,
+                 'provenance': _payload.provenance(
+                     target_recurrence=0.07, max_points_drawn=MAX_POINTS),
                  'precision': precision_note()}))
             print(f"\nSaved cRQA data to {output_path}")
             for key, names in kept.get('kept', {}).items():
