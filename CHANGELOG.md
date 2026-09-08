@@ -85,6 +85,31 @@ recurrence analyses carry their full-resolution signal in their single file.
   95.3 s against 37.1 s on the reference study with a cold null cache.
 - The cross-wavelet tab reports what share of cells beat chance, or says the
   null was not computed and names the setting that would produce it.
+- **The builder is rebuilt around the core it lives beside.** It no longer asks
+  where to fetch the dashboard from — there is one scaffold, in this repository.
+  It asks who may see the data and installs the guards that answer implies, can
+  reopen a study you built earlier, loads a two-session example study in one
+  click, and reaches every config key a built-in tab or shared analysis reads.
+- **`analysis.rqa` and `analysis.crqa` are read.** The schema has documented
+  `window` and `step` for as long as the tuning block has existed and neither
+  recurrence step read them; the window was a command-line flag the step adapter
+  never passed. `targetRecurrence` joins them.
+- **`dims-case check` verifies the study's own assets**, so bumping without
+  rebuilding fails in CI rather than in a browser, and warns when a study-owned
+  tab shadows a built-in.
+
+### Upgrading
+
+A study bumps with `dims-case sync . --version 2.0.0`, then **rebuilds**:
+`python build_assets.py` and `dims-analysis manifest`. `dims-case check` will
+tell you if you forgot.
+
+A study carrying its own `tabs/network.js` must delete it — the cross-effector
+network is a built-in now, two tabs cannot share an id, and the built-in wins.
+Set `include_network` with `groups` to keep the grouping that tab had.
+
+What each of the three studies actually needed, what it cost and what surprised
+us is in [`docs/migrations/v2.0.0.md`](docs/migrations/v2.0.0.md).
 
 ## v1.5.2
 
