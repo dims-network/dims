@@ -164,3 +164,90 @@ def test_K6_the_fraction_excludes_the_cone_of_influence(coherence_study):
     assert abs(reported - without) < 0.01, (
         f"the reported fraction {reported:.4f} matches the with-cone figure "
         f"{with_cone:.4f} rather than the without-cone figure {without:.4f}")
+
+
+# --- the Monte Carlo itself, not only its effect -----------------------------
+#
+# The tests above check that the chance level is *calibrated*: signals drawn
+# from the null exceed it 5 % of the time. That is the property that matters,
+# and it is not sufficient on its own -- a function returning a constant 0.60
+# would pass it, because 0.60 happens to be about the right height. These check
+# that the level is computed rather than guessed.
+
+import pycwt                                                    # noqa: E402
+from dims_analysis.steps import crosswavelet as cw              # noqa: E402
+
+MOTHER = pycwt.wavelet.Morlet(6)
+DT, DJ = 0.02, 1 / 12
+S0 = 2 * DT
+SCALES = 60
+MC = 100
+
+
+def level(alpha1=0.9, alpha2=0.9, n_scales=SCALES, mc_count=MC):
+    cw._WCT_SIGNIF_CACHE.clear()
+    out = cw._wct_significance_level(alpha1, alpha2, DT, DJ, S0, n_scales,
+                                     MOTHER, mc_count=mc_count)
+    return np.asarray(out, dtype=float)
+
+
+def test_the_chance_level_has_the_shape_the_method_predicts():
+    """It is not flat, and where it rises is not arbitrary.
+
+    Fewer independent cycles fit at the extremes of the scale range, so two
+    unrelated signals look more coherent there and the level has to be higher.
+    Measured at 200 surrogates: 0.657 over the shortest quarter of the scales,
+    0.584 across the middle half, 0.636 over the longest quarter.
+
+    This is the test a stub returning a plausible constant fails, and the
+    calibration tests above do not.
+    """
+    lv = level()
+    quarter = len(lv) // 4
+    short, middle, long_ = (np.nanmean(lv[:quarter]),
+                            np.nanmean(lv[quarter:3 * quarter]),
+                            np.nanmean(lv[3 * quarter:]))
+    assert short > middle + 0.02, f"short scales {short:.4f} vs middle {middle:.4f}"
+    assert long_ > middle + 0.02, f"long scales {long_:.4f} vs middle {middle:.4f}"
+
+
+def test_the_chance_level_is_reproducible():
+    """`WCT_SIGNIF_SEED` exists because it was not.
+
+    Before the seed was fixed, repeated runs on identical data disagreed by up
+    to 0.04 on the level -- enough to move a borderline finding. Seeding makes
+    it reproducible, which is not the same as accurate, and only this asserts
+    the seeding still works.
+    """
+    first, second = level(mc_count=40), level(mc_count=40)
+    assert np.allclose(first, second, equal_nan=True), (
+        f"two runs with the same inputs differ by up to "
+        f"{np.nanmax(np.abs(first - second)):.4f}")
+
+
+def test_the_cache_returns_what_was_computed():
+    """The cache key rounds the AR(1) coefficients to two decimals on purpose,
+    so near-identical pairs share a result. That is a deliberate trade and it
+    is only safe if what comes back is what would have been computed."""
+    fresh = level(alpha1=0.90, alpha2=0.90, mc_count=40)
+    cached = cw._wct_significance_level(0.90, 0.90, DT, DJ, S0, SCALES,
+                                        MOTHER, mc_count=40)
+    assert np.allclose(fresh, np.asarray(cached, dtype=float), equal_nan=True)
+
+    # And the rounding it relies on: 0.902 and 0.897 both round to 0.90.
+    near = cw._wct_significance_level(0.902, 0.897, DT, DJ, S0, SCALES,
+                                      MOTHER, mc_count=40)
+    assert np.allclose(fresh, np.asarray(near, dtype=float), equal_nan=True), (
+        "coefficients that round to the same key returned different levels, so "
+        "the cache is keyed on something it does not actually control")
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "pycwt's rednoise() calls numpy.randn, removed in NumPy 2, on its g == 0 "
+    "branch. The AR(1) estimator clamps to [0, 0.95], so a signal with no "
+    "autocorrelation reaches it and loses its chance level -- caught and "
+    "warned about rather than crashing, but the field is then simply absent. "
+    "Clamping the lower bound just above zero fixes it; that is A1 work."))
+def test_a_signal_with_no_autocorrelation_still_gets_a_chance_level():
+    lv = level(alpha1=0.0, alpha2=0.0, mc_count=20)
+    assert np.isfinite(lv).any(), "alpha = 0 produced no usable level at all"

@@ -32,7 +32,14 @@ The assertions live beside the data, one file per analysis:
 |---|---|
 | `tests/test_rqa.py` | recurrence, determinism, the achieved rate, a constant signal |
 | `tests/test_crqa.py` | the known lag, 20 samples off the diagonal |
-| `tests/test_crosswavelet.py` | the known phase, and the chance level |
+| `tests/test_crosswavelet.py` | the known phase, the chance level, and the Monte Carlo that produces it |
+
+The cross-wavelet file tests the simulation two ways, and both are needed. That
+it is **calibrated** — signals drawn from the null exceed the 95 % level in 5 %
+of cells — and that it is **computed**: the level rises at both ends of the
+scale range, where fewer independent cycles fit, so a stub returning a
+plausible constant fails. Checked: a constant passes the calibration tests and
+fails the shape test.
 
 Each names the defect it would have caught. Two are `xfail(strict=True)` today — they are the
 specification for work that has not landed yet, and strictness means they fail
