@@ -11,9 +11,11 @@ venv/
 # media sitting untracked in the working tree, one `git add -A` from a
 # commit.
 dims_builder/_staging/
-app/_state.json
 
-# generated dashboard projects (don't commit user output)
+# Studies the wizard generated while someone was trying it out. Names a
+# person would plausibly use for a throwaway output folder -- never a
+# directory this repository has, which is what `test/` used to risk: it
+# would have silently swallowed apps/builder/test/ had anyone made one.
 output/
-test/
+my-study/
 *.local
