@@ -95,7 +95,7 @@ def test_the_coupling_structure_is_recovered(network):
 
 def test_the_null_has_one_entry_per_period_row(network):
     """A length mismatch makes the step drop `sig95_wtc` entirely, and the tab
-    then falls back to `sig95_xwt` -- cross-wavelet *power* significance, which
+    then falls back to the power significance `signif_xwt` -- which
     answers "was there a lot of energy here?" and is not a test of coupling at
     all. The fallback exists so old files still render; it must not be reached
     by a file written today."""

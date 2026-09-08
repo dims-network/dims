@@ -22,7 +22,8 @@ Every value has to be read against a null. That is what `sig95_wtc` is for.
 ## The null, and how it is obtained
 
 For wavelet **power** there is an analytic significance level (Torrence & Compo
-1998), stored as `sig95_xwt`. For **coherence** no closed form is available, so
+1998, eq. 31), stored per scale as `signif_xwt`. For **coherence** no closed
+form is available, so
 the level is estimated by simulation, following Grinsted, Moore & Jevrejeva
 (2004):
 
@@ -41,7 +42,7 @@ The level is not flat. It sits around 0.58–0.60 through the middle of a band
 and rises at both ends — above 0.7 at the extremes — where fewer independent
 cycles fit inside the record.
 
-### `sig95_wtc` and `sig95_xwt` are not interchangeable
+### `sig95_wtc` and `signif_xwt` are not interchangeable
 
 This is the trap that has caught this project once already, and it does not
 announce itself: both are arrays of the right shape, so using the wrong one
@@ -49,10 +50,10 @@ produces a plausible picture rather than an error.
 
 | field | tests | answers |
 |---|---|---|
-| `sig95_xwt` | cross-wavelet **power** against red noise | "is there unusually much joint energy here?" |
+| `signif_xwt` | cross-wavelet **power** against red noise | "is there unusually much joint energy here?" |
 | `sig95_wtc` | **coherence** against unrelated red noise | "is the timing relationship stronger than chance?" |
 
-`sig95_xwt` is not a test of coupling. Two people moving vigorously at the same
+`signif_xwt` is not a test of coupling. Two people moving vigorously at the same
 time have joint energy whether or not their movements are related.
 
 ### What the method assumes
