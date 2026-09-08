@@ -21,7 +21,8 @@ import sys
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "packages", "dims-case"))
 
-from dims_case.core import (          # noqa: E402
+from dims_case.core import (
+    shadowed_tabs, stale_assets,          # noqa: E402
     CORE_ROOT, RESTRICTED, SHARED_STEPS, SCAFFOLD, VENDOR,
     _core_version, _dir_hash, _install_private_bits, _register_study_tabs,
     _refresh_scaffold_files, _write_hooks, _write_index, _write_vendor,
@@ -164,6 +165,12 @@ def cmd_sync(args):
         json.dump(case, fh, indent=2)
         fh.write("\n")
     print(f"{case['case']}: {old} -> {case['dimsCore']}")
+    # Said at bump time, which is when the owner is deciding what to do about
+    # it -- rather than at check time, by which point they have moved on.
+    for msg in shadowed_tabs(dest):
+        print(f"  note: {msg}")
+    for msg in stale_assets(dest):
+        print(f"  note: {msg}")
     return 0
 
 
@@ -176,10 +183,19 @@ def cmd_check(args):
     dest = os.path.abspath(args.path)
     case = json.load(open(os.path.join(dest, "dims-case.json")))
     problems = verify_vendor(dest, strict=args.release)
+    # A study's committed outputs are part of what makes it consistent with the
+    # core it pins. Bumping without rebuilding is the failure v2.0.0 warns
+    # about, and until this ran the only place it surfaced was a browser.
+    problems += stale_assets(dest)
     for msg in problems:
         print(f"::error::{msg}")
     if problems:
         return 1
+
+    # Not an error: a shadowed tab still leaves a working dashboard, it just
+    # leaves the study carrying a file that does nothing.
+    for msg in shadowed_tabs(dest):
+        print(f"warning: {msg}")
 
     # A private study's hooks are tracked, but git does not run them until the
     # clone opts in -- and forgetting is silent, which is the one thing a guard

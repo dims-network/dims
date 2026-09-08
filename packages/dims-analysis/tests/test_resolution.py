@@ -164,7 +164,14 @@ def test_json_carries_no_bare_nan():
     Asserted on the output rather than on the source, which is what it used to
     grep: the encoded grids carry NaN as float32 bits and never meet the JSON
     writer, and the readable axes go through `nan_to_none`. Only the result can
-    say whether both routes are covered."""
+    say whether both routes are covered.
+
+    The substring check ignores the base64 payloads, and that is not a
+    convenience -- it is the difference between a test and a coin toss. A bare
+    `NaN` is invalid JSON; the letters N, a and n inside a quoted base64 string
+    are not, and they turn up there by chance. Measured before this exclusion:
+    **5 failures in 400 runs**, none of them about anything.
+    """
     import json
 
     results = _cwt()
@@ -172,10 +179,20 @@ def test_json_carries_no_bare_nan():
     results["signif_xwt"][1] = np.nan
     results["coi"][2] = np.nan
     block = cw.downsample_for_storage(results, np.arange(100) * 0.02, np.ones(100))
+
+    # The whole file must parse -- that is the actual requirement.
     text = json.dumps(block)
-    assert "NaN" not in text and "Infinity" not in text, (
-        "a bare NaN token would make JSON.parse reject the whole payload")
     json.loads(text)
+
+    readable = json.dumps({k: v for k, v in block.items()
+                           if not (isinstance(v, dict) and "data" in v)})
+    assert "NaN" not in readable and "Infinity" not in readable, (
+        "a bare NaN token would make JSON.parse reject the whole payload")
+
+    # And the encoded grids really do still carry the undefined cell, rather
+    # than having lost it to a zero on the way.
+    from dims_analysis.common import arrays
+    assert np.isnan(arrays.unpack(block["coherence"])[0, 0])
 
 
 def test_statistics_survive_undefined_cells():

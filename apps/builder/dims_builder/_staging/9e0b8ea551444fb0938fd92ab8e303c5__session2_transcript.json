@@ -1,0 +1,34 @@
+{
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 1.8,
+      "speaker": "Researcher",
+      "text": "Let's look at the second session \u2014 three signals this time."
+    },
+    {
+      "start": 1.8,
+      "end": 3.8,
+      "speaker": "Participant",
+      "text": "Early on the body and neural signals are out of step."
+    },
+    {
+      "start": 3.8,
+      "end": 5.6,
+      "speaker": "Researcher",
+      "text": "And around four seconds?"
+    },
+    {
+      "start": 5.6,
+      "end": 7.0,
+      "speaker": "Participant",
+      "text": "They lock in \u2014 while gaze keeps its own slower rhythm."
+    },
+    {
+      "start": 7.0,
+      "end": 8.0,
+      "speaker": "Researcher",
+      "text": "Good, the cross-recurrence should show that band."
+    }
+  ]
+}

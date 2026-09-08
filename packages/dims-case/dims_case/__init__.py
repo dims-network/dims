@@ -1,6 +1,7 @@
 """Study scaffolding: create one, refresh its pinned core, verify it."""
 from dims_case.core import (  # noqa: F401
-    CORE_ROOT, RESTRICTED, SHARED_STEPS,
+    CORE_ROOT, PAYLOAD_VERSION, RESTRICTED, SHARED_STEPS,
+    shadowed_tabs, stale_assets,
     _write_vendor as write_vendor,
     _write_index as write_index,
     _write_workflows as write_workflows,
