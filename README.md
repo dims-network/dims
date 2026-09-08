@@ -34,11 +34,16 @@ whose answers are known in advance.
 
 ## Build your own
 
-You need Python 3.9 or newer. Nothing else — no build step, no bundler, no
-account.
+You need Python 3.10 or newer — 3.12 or lower if your study starts from video,
+because `mediapipe` ships no 3.13 wheel. Nothing else: no build step, no
+bundler, no account.
+
+> **Not on PyPI yet**, so install from a checkout. The distribution is called
+> `dims-network` because `dims` is taken by an unrelated project.
 
 ```sh
-pip install "dims-network[builder]"
+git clone https://github.com/dims-network/dims
+pip install -e './dims[builder]'
 dims-builder
 ```
 
@@ -46,29 +51,29 @@ Your browser opens on a wizard. Point it at a folder, drop your files in — or
 press **Load the example study** to see the whole path first — choose the
 analyses, and it builds a dashboard, runs the analyses, and opens the result.
 
-Prefer the command line?
+Prefer the command line? Drop the `[builder]` extra and use `dims-case`:
 
 ```sh
-pip install dims-network
-dims-case new my-study            # a study, with its guards and a pinned core
-cd my-study
+git clone https://github.com/dims-network/dims
+pip install -e ./dims
+dims-case new my-study --visibility public   # creates ./case-my-study
+cd case-my-study
 # put your files in assets/, list them in config.json
 python build_assets.py            # run the analyses
 python serve.py                   # http://localhost:8000
 ```
 
-Working with recordings of identifiable people? Say so when the study is
-created. A private study keeps its data out of git through a commit hook, a push
-hook and a CI check, and points at wherever the recordings actually live —
+`--visibility` is the one question you have to answer honestly, and you answer
+it once. Working with recordings of identifiable people? Say `private`, and the
+study is created with a commit hook, a push hook and a CI check that keep the
+data out of git, pointing instead at wherever the recordings actually live —
 [`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md).
 
-> Not on PyPI yet: `pip install -e .` from a checkout, or
-> `pip install -e '.[builder]'` for the wizard. The distribution is called
-> `dims-network` because `dims` is taken by an unrelated project.
+## Working on DIMS
 
-## Documentation
+Read the one page for the thing you are doing. This is the map.
 
-Read the one page for the thing you are doing.
+### Documentation
 
 | | |
 |---|---|
@@ -81,7 +86,7 @@ Read the one page for the thing you are doing.
 
 Everything is also at **<https://dims-network.github.io/>**.
 
-## Extending it
+### Extending it
 
 A tab is one self-registering file and an analysis is one Python class; both are
 discovered rather than listed, so adding either changes no existing file.
@@ -105,6 +110,7 @@ packages/dims-tabs/          every tab, one self-registering file each
 packages/dims-analysis/      the analyses, a pip package
 packages/dims-case/          creating a study and keeping its core honest
 packages/dims-case-scaffold/ what a new study starts from
+packages/dims-notebooks/     notebooks that check a study's data is sound
 apps/builder/                the no-code wizard
 tests/reference/             the analyses, checked against known answers
 ```

@@ -82,7 +82,7 @@ An explicit, gated transition. Never a default, never a side effect.
 4. Flip `visibility` to `"public"`.
 5. Only now does the Pages workflow become available.
 
-## For automated contributors
+## Working in a private case
 
 In a private case: never push, and never move asset content into anything
 external — an issue, a prompt, a hosted page, a paste. Describing the data is

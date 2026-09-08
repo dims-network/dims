@@ -273,8 +273,8 @@ for (const [tab, asset, container] of [
       const w = await boot(CONFIG, { ...FILES, [asset]: withVersion(container, null) });
       await open_(w, tab);
       const text = w.document.body.textContent;
-      assert.match(text, /older than 2\.0\.0/,
-        `the ${tab} tab drew a pre-2.0.0 asset without saying it could not read it`);
+      assert.match(text, /an older core/,
+        `the ${tab} tab drew an older asset without saying it could not read it`);
       assert.match(text, /build_assets\.py/,
         'the message must say how to fix it');
     });
@@ -293,6 +293,6 @@ test('a payload at the current version is drawn without complaint', async () => 
   const w = await boot();
   for (const tab of ['rqa', 'crqa', 'crosswavelet']) await open_(w, tab);
   const text = w.document.body.textContent;
-  assert.ok(!/older than|newer core|payload version/.test(text),
+  assert.ok(!/older core|newer core|payload version/.test(text),
     'a current payload was reported as unreadable');
 });

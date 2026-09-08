@@ -31,4 +31,4 @@ body:
       label: How we would know it works
       description: >
         A check someone can run. An issue with this filled in can be labelled
-        `agent-ready` and picked up by a contributor with no other context.
+        `ready` and picked up by a contributor with no other context.
