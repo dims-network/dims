@@ -1,99 +1,19 @@
-"""The reference study: signals whose answers are known before anything runs.
+"""RQA against signals whose answers are arithmetic.
 
-Every other test here asks "did it crash?" or checks a helper in isolation. On
-real data that is all that is available -- `DET = 0.2571` is a number nobody can
-verify. These signals are constructed so the right answer is arithmetic: a sine
-at a 2 s period recurs every 2 s, a copy delayed 0.4 s puts its cross-recurrence
-line 0.4 s off the diagonal, and two independent red noises exceed a 95 % level
-in 5 % of cells by construction.
+A sine at a 2 s period recurs every 2 s; a signal with no variance has no
+structure to find; a signal quantised to four levels cannot be thresholded to
+an arbitrary recurrence rate. None of that is checkable on real data, where
+`DET = 0.2571` is a number nobody can verify.
 
-Each test names the defect it would have caught. Nine were found in one session
-by accident; these are what finding them on purpose looks like.
-
-The study is generated, not committed: `examples/reference/make_reference_study.py`.
+Shared fixtures and helpers: conftest.py.
 """
-from __future__ import annotations
-
 import json
 import os
-import shutil
-import subprocess
-import sys
 
 import numpy as np
 import pytest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__)))))
-REFERENCE = os.path.join(ROOT, "examples", "reference")
-GENERATOR = os.path.join(REFERENCE, "make_reference_study.py")
-
-# Straight from the generator, and deliberately restated rather than imported:
-# a test that reads its expectations from the code under test proves nothing.
-DT = 0.02
-PERIOD_S = 2.0
-LAG_S = 0.4
-PERIOD_SAMPLES = 100
-LAG_SAMPLES = 20
-TARGET_RATE = 0.07
-
-
-def build(tmp_path_factory, steps: str):
-    """Generate the study into a temp dir and run `steps` over it."""
-    work = tmp_path_factory.mktemp("reference")
-    study = str(work / "reference")
-    shutil.copytree(REFERENCE, study, ignore=shutil.ignore_patterns("assets", "__pycache__"))
-    subprocess.run([sys.executable, os.path.join(study, "make_reference_study.py")],
-                   check=True, capture_output=True)
-    run = subprocess.run(
-        [sys.executable, "-m", "dims_analysis.cli", "run",
-         "--config", "config.json", "--steps", steps],
-        cwd=study, capture_output=True, text=True)
-    if run.returncode != 0:
-        pytest.fail(f"the analyses failed:\n{run.stdout[-4000:]}\n{run.stderr[-4000:]}")
-    return study, run.stdout
-
-
-@pytest.fixture(scope="session")
-def recurrence(tmp_path_factory):
-    """RQA and cross-RQA. Seconds, so these tests stay usable."""
-    study, out = build(tmp_path_factory, "rqa,crqa")
-    return study, out
-
-
-def entry(study, analysis, container, name):
-    path = os.path.join(study, "assets", analysis, f"reference_{analysis}_data.json")
-    with open(path) as fh:
-        payload = json.load(fh)
-    assert container in payload, f"{path} has no {container}"
-    assert name in payload[container], (
-        f"{path} has no entry for {name}; it has {sorted(payload[container])}")
-    return payload[container][name]
-
-
-def dense(vis):
-    """The drawn matrix, however the payload happens to encode it."""
-    n = vis["matrix_size"]
-    m = np.zeros((n, n), dtype=np.uint8)
-    for r, c in vis["sparse_matrix"]:
-        if r < n and c < n:
-            m[r, c] = 1
-    return m
-
-
-def diagonal_offsets(m, min_fraction=0.25):
-    """Offsets k whose diagonal is recurrent for at least `min_fraction` of it.
-
-    A recurrence line is a diagonal that is mostly filled. Reading the offsets
-    back out is how the known lag and the known period become checkable.
-    """
-    n = min(m.shape)
-    found = []
-    for k in range(-(n - 1), n):
-        d = np.diagonal(m, offset=k)
-        if d.size >= 0.5 * n and d.mean() >= min_fraction:
-            found.append(k)
-    return found
+from conftest import PERIOD_SAMPLES, TARGET_RATE, dense, diagonal_offsets, entry
 
 
 # --- K1: a periodic signal recurs at its period ------------------------------
@@ -253,29 +173,6 @@ def test_K2_noise_is_far_less_deterministic_than_a_sine(recurrence):
         f"noise DET {np.mean(noise):.3f} vs sine DET {np.mean(sine):.3f}")
 
 
-# --- K3: a known lag lands where it should -----------------------------------
-
-def test_K3_cross_recurrence_finds_the_lag_it_was_given(recurrence):
-    """The line sits LAG off the diagonal, and that is the whole point.
-
-    Catches: **striding**. Sampling every nth row and column keeps a line on
-    the main diagonal and deletes one beside it -- and a lagged coupling is
-    precisely a line beside it. This is the test the real studies could never
-    have provided, because nobody knows their true lag.
-    """
-    study, _ = recurrence
-    vis = entry(study, "crqa", "crqa_data", "sine_vs_sine_lagged")["visualization"]
-    factor = vis["reduction"]["factor"]
-    expected = LAG_SAMPLES / factor
-
-    offsets = diagonal_offsets(dense(vis))
-    assert offsets, "two identical signals, one delayed, produced no line at all"
-    nearest = min(offsets, key=lambda k: abs(abs(k) - expected))
-    assert abs(abs(nearest) - expected) <= max(2, 0.2 * expected), (
-        f"the dominant line is at offset {nearest} (factor {factor}); a {LAG_S} s "
-        f"lag should put it near {expected:.0f}. Offsets found: {offsets[:12]}")
-
-
 # --- K4: the achieved rate, and saying so when it cannot be reached ----------
 
 def test_K4_the_target_recurrence_rate_is_reached_on_clean_signals(recurrence):
@@ -378,82 +275,3 @@ def test_K8_the_drawn_picture_never_exceeds_its_cap(recurrence):
             assert size <= 500, f"{analysis}/{name} drew a {size}-point matrix"
 
 
-# --- K5: a known lag has a known phase ---------------------------------------
-
-@pytest.fixture(scope="session")
-def coherence_study(tmp_path_factory):
-    """Cross-wavelet. ~40 s at the reference study's mcCount of 20."""
-    study, out = build(tmp_path_factory, "crosswavelet")
-    return study, out
-
-
-def pair(study, name):
-    path = os.path.join(study, "assets", "crosswavelet",
-                        "reference_crosswavelet_data.json")
-    with open(path) as fh:
-        payload = json.load(fh)
-    assert name in payload["crosswavelet_pairs"], (
-        f"no pair {name}; found {sorted(payload['crosswavelet_pairs'])}")
-    return payload["crosswavelet_pairs"][name]["visualization"]
-
-
-def as_array(field):
-    return np.array([[np.nan if c is None else c for c in row] for row in field],
-                    dtype=float)
-
-
-def band_mask(period, low=1.6, high=2.5):
-    """Scales around the 2 s component the signals actually contain."""
-    return (np.asarray(period, dtype=float) > low) & (np.asarray(period) < high)
-
-
-def test_K5_two_shifted_copies_are_coherent_at_their_shared_period(coherence_study):
-    study, _ = coherence_study
-    vis = pair(study, "sine_vs_sine_lagged")
-    coh = as_array(vis["coherence"])
-    band = band_mask(vis["period"])
-    assert band.any(), "the 2 s band is not in the analysed range at all"
-    assert np.nanmean(coh[band]) > 0.9, (
-        f"two shifted copies of one sine gave mean coherence "
-        f"{np.nanmean(coh[band]):.4f} at their own period")
-
-
-def test_K5_the_phase_is_the_lag_that_was_put_in(coherence_study):
-    """phase = 2*pi*f*tau = 2*pi*0.5*0.4 = 1.257 rad = 72 degrees.
-
-    Confirmed independently by `scipy.signal.csd`, which gives 72.0 deg on the
-    same two signals by a completely different route (Welch, not wavelets).
-
-    Catches: the smoothing defect, which destroyed phase before it could
-    cancel; and averaging phase as a scalar rather than through the unit
-    circle, which turns +179 and -179 into 0.
-    """
-    study, _ = coherence_study
-    vis = pair(study, "sine_vs_sine_lagged")
-    phase = as_array(vis["phase"])
-    band = band_mask(vis["period"])
-
-    # Circular mean: the only correct way to average an angle.
-    mean_phase = np.angle(np.nanmean(np.exp(1j * phase[band])))
-    expected = 2 * np.pi * (1.0 / PERIOD_S) * LAG_S
-
-    assert abs(abs(mean_phase) - expected) < np.radians(8), (
-        f"phase is {np.degrees(mean_phase):.1f} deg; a {LAG_S} s lag at a "
-        f"{PERIOD_S} s period is {np.degrees(expected):.1f} deg")
-
-
-def test_K5_the_sign_of_the_phase_says_who_leads(coherence_study):
-    """`sine_lagged` is `sine` delayed, so `sine` leads -- and the convention
-    here is W1 * conj(W2), which makes that positive.
-
-    This is worth its own test because a flipped sign is invisible in the
-    number and inverts every phase arrow on the dashboard: a study would read
-    "the student leads the teacher" from data saying the opposite.
-    """
-    study, _ = coherence_study
-    vis = pair(study, "sine_vs_sine_lagged")
-    band = band_mask(vis["period"])
-    mean_phase = np.angle(np.nanmean(np.exp(1j * as_array(vis["phase"])[band])))
-    assert mean_phase > 0, (
-        f"phase {np.degrees(mean_phase):.1f} deg: the first signal leads the "
-        f"second by {LAG_S} s, so under W1*conj(W2) this must be positive")

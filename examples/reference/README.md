@@ -26,9 +26,15 @@ The data is generated rather than committed: producing it is the same
 from-zero path a real study takes, and a formula describes it exactly, so
 carrying a megabyte of CSV would only add something to drift.
 
-The assertions live in
-`packages/dims-analysis/tests/test_reference_study.py`, and each names the
-defect it would have caught. Two are `xfail(strict=True)` today — they are the
+The assertions live beside the data, one file per analysis:
+
+| | |
+|---|---|
+| `tests/test_rqa.py` | recurrence, determinism, the achieved rate, a constant signal |
+| `tests/test_crqa.py` | the known lag, 20 samples off the diagonal |
+| `tests/test_crosswavelet.py` | the known phase, and the chance level |
+
+Each names the defect it would have caught. Two are `xfail(strict=True)` today — they are the
 specification for work that has not landed yet, and strictness means they fail
 the moment they start passing, so a fix cannot go unnoticed.
 
