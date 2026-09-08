@@ -119,8 +119,25 @@ one could hold.
 3,000 points bit-packed is 1.1 MB, but 58,000 is 420 MB. The signal and the
 threshold are stored, and the matrix is one `cdist` away.
 
-Every payload carries `payload_version`. A tab meeting a newer one says so
-rather than drawing nothing.
+Every payload carries `payload_version`, and it is not decoration.
+
+A tab checks it before drawing and, when it cannot read the file, says which
+core wrote it and what to run — an older asset says "rebuild", a newer one says
+"update the vendored core", because those are opposite fixes. A blank panel is
+indistinguishable from a study with no data, and that is the failure this
+release most wants nobody to find by looking at a dashboard.
+
+The merge honours it too. `write_payload` preserves entries an incoming run did
+not rewrite — that is what keeps a study-owned analysis alive across a run of a
+shared step — but **nothing is merged across a version change**, because an
+entry nothing rewrote is one the new reader cannot read. Found by rebuilding
+ORTHO: four of twelve recordings came out stamped v2 while holding v1 entries.
+What is dropped is named.
+
+A payload with **no** version written into a file that has one is **refused**,
+not merged. Otherwise a study-owned step that forgot the field would drop every
+entry already in the file, including analyses it did not produce — turning one
+missing line into the silent loss that merging exists to prevent.
 
 ## A4 — Reduction is recorded, and a cap is a cap
 

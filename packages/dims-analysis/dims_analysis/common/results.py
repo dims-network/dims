@@ -31,6 +31,35 @@ import os
 VERSION_KEY = "payload_version"
 
 
+class UnversionedPayload(Exception):
+    """A step wrote a payload with no `payload_version` into a file that has one."""
+
+
+def check_version(existing: dict, payload: dict, path: str = "") -> None:
+    """Refuse to merge an unstamped payload into a stamped file.
+
+    The sharp edge this removes: a study-owned step written before versioning
+    existed writes `{"video_id": ..., "rqa_data": {...}}` into the same file as
+    the shared step. Its payload declares no version, the file on disk declares
+    2, and the rule below would then treat every entry already there as stale
+    and drop it -- turning one forgotten field into the silent loss of another
+    analysis, which is the exact failure merging was introduced to prevent.
+
+    So it raises instead, naming the field and the file. Loud and one line to
+    fix beats quiet and unrecoverable.
+    """
+    if VERSION_KEY in payload or VERSION_KEY not in existing:
+        return
+    where = f" at {path}" if path else ""
+    raise UnversionedPayload(
+        f"this payload carries no {VERSION_KEY!r}, and the file it is being "
+        f"merged into{where} is version {existing[VERSION_KEY]}. Refusing to "
+        f"write, because merging them would drop every entry already there -- "
+        f"including analyses this step did not produce. Add "
+        f'"{VERSION_KEY}": arrays.PAYLOAD_VERSION to the payload; see '
+        f"docs/contracts/analysis-output.md, A3.")
+
+
 def same_version(existing: dict, payload: dict) -> bool:
     """Whether the two files are in the same format.
 
@@ -113,6 +142,7 @@ def write_payload(path: str, payload: dict, compact: bool = True) -> dict:
     Returns {"kept": ..., "replaced": ...} so the caller can report both.
     """
     existing = read_existing(path)
+    check_version(existing, payload, path)
     report = compare_entries(existing, payload)
     for key, names in report.get("stale", {}).items():
         print(f"  dropped {len(names)} {key} entr"

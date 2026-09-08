@@ -133,3 +133,25 @@ def test_a_merge_at_the_same_version_still_keeps_everything():
     merged = results.merge_payload(old, new)
     assert set(merged["rqa_data"]) == {"gaze", "vx"}
     assert results.compare_entries(old, new)["kept"]["rqa_data"] == ["gaze"]
+
+
+def test_an_unstamped_payload_is_refused_rather_than_dropping_what_is_there(tmp_path):
+    """The sharp edge of "nothing merges across a version change".
+
+    A study-owned step written before versioning existed declares no
+    `payload_version`. The file it writes into declares one. Treating that as a
+    version change would drop every entry already there -- including analyses
+    this step did not produce -- turning one forgotten field into the silent
+    loss merging was introduced to prevent.
+    """
+    from dims_analysis.common import results
+
+    out = tmp_path / "shared.json"
+    results.write_payload(str(out), {"payload_version": 2, "rqa_data": {"vx": {"a": 1}}})
+
+    with pytest.raises(results.UnversionedPayload, match="payload_version"):
+        results.write_payload(str(out), {"rqa_data": {"gaze": {"b": 2}}})
+
+    # And nothing was written: the file still holds what it held.
+    import json
+    assert sorted(json.load(open(out))["rqa_data"]) == ["vx"]

@@ -105,9 +105,16 @@ def test_rerunning_one_step_does_not_erase_another(two_runs, tmp_path):
         before = json.load(fh)
     assert len(before["rqa_data"]) >= 2
 
-    # A second analysis writes one new entry into the same file.
-    report = results.write_payload(
-        path, {"video_id": "reference", "rqa_data": {"from_another_step": {"x": 1}}})
+    # A second analysis writes one new entry into the same file. It stamps the
+    # payload version, as every step must: without it the write is refused
+    # rather than silently dropping what is already there.
+    from dims_analysis.common import arrays
+
+    report = results.write_payload(path, {
+        "video_id": "reference",
+        "payload_version": arrays.PAYLOAD_VERSION,
+        "rqa_data": {"from_another_step": {"x": 1}},
+    })
 
     with open(path) as fh:
         after = json.load(fh)
