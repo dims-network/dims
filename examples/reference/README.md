@@ -109,7 +109,7 @@ so a fix cannot go unnoticed and a stale pin cannot survive.
 before being committed, and the generated `core-update.yml` in every study runs
 it against a candidate release before offering the bump — because the analyses
 are not vendored, so a study that bumps takes this code and bakes its answers
-into committed assets. See `AGENTS.md`.
+into committed assets.
 
 One caution: `pyrqa` is `importorskip`ed, so a machine without OpenCL stays
 green while the independent oracle for DET, LAM and RR does not run at all.

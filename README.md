@@ -1,93 +1,113 @@
 # DIMS
 
-Open tools for exploring **dynamic interactions and multimodal signals** — time
-series, recurrence quantification, wavelet coherence and annotations, aligned to
-video.
+**Explore how people move, speak and act together.** DIMS turns recordings and
+the time series taken from them — motion tracking, physiology, gaze codes,
+anything sampled over time — into a dashboard you open in a browser: every
+signal on one timeline, beside the video it came from, with the analyses that
+say how two signals relate.
 
-This is the monorepo: one copy of the code, from which every DIMS dashboard is
-built. Individual studies live in their own small *case* repositories carrying
-only `config.json`, their data, and a pinned version of this core.
+### See one
 
-```
-packages/dims-core/          the host: config, video, the time bus, the tab registry
-packages/dims-tabs/          every tab, one self-registering file each
-packages/dims-analysis/      the Python analyses, a pip package
-packages/dims-case/          creating a study and keeping its core honest
-packages/dims-case-scaffold/ what a new study starts from
-packages/dims-notebooks/     sanity checks, as notebooks you can run on a study
-apps/builder/                the no-code wizard
-docs/contracts/              the contracts — read one, not all of them
-```
+**<https://dims-network.github.io/case-demo/>** — a working dashboard with a
+recording, its signals, and the analyses running on them. Click the timeline;
+the video and every chart follow.
 
-## Install
+<sub>DIMS = Dynamic Interaction and Multimodal Signals.</sub>
+
+## What you get
+
+| tab | answers |
+|---|---|
+| **Time series** | what each signal did, next to the video at that moment |
+| **Recurrence (RQA)** | where one signal returns to states it was in before |
+| **Cross-recurrence** | where two signals repeat *each other*, and after how long |
+| **Cross-wavelet & coherence** | which timescales two signals share, how strongly, and which leads |
+| **Cross-effector network** | one picture of who is coupled with whom, moving with the playhead |
+| **ELAN** | your own annotations, on the same timeline |
+
+Coherence is measured against a chance level estimated by simulation, not read
+off raw — two unrelated signals score about 0.25, not 0, so a number without
+that comparison cannot be interpreted. The analyses follow Torrence & Compo
+(1998) for the wavelet work; the constants taken from that paper are transcribed
+in [`examples/reference/`](examples/reference/) and checked on synthetic signals
+whose answers are known in advance.
+
+## Build your own
+
+You need Python 3.9 or newer. Nothing else — no build step, no bundler, no
+account.
 
 ```sh
-pip install dims-network              # the analyses, and dims-analysis / dims-case
-pip install "dims-network[builder]"   # adds the no-code wizard: dims-builder
-pip install "dims-network[notebooks]" # adds the sanity-check notebooks
+pip install "dims-network[builder]"
+dims-builder
 ```
 
-One distribution, one version. Flask is behind the `builder` extra, so a machine
-that only computes results does not install a web framework to do it.
+Your browser opens on a wizard. Point it at a folder, drop your files in — or
+press **Load the example study** to see the whole path first — choose the
+analyses, and it builds a dashboard, runs the analyses, and opens the result.
 
-*(Not on PyPI yet — `pip install -e .` from a checkout for now. The name is
-`dims-network` because `dims` is taken by an unrelated project.)*
+Prefer the command line?
 
-## Working on DIMS
+```sh
+pip install dims-network
+dims-case new my-study            # a study, with its guards and a pinned core
+cd my-study
+# put your files in assets/, list them in config.json
+python build_assets.py            # run the analyses
+python serve.py                   # http://localhost:8000
+```
 
-Find your task, read the **one** file named. The contracts are written to be
-read individually; you should not need to read this whole directory to start.
+Working with recordings of identifiable people? Say so when the study is
+created. A private study keeps its data out of git through a commit hook, a push
+hook and a CI check, and points at wherever the recordings actually live —
+[`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md).
 
-| I want to… | Read |
+> Not on PyPI yet: `pip install -e .` from a checkout, or
+> `pip install -e '.[builder]'` for the wizard. The distribution is called
+> `dims-network` because `dims` is taken by an unrelated project.
+
+## Documentation
+
+Read the one page for the thing you are doing.
+
+| | |
+|---|---|
+| From data to a running dashboard | [`docs/getting-started.md`](docs/getting-started.md) |
+| What goes in `config.json` | [`docs/contracts/config.schema.json`](docs/contracts/config.schema.json) |
+| Where each file belongs | [`docs/contracts/assets.md`](docs/contracts/assets.md) |
+| How to read a coherence value | [`docs/coherence.md`](docs/coherence.md) |
+| Working with human-subject data | [`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md) |
+| Setting up a study | [`docs/contracts/case.md`](docs/contracts/case.md) |
+
+Everything is also at **<https://dims-network.github.io/>**.
+
+## Extending it
+
+A tab is one self-registering file and an analysis is one Python class; both are
+discovered rather than listed, so adding either changes no existing file.
+
+| | |
 |---|---|
 | Add or change a **tab** | [`docs/contracts/tab.md`](docs/contracts/tab.md) |
-| Add or change a **Python analysis** | [`docs/contracts/step.md`](docs/contracts/step.md) |
-| Know what goes in `config.json` | [`docs/contracts/config.schema.json`](docs/contracts/config.schema.json) |
-| Know where a data file belongs | [`docs/contracts/assets.md`](docs/contracts/assets.md) |
-| Know what an **analysis result must contain** | [`docs/contracts/analysis-output.md`](docs/contracts/analysis-output.md) |
-| Work with **human-subject data** | [`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md) |
-| Set up a new study | [`docs/contracts/case.md`](docs/contracts/case.md) |
-| Check whether a study's data is sound | [`packages/dims-notebooks/`](packages/dims-notebooks/) |
-| Understand how it all fits | [`docs/architecture.md`](docs/architecture.md) |
-| Contribute as an **automated agent** | [`AGENTS.md`](AGENTS.md) |
+| Add or change an **analysis** | [`docs/contracts/step.md`](docs/contracts/step.md) |
+| What an analysis result must contain | [`docs/contracts/analysis-output.md`](docs/contracts/analysis-output.md) |
+| How the pieces fit | [`docs/architecture.md`](docs/architecture.md) |
+| Check a study's data is sound | [`packages/dims-notebooks/`](packages/dims-notebooks/) |
 
-### The five rules
+If a study needs a different parameter, it belongs in `config.json` under
+`analysis` — never in a copied script. Studies keep their data and their
+`config.json`; the code lives here, once, and a study takes a fix by bumping the
+version it pins.
 
-1. **One copy of the code.** It lives here. Case repos hold `config.json`, data
-   and a pinned copy of this core — never edited by hand. If you find yourself
-   fixing the same bug twice, stop: you are in the wrong repo.
-2. **Everything self-registers.** Tabs and analyses are discovered, not listed.
-   Adding one must not require editing an existing file. If it does, the
-   contract is wrong — fix the contract, not your feature.
-3. **Style through CSS custom properties only** (`var(--text)`, `var(--accent)`).
-   Never read the host's JS theme object; it is initialised after tabs load.
-4. **Assume the data is private** until `dims-case.json` says otherwise. Never
-   commit anything under `assets/`, and never move data content into an external
-   service — an issue, a prompt, a hosted page.
-5. **Verify by running it.** Every contract ends with an acceptance check that
-   does not require reading any other file.
-
-### Tuning belongs in config
-
-If a study needs a different parameter, it goes in `config.json` under
-`analysis`, not in a copy of the script. One fork previously maintained its own
-version of an entire analysis in order to change two numbers — and that copy is
-why a correctness fix could not travel for months.
-
-### Picking up work
-
-Issues labelled **`agent-ready`** are self-contained: they name the files, link
-the contract, and state the acceptance check. Start there. An issue without
-those three things is not ready — ask for them rather than guessing.
-
-Labels: `area:core|tabs|analysis|builder|docs`, `type:bug|feat|chore`.
-
-### House style
-
-- Match the surrounding code. There is no build step and no bundler, by design:
-  a researcher must be able to open a dashboard from a plain file server.
-- Comment *why*, not *what*. The comments that earn their place here explain a
-  decision or a trap, and the best of them carry a measurement.
+```
+packages/dims-core/          the page: config, video, the time bus, the tab registry
+packages/dims-tabs/          every tab, one self-registering file each
+packages/dims-analysis/      the analyses, a pip package
+packages/dims-case/          creating a study and keeping its core honest
+packages/dims-case-scaffold/ what a new study starts from
+apps/builder/                the no-code wizard
+tests/reference/             the analyses, checked against known answers
+```
 
 ## Licence & citation
 

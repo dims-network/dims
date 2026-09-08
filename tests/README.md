@@ -34,7 +34,7 @@ previous output.
 Any change to `steps/rqa.py`, `steps/crqa.py`, `steps/crosswavelet.py` or
 anything under `common/` runs it before being committed. CI runs it, and so does
 every study's generated `core-update.yml`, against a candidate release before it
-will offer the bump. See [`AGENTS.md`](../AGENTS.md).
+will offer the bump.
 
 The study and the suite used to be one directory. They are not, because
 `conftest.build()` copies the study into a temporary folder to run it — and so

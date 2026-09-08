@@ -35,7 +35,7 @@ that declared themselves private and blocked nothing.
 
 ## What `private` turns on
 
-Four independent guards, ordered by how early they catch the mistake:
+Three independent guards, ordered by how early they catch the mistake:
 
 1. **Pre-commit hook** — refuses to stage restricted paths. This is the one that
    matters: it stops data before it enters history, where removing it needs a
@@ -44,9 +44,6 @@ Four independent guards, ordered by how early they catch the mistake:
 3. **CI** — fails if any *tracked* file matches a restricted path, and fails if
    `"visibility": "private"` while the GitHub repo is public. That last check
    catches the case nobody plans for: someone flipping visibility months later.
-4. **`AGENTS.md`** in the core repository — states the rule where an automated
-   contributor reads it before touching anything.
-
 Enable the hooks once per clone:
 
 ```sh
