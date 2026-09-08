@@ -127,6 +127,34 @@ def test_the_power_sums_back_to_the_variance(name, narrowband):
         f"Torrence & Compo eq. 14 with C_delta = {TC_C_DELTA} says 1.0")
 
 
+def test_what_this_projects_own_settings_recover():
+    """The test above widens the scale range, so on its own it says nothing
+    about the configuration actually shipped. This pins that.
+
+    `S0_FACTOR = 2` (crosswavelet.py:70) puts the shortest analysed period at
+    2 * 1.033 * dt, just above Nyquist, and `J = log2(N*dt/s0)/dj` (:512) takes
+    the longest out to the record length. Those are Torrence & Compo's own
+    recommendations, and the consequence is arithmetic rather than a defect:
+    a signal whose power sits inside the band is recovered almost entirely,
+    and white noise, which has power right up to Nyquist, is not.
+
+    Measured at the shipped settings: 0.9874 for a 2 s sine, 0.9259 for white
+    noise. If either moves, the scale range has changed and every study's
+    output has changed with it.
+    """
+    n = 2048
+    rng = np.random.default_rng(7)
+    for name, x, expected in (("sine", sine(n), 0.9874),
+                              ("white noise", rng.standard_normal(n), 0.9259)):
+        x = x - x.mean()
+        W, scales, _f, _c, _ff, _f2 = transform(x)      # the shipped settings
+        ratio = ((DJ * DT) / (TC_C_DELTA * n)
+                 * float(np.sum(np.abs(W) ** 2 / scales[:, None]))) / x.var()
+        assert abs(ratio - expected) < 0.01, (
+            f"{name}: this project's settings recover {ratio:.4f} of the "
+            f"variance, where they recovered {expected} when measured")
+
+
 def test_the_short_end_of_the_scale_range_is_what_truncates_the_energy():
     """Why the settings this project actually uses recover less, and by how
     much -- so that the number in the test above is not mistaken for a defect.
