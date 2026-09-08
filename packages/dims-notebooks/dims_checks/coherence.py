@@ -21,18 +21,24 @@ import numpy as np
 
 
 def load_crosswavelet(path):
-    """Load a cross-wavelet result. Prefers the full-resolution .npz.
+    """Load a cross-wavelet result. Prefers the full-resolution file.
 
-    The JSON is a browser payload and is reduced; analysing from it means
-    analysing a sixth of the data. If an .npz sits beside it, that is the
-    analysis.
+    `{video}_crosswavelet_data.json` is the browser payload and is reduced;
+    analysing from it means analysing a sixth of the data. `_full.json` beside
+    it is the analysis, in the **same schema** with the same field names, so
+    the reading code below is the same for both -- only the time axis differs.
+
+    That is the point of the format change this replaced: the full-resolution
+    artifact used to be an `.npz`, a second format with its own member naming,
+    so a reader had two code paths and the reduced one was easy to reach by
+    accident.
     """
-    npz = path[:-len("_data.json")] + ".npz" if path.endswith("_data.json") else None
-    if npz and os.path.exists(npz):
-        with np.load(npz) as z:
-            pairs = sorted({k.split("/")[0] for k in z.files})
-            return {p: {k.split("/", 1)[1]: z[k] for k in z.files if k.startswith(p + "/")}
-                    for p in pairs}, "npz (full resolution)"
+    full = (path[:-len("_data.json")] + "_full.json"
+            if path.endswith("_data.json") else None)
+    if full and os.path.exists(full):
+        path, label = full, "full resolution"
+    else:
+        label = "reduced for the browser"
 
     with open(path) as fh:
         d = json.load(fh)
@@ -40,15 +46,37 @@ def load_crosswavelet(path):
     for name, pair in (d.get("crosswavelet_pairs") or {}).items():
         v = pair["visualization"]
         out[name] = {
-            "coherence": np.asarray(v["coherence"], dtype=float),
-            "power": np.asarray(v["power"], dtype=float),
-            "period": np.asarray(v["period"], dtype=float),
-            "time": np.asarray(v["time"], dtype=float),
-            "coi": np.asarray(v["coi"], dtype=float),
-            "sig95_wtc": (np.asarray([np.nan if x is None else x for x in v["sig95_wtc"]], dtype=float)
-                          if v.get("sig95_wtc") else None),
+            "coherence": _array(v["coherence"]),
+            "power": _array(v["power"]),
+            "period": _array(v["period"]),
+            "time": _array(v["time"]),
+            "coi": _array(v["coi"]),
+            "signif_xwt": _array(v.get("signif_xwt")),
+            "sig95_wtc": _array(v.get("sig95_wtc")),
         }
-    return out, "json (reduced for the browser)"
+    return out, label
+
+
+def _array(field):
+    """A payload field as a float array, whatever encoding it arrived in.
+
+    Large grids travel base64-encoded, short axes as plain lists with `null`
+    for an undefined value -- `json.dump` writes a bare `NaN`, which
+    `JSON.parse` rejects outright. Both become NaN here.
+    """
+    if field is None:
+        return None
+    if isinstance(field, dict) and "encoding" in field:
+        try:
+            from dims_analysis.common import arrays
+        except ImportError as exc:  # pragma: no cover - stated, not guessed
+            raise ImportError(
+                "this payload carries base64 arrays; install dims-analysis to "
+                "read them (pip install -e dims/packages/dims-analysis)") from exc
+        return np.asarray(arrays.unpack(field), dtype=float)
+    flat = np.asarray(field, dtype=object)
+    return np.asarray(np.where(flat == None, np.nan, flat).tolist(),  # noqa: E711
+                      dtype=float)
 
 
 def coherence_report(pair):

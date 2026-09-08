@@ -145,12 +145,36 @@ def test_the_cone_of_influence_is_widest_at_the_edges(coherence_study):
 
 def test_the_power_significance_is_a_separate_field_from_the_coherence_null(
         coherence_study):
-    """`sig95_xwt` tests joint *power* against red noise; `sig95_wtc` tests
-    coherence against unrelated signals. They answer different questions and
-    the built-in tab has used the first where it needed the second. They are
-    different shapes, which is the cheapest way to keep them apart."""
+    """`signif_xwt` tests joint *power* against red noise; `sig95_wtc` tests
+    coherence against unrelated signals. They answer different questions, and
+    the built-in tab has used the first where it needed the second.
+
+    Both are one level per period now, so the shapes no longer separate them --
+    the power level used to be stored a second time as a full grid, `power`
+    divided by it and broadcast across time, which held nothing the two fields
+    beside it did not. What keeps them apart is what they are measured against,
+    so that is what this checks: the power level is a level on the same scale
+    as `power`, and the coherence null is a number between 0 and 1.
+    """
     study, _ = coherence_study
     vis = pair(study, "sine_vs_sine_lagged")
-    assert as_array(vis["sig95_xwt"]).ndim == 2, "power significance is per cell"
-    assert np.asarray(vis["sig95_wtc"], dtype=object).ndim == 1, (
-        "the coherence null is one level per period row")
+
+    level = np.asarray(vis["signif_xwt"], dtype=float)
+    null = np.asarray([np.nan if x is None else x for x in vis["sig95_wtc"]],
+                      dtype=float)
+    period = np.asarray(vis["period"], dtype=float)
+    assert level.shape == period.shape and null.shape == period.shape
+
+    power = as_array(vis["power"])
+    assert power.shape == (len(period), len(vis["time"]))
+    assert np.nanmax(level) > 1.5, (
+        "a power level lives on the scale of power, not of coherence; "
+        f"this one tops out at {np.nanmax(level):.3f}")
+    finite = null[np.isfinite(null)]
+    assert finite.size and np.all((finite > 0) & (finite <= 1)), (
+        "a coherence level is a coherence, so it is between 0 and 1")
+
+    # And the ratio a tab thresholds at 1 is still recoverable, which is the
+    # whole reason storing it separately was redundant.
+    ratio = power / level[:, None]
+    assert np.isfinite(ratio).any() and np.nanmax(ratio) > 1.0

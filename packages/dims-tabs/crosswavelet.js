@@ -164,6 +164,24 @@
             if (!vis.time || !vis.power || !vis.period) {
                 throw new Error('Missing required visualization fields (need power for cross-wavelet)');
             }
+
+            // The three large grids travel base64-encoded; decode once here and
+            // use these below rather than vis.* directly.
+            const power = window.DIMS.decodeArray(vis.power);
+            const phase = window.DIMS.decodeArray(vis.phase);
+            const coherence = vis.coherence ? window.DIMS.decodeArray(vis.coherence) : null;
+
+            // How far each cell's joint power exceeds its own 95 % level. The
+            // payload stores the level per scale and the power per cell; the
+            // ratio used to be stored as a third full grid, which held nothing
+            // these two do not. A cell is significant where this exceeds 1.
+            const level = vis.signif_xwt || [];
+            const sig95 = power.map((row, i) => {
+                const l = level[i];
+                return (l === null || l === undefined || !(l > 0))
+                    ? row.map(() => null)
+                    : row.map(v => (v === null || v === undefined ? null : v / l));
+            });
             
             console.log(`Creating cross-wavelet plot for ${pairKey}`);
             
@@ -270,7 +288,7 @@
             traces.push({
                 x: vis.time,
                 y: log2Period,
-                z: vis.power,
+                z: power,
                 type: 'heatmap',
                 colorscale: 'Viridis',
                 colorbar: {
@@ -289,11 +307,11 @@
             });
             
             // Add significance contour (95% confidence level)
-            if (vis.sig95_xwt && vis.sig95_xwt.length > 0) {
+            if (sig95.length > 0) {
                 traces.push({
                     x: vis.time,
                     y: log2Period,
-                    z: vis.sig95_xwt,
+                    z: sig95,
                     type: 'contour',
                     contours: {
                         start: 0.95,
@@ -341,25 +359,25 @@
             };
 
             // Only show arrows within the 95% confidence ridges
-            for (let i = 0; i < vis.phase.length; i += arrowSkipFreq) {
-                for (let j = 0; j < vis.phase[i].length; j += arrowSkipTime) {
+            for (let i = 0; i < phase.length; i += arrowSkipFreq) {
+                for (let j = 0; j < phase[i].length; j += arrowSkipTime) {
                     // Check if this point is within 95% significance ridge
-                    const isSignificant = vis.sig95_xwt && vis.sig95_xwt[i] && vis.sig95_xwt[i][j] > 1.0;
+                    const isSignificant = sig95[i] && sig95[i][j] > 1.0;
                     
                     if (isSignificant) { // Only show arrows within 95% confidence ridges
-                        const coherence = vis.coherence ? vis.coherence[i][j] : 0;
-                        const phase = vis.phase[i][j];
+                        const coherenceAt = coherence ? coherence[i][j] : 0;
+                        const phaseAt = phase[i][j];
 
                         // A cell can be null: where neither signal has power in
                         // this band there is no phase relationship to draw. Skip
                         // it rather than computing an arrow from NaN.
-                        if (phase === null || phase === undefined || Number.isNaN(phase)) continue;
-                        if (coherence === null || coherence === undefined) continue;
+                        if (phaseAt === null || phaseAt === undefined || Number.isNaN(phaseAt)) continue;
+                        if (coherenceAt === null || coherenceAt === undefined) continue;
                         
                         // Convert phase to arrow symbol
                         // Phase is in radians: 0 = in phase, π/2 = signal1 leads, π = anti-phase, -π/2 = signal2 leads
                         let arrow;
-                        const phaseDeg = (phase * 180 / Math.PI + 360) % 360;
+                        const phaseDeg = (phaseAt * 180 / Math.PI + 360) % 360;
                         
                         // Map phase to arrow direction (8 directions)
                         if (phaseDeg >= 337.5 || phaseDeg < 22.5) {
@@ -399,7 +417,7 @@
                             `Time: ${vis.time[j].toFixed(1)}s | ` +
                             `Period: ${vis.period[i].toFixed(2)}s<br>` +
                             `Phase: ${phaseDeg.toFixed(0)}°<br>` +
-                            `Power: ${vis.power[i][j].toFixed(4)}<br>`
+                            `Power: ${power[i][j].toFixed(4)}<br>`
                         );
                     }
                 }

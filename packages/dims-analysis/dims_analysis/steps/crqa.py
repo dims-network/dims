@@ -36,7 +36,7 @@ from dims_analysis.common import assets as _assets
 from dims_analysis.common import config as _config
 from dims_analysis.common import limits as _limits
 from dims_analysis.common import payload as _payload
-from dims_analysis.common import npz as _npz
+from dims_analysis.common import arrays as _arrays
 from dims_analysis.common import series as _series
 from dims_analysis.common import window as _window
 from dims_analysis.common import recurrence as _rec
@@ -53,7 +53,7 @@ INPUT_DIR = 'assets/timeseries'
 
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
-# the .npz written beside the JSON and is not affected.
+# the base64 arrays, which are not rounded at all.
 try:
     from dims_analysis.common.payload import round_payload, precision_note
 except ImportError:  # standalone script inside a case repo, without the package
@@ -66,9 +66,8 @@ except ImportError:  # standalone script inside a case repo, without the package
             return {k: round_payload(v, figures) for k, v in o.items()}
         if isinstance(o, (list, tuple)):
             return [round_payload(v, figures) for v in o]
-        # Integers pass through: a sparse recurrence matrix is tens of
-        # thousands of [row, col] index pairs, and "7.0" is both wrong and
-        # larger than "7".
+        # Integers pass through: counts and array dimensions, where "7.0" is
+        # both wrong and larger than "7".
         if o is None or isinstance(o, bool) or isinstance(o, int):
             return o
         if not isinstance(o, float):
@@ -81,8 +80,9 @@ except ImportError:  # standalone script inside a case repo, without the package
 
     def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
         return {"significant_figures": figures,
-                "note": ("This file is the browser payload and is rounded. The "
-                         "full-resolution analysis is the .npz beside it.")}
+                "note": ("Small fields are rounded to this many significant "
+                         "figures. Large arrays are base64 float32 or bitmaps "
+                         "and are not rounded.")}
 
 
 
@@ -114,14 +114,10 @@ def calculate_cross_recurrence_matrix(emb1, emb2, threshold=None, target_recurre
     return recurrence_matrix, threshold, actual_recurrence
 
 
-def matrix_to_sparse_format(matrix):
-    """Convert a recurrence matrix to a sparse list of [row, col] pairs (all R==1).
-
-    Unlike a banded variant, this keeps the COMPLETE recurrence plot so the full
-    structure is visible in the dashboard.
-    """
-    rows, cols = np.where(matrix == 1)
-    return [[int(r), int(c)] for r, c in zip(rows, cols)]
+def matrix_to_bitmap(matrix):
+    """One bit per cell, base64; the COMPLETE plot, not a band. See
+    common/arrays.py for why this replaced a list of [row, col] pairs."""
+    return _arrays.pack_bitmap(matrix)
 
 
 def downsample_for_visualization(ts1, ts2, time_values, recurrence_matrix, max_points=MAX_POINTS):
@@ -237,30 +233,6 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
 # MAIN
 # ============================================================================
 
-def save_full_resolution(out_dir, video_id, pair_key, entry, time_vals, ts1, ts2):
-    """The analysis, beside the browser payload. See common/npz.py.
-
-    Not the cross-recurrence matrix: it is quadratic in the recording. What is
-    stored is the windowed metrics at full resolution, both prepared signals and
-    the threshold -- enough to rebuild the matrix with one cdist at whatever
-    resolution the reader can afford.
-    """
-    wm = entry.get('windowed_metrics') or {}
-    arrays = {
-        'time': np.asarray(time_vals, dtype=np.float64),
-        'signal_x': np.asarray(ts1, dtype=np.float64),
-        'signal_y': np.asarray(ts2, dtype=np.float64),
-        'threshold': np.asarray([entry.get('threshold', np.nan)], dtype=np.float64),
-        'global_recurrence_rate': np.asarray(
-            [entry.get('global_recurrence_rate', np.nan)], dtype=np.float64),
-    }
-    for key in ('time', 'RR', 'DET', 'LAM', 'L_MAX'):
-        if key in wm:
-            arrays[f'windowed_{key}'] = np.asarray(wm[key], dtype=np.float64)
-    return _npz.add_group(os.path.join(out_dir, f"{video_id}_crqa.npz"),
-                          pair_key, arrays)
-
-
 def main():
     global INPUT_DIR
     parser = argparse.ArgumentParser(description='Generate cross-RQA data for the DIMS Dashboard')
@@ -353,7 +325,7 @@ def main():
             ts1_vis, ts2_vis, time_vis, matrix_vis, reduction_factor = downsample_for_visualization(
                 ts1_1d, ts2_1d, time_vals, rec_matrix
             )
-            sparse_matrix = matrix_to_sparse_format(matrix_vis)
+            bitmap = matrix_to_bitmap(matrix_vis)
 
             pair_key = f"{type1}_vs_{type2}"
             video_results[pair_key] = {
@@ -370,7 +342,7 @@ def main():
                     'data_x': ts1_vis.tolist(),
                     'data_y': ts2_vis.tolist(),
                     'matrix_size': len(time_vis),
-                    'sparse_matrix': sparse_matrix,  # full RP, reduced
+                    'matrix': bitmap,          # bitmap-b64, the full plot reduced
                     # What this plot is a reduction OF.
                     'reduction': {
                         'factor': int(reduction_factor),
@@ -382,24 +354,27 @@ def main():
                         'rate_drawn': _reduce.rate_of(matrix_vis),
                     },
                 },
+                # The analysis at full resolution, in the same file as the
+                # picture: both prepared signals on the common grid, from which
+                # the matrix is one `cdist` away given the threshold above.
                 'full_stats': {
                     'n_points': int(n),
                     'window_size_sec': args.window,
                     'step_size_sec': args.step,
+                    'time': _arrays.pack_f32(time_vals),
+                    'signal_x': _arrays.pack_f32(ts1_1d),
+                    'signal_y': _arrays.pack_f32(ts2_1d),
                 },
             }
-            try:
-                save_full_resolution(args.output_dir, vid, pair_key,
-                                     video_results[pair_key], time_vals, ts1_1d, ts2_1d)
-            except Exception as exc:  # noqa: BLE001 - never lose a run over this
-                print(f"  WARNING: could not write full-resolution output ({exc})")
             print(f"  > {pair_key}: matrix {len(time_vis)}x{len(time_vis)}, "
-                  f"{len(sparse_matrix)} recurrent points, {len(windowed_metrics['time'])} windows")
+                  f"{len(windowed_metrics['time'])} windows")
 
         if video_results:
             output_path = os.path.join(args.output_dir, f"{vid}_crqa_data.json")
             kept = _results.write_payload(output_path, round_payload(
-                {'video_id': vid, 'crqa_data': video_results,
+                {'video_id': vid,
+                 'payload_version': _arrays.PAYLOAD_VERSION,
+                 'crqa_data': video_results,
                  'provenance': _payload.provenance(
                      target_recurrence=0.07, max_points_drawn=MAX_POINTS),
                  'precision': precision_note()}))

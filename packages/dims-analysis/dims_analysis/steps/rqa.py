@@ -9,7 +9,6 @@ Usage:
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
-from scipy.sparse import csr_matrix
 import json
 import os
 
@@ -19,7 +18,7 @@ from dims_analysis.common import assets as _assets
 from dims_analysis.common import config as _config
 from dims_analysis.common import limits as _limits
 from dims_analysis.common import payload as _payload
-from dims_analysis.common import npz as _npz
+from dims_analysis.common import arrays as _arrays
 from dims_analysis.common import series as _series
 from dims_analysis.common import window as _window
 from dims_analysis.common import recurrence as _rec
@@ -45,8 +44,8 @@ TARGET_RECURRENCE = 0.07
 MAX_POINTS_DRAWN = 500
 
 # Browser payloads are rounded to significant figures; see the module docstring
-# for why decimal places would be wrong here. The full-resolution analysis is
-# the .npz written beside the JSON and is not affected.
+# for why decimal places would be wrong here. The large arrays travel as base64
+# float32 and bitmaps and are not rounded at all.
 try:
     from dims_analysis.common.payload import round_payload, precision_note
 except ImportError:  # standalone script inside a case repo, without the package
@@ -59,9 +58,8 @@ except ImportError:  # standalone script inside a case repo, without the package
             return {k: round_payload(v, figures) for k, v in o.items()}
         if isinstance(o, (list, tuple)):
             return [round_payload(v, figures) for v in o]
-        # Integers pass through: a sparse recurrence matrix is tens of
-        # thousands of [row, col] index pairs, and "7.0" is both wrong and
-        # larger than "7".
+        # Integers pass through: counts and array dimensions, where "7.0" is
+        # both wrong and larger than "7".
         if o is None or isinstance(o, bool) or isinstance(o, int):
             return o
         if not isinstance(o, float):
@@ -74,8 +72,9 @@ except ImportError:  # standalone script inside a case repo, without the package
 
     def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
         return {"significant_figures": figures,
-                "note": ("This file is the browser payload and is rounded. The "
-                         "full-resolution analysis is the .npz beside it.")}
+                "note": ("Small fields are rounded to this many significant "
+                         "figures. Large arrays are base64 float32 or bitmaps "
+                         "and are not rounded.")}
 
 
 
@@ -159,18 +158,16 @@ def compute_windowed_metrics(matrix, time_values, window_sec=20.0, step_sec=1.0)
     return out, plan
 
 
-def matrix_to_sparse_format(matrix):
+def matrix_to_bitmap(matrix):
+    """One bit per cell, base64. See common/arrays.py.
+
+    This used to be a list of `[row, col]` pairs, which costs about ten bytes
+    per recurrent cell against a bitmap's one bit per cell whatever the
+    density. Measured on one ORTHO gaze matrix: 7,300,452 bytes as pairs
+    against 133,803 as a bitmap. Sparse only wins below about 1.2 % density,
+    and RQA targets 7 %.
     """
-    Convert recurrence matrix to sparse format for efficient storage.
-    Returns list of [row, col] pairs where recurrence is 1.
-    """
-    # Get indices where matrix is 1
-    rows, cols = np.where(matrix == 1)
-    
-    # Combine into list of pairs
-    sparse_data = [[int(r), int(c)] for r, c in zip(rows, cols)]
-    
-    return sparse_data
+    return _arrays.pack_bitmap(matrix)
 
 def downsample_for_visualization(time_series, time_values, recurrence_matrix,
                                  max_points=MAX_POINTS_DRAWN):
@@ -236,8 +233,8 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
         data_clean, time_clean, rec_matrix_full
     )
     
-    # Convert to sparse format
-    sparse_matrix = matrix_to_sparse_format(rec_matrix_vis)
+    # Pack the drawn matrix, one bit per cell.
+    bitmap = matrix_to_bitmap(rec_matrix_vis)
 
     # Windowed metrics on the full-resolution matrix (sliding window along the diagonal)
     windowed_metrics, window_plan = compute_windowed_metrics(
@@ -270,7 +267,7 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
             'time': time_vis.tolist(),
             'data': data_vis.tolist(),
             'matrix_size': len(time_vis),
-            'sparse_matrix': sparse_matrix,  # List of [row, col] pairs
+            'matrix': bitmap,          # bitmap-b64; common/arrays.py
             # What this plot is a reduction OF. Without it a reader cannot tell
             # a 500-point picture from the 6000-point analysis behind it.
             'reduction': {
@@ -286,44 +283,22 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
                 'rate_drawn': _reduce.rate_of(rec_matrix_vis),
             },
         },
+        # The analysis at full resolution, in the same file as the picture.
+        # There is no second artifact any more: everything here except the
+        # matrix is one-dimensional and small -- a 6000-point signal is 24 kB
+        # as float32 -- and the matrix is one `cdist` from the signal and the
+        # threshold, at whatever resolution the reader can afford. Storing it
+        # is not an option at any resolution: it is quadratic, and one Karnatak
+        # lesson would be 3.4 billion cells.
         'full_data': {
             'n_points': len(data_clean),
-            'time_range': [float(time_clean[0]), float(time_clean[-1])]
+            'time_range': [float(time_clean[0]), float(time_clean[-1])],
+            'time': _arrays.pack_f32(time_clean),
+            'signal': _arrays.pack_f32(data_clean),
         },
-        # Removed by the caller before the payload is written; they exist so the
-        # full-resolution .npz does not have to re-read and re-clean the CSV.
-        '_time': time_clean,
-        '_signal': data_clean,
     }
 
     return result
-
-
-def save_full_resolution(out_dir, video_id, data_type, result, time_clean, data_clean):
-    """The analysis, beside the browser payload. See common/npz.py.
-
-    Not the recurrence matrix: it is quadratic in the recording and the full
-    Karnatak lesson would be 3.4 billion cells. What is stored is what a reader
-    actually continues from -- the windowed metrics at full resolution, the
-    prepared signal, and the threshold -- from which the matrix is one cdist
-    away at whatever resolution they can afford.
-    """
-    import numpy as _np
-    if time_clean is None or data_clean is None:
-        raise ValueError("no full-resolution series to save")
-    wm = result.get('windowed_metrics') or {}
-    arrays = {
-        'time': _np.asarray(time_clean, dtype=_np.float64),
-        'signal': _np.asarray(data_clean, dtype=_np.float64),
-        'threshold': _np.asarray([result.get('threshold', _np.nan)], dtype=_np.float64),
-        'recurrence_rate': _np.asarray([result.get('recurrence_rate', _np.nan)],
-                                       dtype=_np.float64),
-    }
-    for key in ('time', 'RR', 'DET', 'LAM', 'L_MAX'):
-        if key in wm:
-            arrays[f'windowed_{key}'] = _np.asarray(wm[key], dtype=_np.float64)
-    return _npz.add_group(os.path.join(out_dir, f"{video_id}_rqa.npz"),
-                          data_type, arrays)
 
 
 def main():
@@ -368,16 +343,7 @@ def main():
             result = process_rqa_for_datatype(video_id, data_type,
                                               window_sec=args.window, step_sec=args.step)
             if result:
-                # The full-resolution arrays travel on the result under private
-                # keys and are removed before the browser payload is built.
-                full_time = result.pop('_time', None)
-                full_signal = result.pop('_signal', None)
                 rqa_results[data_type] = result
-                try:
-                    save_full_resolution(args.output_dir, video_id, data_type,
-                                         result, full_time, full_signal)
-                except Exception as exc:  # noqa: BLE001 - never lose a run over this
-                    print(f"  WARNING: could not write full-resolution output ({exc})")
         
         # Save combined data
         if rqa_results:
@@ -387,6 +353,7 @@ def main():
             # channels) writes its results into the same rqa_data dict.
             kept = _results.write_payload(output_path, round_payload({
                 'video_id': video_id,
+                'payload_version': _arrays.PAYLOAD_VERSION,
                 'rqa_data': rqa_results,
                 'provenance': _provenance(),
                 'precision': precision_note(),
@@ -406,7 +373,8 @@ def main():
                 print(f"  {data_type}:")
                 print(f"    - Recurrence rate: {result['recurrence_rate']*100:.2f}%")
                 print(f"    - Matrix size: {result['visualization']['matrix_size']}x{result['visualization']['matrix_size']}")
-                print(f"    - Sparse points: {len(result['visualization']['sparse_matrix'])}")
+                print(f"    - Bitmap: {result['visualization']['matrix']['rows']}"
+                      f"x{result['visualization']['matrix']['cols']}")
     
     print("\nRQA processing complete!")
 

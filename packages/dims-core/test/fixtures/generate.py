@@ -39,6 +39,42 @@ def series(path, seed, lag=0):
             fh.write(f"{ti:.4f},{vi:.6f}\n")
 
 
+def encodings():
+    """Vectors for the browser decoder, packed by the Python side.
+
+    A JS decoder tested against JS-made fixtures agrees with itself. These are
+    produced by `common/arrays.py`, so the two implementations are checked
+    against each other and not against a shared guess. The awkward widths are
+    deliberate: a row whose width is not a multiple of eight ends in padding
+    bits, and reading those back as recurrent cells is the packing bug worth
+    catching.
+    """
+    from dims_analysis.common import arrays
+
+    rng = np.random.default_rng(5)
+    cases = []
+    for rows, cols, density in ((8, 8, 0.5), (7, 13, 0.3), (3, 1, 1.0),
+                                (5, 129, 0.07)):
+        m = (rng.random((rows, cols)) < density).astype(int)
+        cases.append({"kind": "bitmap", "packed": arrays.pack_bitmap(m),
+                      "expected": m.tolist()})
+
+    grids = [
+        np.array([[1.0, -2.5], [0.0, 1234.5]]),
+        np.array([0.5, 1.5, 2.5, 3.5]),
+        np.array([[1.0, np.nan], [np.nan, -2.5]]),
+    ]
+    for g in grids:
+        cases.append({
+            "kind": "f32",
+            "packed": arrays.pack_f32(g),
+            # NaN travels as null, which is what the decoder must produce and
+            # what Plotly reads as a gap.
+            "expected": arrays.nan_to_none(g),
+        })
+    return cases
+
+
 def main():
     work = tempfile.mkdtemp(prefix="dims_fixtures_")
     try:
@@ -105,6 +141,12 @@ def main():
         dst = os.path.join(HERE, "s1_crosswavelet_no_null.json")
         shutil.copyfile(src, dst)
         written.append(("s1_crosswavelet_no_null.json", os.path.getsize(dst)))
+
+        enc = os.path.join(HERE, "encodings.json")
+        with open(enc, "w") as fh:
+            json.dump(encodings(), fh, indent=2)
+            fh.write("\n")
+        written.append(("encodings.json", os.path.getsize(enc)))
 
         with open(os.path.join(HERE, "config.json"), "w") as fh:
             json.dump(config, fh, indent=2)

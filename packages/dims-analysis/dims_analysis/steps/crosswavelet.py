@@ -14,6 +14,7 @@ import os
 
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
+from dims_analysis.common import arrays as _arrays
 from dims_analysis.common import assets as _assets
 from dims_analysis.common import coherence as _coh
 from dims_analysis.common import config as _config
@@ -26,7 +27,7 @@ import warnings
 
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
-# the .npz written beside the JSON and is not affected.
+# the base64 arrays, which are not rounded at all.
 try:
     from dims_analysis.common.payload import round_payload, precision_note
 except ImportError:  # standalone script inside a case repo, without the package
@@ -55,7 +56,7 @@ except ImportError:  # standalone script inside a case repo, without the package
     def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
         return {"significant_figures": figures,
                 "note": ("This file is the browser payload and is rounded. The "
-                         "full-resolution analysis is the .npz beside it.")}
+                         "large arrays are base64 float32.")}
 
 
 warnings.filterwarnings('ignore')
@@ -84,8 +85,8 @@ USE_AR1_NOISE = True        # Use AR1 noise model for significance (vs white noi
 MONTE_CARLO_ITERATIONS = 0  # Number of Monte Carlo iterations (0 = use theoretical)
 
 # Significance for the *coherence* itself, which is a different question from
-# sig95_xwt. sig95_xwt asks "is there more joint energy here than red noise
-# would give?" -- a statement about power. Coherence asks "is the phase lag
+# the cross-wavelet power significance. `signif_xwt` answers "is there more
+# joint energy here than red noise would give?" -- a statement about power. Coherence asks "is the phase lag
 # steadier than red noise would give?", and it needs its own null, because a
 # coherence estimate does not sit at 0 under independence: it is a ratio taken
 # over a smoothing neighbourhood, so a handful of random phases still average
@@ -198,14 +199,13 @@ COHERENCE_SCALE_WIDTH = 0.6     # DEPRECATED, no effect
 # of an analysis, and these were exactly that.
 MAX_TIME_POINTS_VIZ = 500    # Maximum time points for visualization (downsampling)
 MAX_FREQ_POINTS_VIZ = 100    # Maximum frequency points for visualization
-# Full-resolution output is NOT controlled here. It is written as a compressed
-# .npz beside the JSON, on by default, and switched off per study with
-# analysis.crosswavelet.saveFullResolution = false. The old module-level switch
-# embedded full-resolution arrays as JSON *lists* inside the browser payload,
-# which on a two-minute Karnatak recording would have added roughly half a
-# gigabyte of text to a file a browser has to parse. It was removed rather than
-# defaulted off, because the next person to find it would have turned it on.
-OUTPUT_FORMAT = 'json'       # Output format: 'json', 'npz', or 'both'
+# Full-resolution output is NOT controlled here. It goes into a second JSON,
+# `{video}_crosswavelet_full.json`, on by default and switched off per study
+# with analysis.crosswavelet.saveFullResolution = false. It is a separate file
+# and not a switch that fattens the browser payload, because an old module-level
+# switch did exactly that -- full-resolution arrays as JSON *lists* inside the
+# file a page parses, roughly half a gigabyte of text on a two-minute Karnatak
+# recording. Same schema, same field names, different time axis.
 
 # ---------- Analysis Coverage Parameters ----------
 COMPUTE_ALL_PAIRS = True        # Compute all possible pairs (not just specified)
@@ -608,9 +608,11 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # Significance for the cross-wavelet spectrum, which has its own
     # distribution -- Torrence & Compo eq. 31, not the single-spectrum eq. 18.
     # See cross_wavelet_significance below.
+    # One number per scale. The ratio `power / signif_xwt` -- which is what a
+    # tab actually thresholds at 1 -- is not stored: it is a quotient of two
+    # fields already in the file, and as a third full grid it was a quarter of
+    # the full-resolution output holding nothing new.
     signif_xwt = cross_wavelet_significance(alpha1, alpha2, period, dt)
-    sig95_xwt = np.ones([1, N]) * signif_xwt[:, None]
-    sig95_xwt = power / sig95_xwt
     
     # ------------------------------------------------------------------
     # Wavelet coherence (Torrence & Webster 1999):
@@ -696,7 +698,6 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
         'freqs': freqs,
         'period': period,
         'coi': coi,
-        'sig95_xwt': sig95_xwt,
         'sig95_wtc': sig95_wtc,
         'signif_xwt': signif_xwt,
         'global_power': global_power,
@@ -787,7 +788,6 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
     _ph = cwt_results['phase']
     phase_ds = np.angle(_reduce_time(_reduce_freq(np.exp(1j * np.asarray(_ph)), freq_factor), time_factor))
     coherence_ds = np.real(_reduce_time(_reduce_freq(cwt_results['coherence'], freq_factor), time_factor))
-    sig95_xwt_ds = np.real(_reduce_time(_reduce_freq(cwt_results['sig95_xwt'], freq_factor), time_factor))
 
     coi_ds = np.real(_reduce_time(cwt_results['coi'], time_factor))
     signif_xwt_ds = np.real(_reduce_freq(cwt_results['signif_xwt'], freq_factor))
@@ -803,34 +803,36 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
         print(f"  Reduced for the browser: time {n_time}->{len(time_ds)}, "
               f"freq {n_freq}->{len(freqs_ds)} (block-averaged)")
 
-    # NaN has no JSON literal and JSON.parse() rejects it outright, so the
-    # unusable (COI-only) scales are emitted as null instead.
-    sig95_wtc_json = (None if sig95_wtc_ds is None else
-                      [None if not np.isfinite(v) else float(v)
-                       for v in sig95_wtc_ds])
-
-    def _json_safe(a):
-        """NaN has no JSON literal, and JSON.parse rejects the bare token that
-        json.dump would write. Undefined cells travel as null, which the browser
-        draws as a gap."""
-        a = np.asarray(a, dtype=float)
-        return np.where(np.isfinite(a), a, None).tolist()
-
+    # The three two-dimensional fields are where the size is -- 128 scales by
+    # 504 times, three times over -- so they travel as base64 float32 rather
+    # than as text. NaN survives that and means what it means in the analysis:
+    # this cell has no value. The browser decoder turns it into null, which is
+    # what Plotly draws as a gap.
+    #
+    # The one-dimensional axes stay as plain JSON lists. They are a few hundred
+    # numbers, a reader opens this file and looks at them, and `nan_to_none`
+    # keeps the bare NaN token out -- `JSON.parse` rejects it outright, so a
+    # single undefined cell would make a study's whole payload unreadable.
     return {
-        'time': time_ds.tolist(),
-        'freqs': freqs_ds.tolist(),
-        'period': period_ds.tolist(),
-        'scales': scales_ds.tolist(),
-        'power': _json_safe(power_ds),
-        'phase': _json_safe(phase_ds),
-        'coherence': _json_safe(coherence_ds),
-        'coi': coi_ds.tolist(),
-        'sig95_xwt': _json_safe(sig95_xwt_ds),
-        'sig95_wtc': sig95_wtc_json,
-        'signif_xwt': signif_xwt_ds.tolist(),
-        'global_power': global_power_ds.tolist(),
-        'global_signif': global_signif_ds.tolist(),
-        'scale_avg_power': scale_avg_power_ds.tolist(),
+        'time': _arrays.nan_to_none(time_ds),
+        'freqs': _arrays.nan_to_none(freqs_ds),
+        'period': _arrays.nan_to_none(period_ds),
+        'scales': _arrays.nan_to_none(scales_ds),
+        'power': _arrays.pack_f32(power_ds),
+        'phase': _arrays.pack_f32(phase_ds),
+        'coherence': _arrays.pack_f32(coherence_ds),
+        'coi': _arrays.nan_to_none(coi_ds),
+        'sig95_wtc': (None if sig95_wtc_ds is None
+                      else _arrays.nan_to_none(sig95_wtc_ds)),
+        # The per-scale 95 % level. `sig95_xwt` -- power divided by this,
+        # broadcast across time -- used to be stored as a third full grid
+        # beside `power`, which is a quotient of two fields already in the
+        # file: a quarter of the full-resolution output holding nothing new.
+        # A reader divides; `crosswavelet.js` does exactly that.
+        'signif_xwt': _arrays.nan_to_none(signif_xwt_ds),
+        'global_power': _arrays.nan_to_none(global_power_ds),
+        'global_signif': _arrays.nan_to_none(global_signif_ds),
+        'scale_avg_power': _arrays.nan_to_none(scale_avg_power_ds),
         'downsampling_factors': {
             'time_factor': time_factor,
             'freq_factor': freq_factor
@@ -1074,101 +1076,27 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
             'interpolation_method': INTERPOLATION_METHOD
         }
     
-    # The analysis itself, at the resolution it was computed at. The JSON beside
-    # it is a browser payload; this is what a notebook or any downstream
-    # analysis should read. Off with
-    # analysis.crosswavelet.saveFullResolution = false.
+    # The analysis at the resolution it was computed at, in the **same schema**
+    # as the block above and with the same field names -- only the time axis
+    # differs, so one reader serves both. It travels on the result under a
+    # private key and `main()` writes every pair's at once; writing it here
+    # would mean re-reading and re-merging the whole file once per pair, which
+    # is what the .npz this replaces did.
+    #
+    # Cross-wavelet is the only analysis with a second file, and that is
+    # measured rather than assumed: its large fields are two-dimensional
+    # (128 scales x 3026 times against 128 x 504 drawn). A recurrence payload's
+    # are one-dimensional and small enough to carry at full resolution in the
+    # single file, and its matrix is not stored at any resolution because it is
+    # quadratic. Off with analysis.crosswavelet.saveFullResolution = false.
     if _tuning(config).get("saveFullResolution", True):
-        try:
-            npz = save_full_resolution(_EFFECTIVE_OUTPUT_DIR, video_id,
-                                       f"{data_type1}_vs_{data_type2}",
-                                       cwt_results, time_common, scale_avg_power)
-            if VERBOSE:
-                print(f"  Full-resolution analysis -> {npz}")
-        except Exception as exc:  # noqa: BLE001 - never lose a run over this
-            print(f"  WARNING: could not write full-resolution output ({exc})")
+        result['_full'] = downsample_for_storage(
+            cwt_results, time_common, scale_avg_power,
+            max_time_points=len(time_common),
+            max_freq_points=len(cwt_results['freqs']))
 
     return result
 
-
-def save_full_resolution(out_dir, video_id, pair_key, cwt_results, time, scale_avg_power):
-    """Write the analysis at the resolution it was computed at.
-
-    The JSON beside this is a *browser payload*: reduced to a few hundred points
-    so a page can draw it. It was for a long time the only thing kept, which
-    meant anyone continuing the analysis from a study's output was silently
-    working at a fraction of the resolution -- and, before block-averaging, from
-    an aliased copy.
-
-    This is the artifact to analyse from. Compressed .npz, one file per video,
-    with a group of arrays per pair.
-    """
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, f"{video_id}_crosswavelet.npz")
-
-    prefix = pair_key.replace('/', '_')
-    arrays = {
-        f"{prefix}/time": np.asarray(time, dtype=np.float64),
-        f"{prefix}/period": np.real(cwt_results['period']).astype(np.float64),
-        f"{prefix}/freqs": np.real(cwt_results['freqs']).astype(np.float64),
-        f"{prefix}/coherence": np.real(cwt_results['coherence']).astype(np.float32),
-        f"{prefix}/power": np.real(cwt_results['power']).astype(np.float32),
-        f"{prefix}/phase": np.real(cwt_results['phase']).astype(np.float32),
-        f"{prefix}/coi": np.real(cwt_results['coi']).astype(np.float64),
-        f"{prefix}/scale_avg_power": np.real(scale_avg_power).astype(np.float64),
-    }
-    if cwt_results.get('sig95_wtc') is not None:
-        arrays[f"{prefix}/sig95_wtc"] = np.asarray(cwt_results['sig95_wtc'], dtype=np.float64)
-
-    # Append rather than rewrite. A .npz is a zip of .npy members, so a new
-    # pair can be added without touching the ones already there. The obvious
-    # implementation -- load everything, add one pair, recompress -- is
-    # quadratic: a study with fifteen pairs recompressed the whole file fifteen
-    # times, and on a twenty-minute recording that is gigabytes of needless work
-    # per video, with every earlier pair held in memory while it happens.
-    if not _append_to_npz(path, arrays):
-        # A name collision (the same pair written twice, e.g. a re-run) or a
-        # corrupt file: fall back to rebuilding the file from scratch.
-        existing = {}
-        if os.path.exists(path):
-            try:
-                with np.load(path, allow_pickle=False) as z:
-                    existing = {k: z[k] for k in z.files}
-            except Exception:  # noqa: BLE001 - a corrupt file is replaced
-                existing = {}
-        existing.update(arrays)
-        np.savez_compressed(path, **existing)
-    return path
-
-
-def _append_to_npz(path, arrays):
-    """Add arrays to a .npz as new zip members. False if that is not possible.
-
-    Returns False when any name is already present (the caller then rebuilds the
-    file, so a re-run replaces a pair instead of shadowing it with a duplicate
-    zip entry) or when the existing file cannot be read as a zip.
-    """
-    import zipfile
-    from numpy.lib import format as _npformat
-
-    members = {f"{name}.npy": arr for name, arr in arrays.items()}
-    if os.path.exists(path):
-        try:
-            with zipfile.ZipFile(path) as zf:
-                if set(zf.namelist()) & set(members):
-                    return False
-        except (zipfile.BadZipFile, OSError):
-            return False
-    mode = 'a' if os.path.exists(path) else 'w'
-    try:
-        with zipfile.ZipFile(path, mode=mode, compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            for member, arr in members.items():
-                with zf.open(member, 'w', force_zip64=True) as fh:
-                    _npformat.write_array(fh, np.asarray(arr), allow_pickle=False)
-    except (zipfile.BadZipFile, OSError):
-        return False
-    return True
 
 def main():
     parser = argparse.ArgumentParser(description='Generate Cross-Wavelet data for DIMS Dashboard')
@@ -1258,7 +1186,6 @@ def main():
         print(f"Edge Tapering: {EDGE_TAPER} (α={TAPER_ALPHA})" if EDGE_TAPER else "Edge Tapering: False")
         print(f"High Coherence Threshold: {HIGH_COHERENCE_THRESHOLD}")
         print(f"Visualization Resolution: {MAX_TIME_POINTS_VIZ} × {MAX_FREQ_POINTS_VIZ}")
-        print(f"Output Format: {OUTPUT_FORMAT}")
         print("="*60)
     
     # Process each video
@@ -1294,40 +1221,61 @@ def main():
         
         # Save results
         if cwt_results:
-            # Determine output format and save
-            if OUTPUT_FORMAT in ['json', 'both']:
-                output_path = os.path.join(args.output_dir, f"{video_id}_crosswavelet_data.json")
-                
-                output_data = {
-                    'video_id': video_id,
-                    'crosswavelet_pairs': cwt_results,
-                    'data_types': sorted({t for pair in base_pairs for t in pair}),
-                    'config': {
-                        'mother_wavelet': MOTHER_WAVELET,
-                        'omega0': OMEGA0 if MOTHER_WAVELET.lower() == 'morlet' else None,
-                        'dj': DJ,
-                        's0_factor': S0_FACTOR,
-                        'significance_level': SIGNIFICANCE_LEVEL,
-                        'high_coherence_threshold': HIGH_COHERENCE_THRESHOLD,
-                        'detrend': DETREND_DATA,
-                        'edge_taper': EDGE_TAPER
-                    },
-                    'provenance': _payload_provenance(config),
-        'processing_info': {
-                        'pairs_computed': len(cwt_results),
-                        'coi_excluded_from_stats': COI_EXCLUDE,
-                        'visualization_resolution': f"{MAX_TIME_POINTS_VIZ}x{MAX_FREQ_POINTS_VIZ}"
-                    }
-                }
-                
-                output_data['precision'] = precision_note()
-                # Merge rather than clobber: this file is keyed by video, so a
-                # second analysis writing pairs into it must survive a re-run.
-                # write_payload uses compact separators -- the whitespace of
-                # indent=2 is a quarter of the file and nobody reads it by eye.
-                kept = _results.write_payload(output_path, round_payload(output_data))
+            # The full-resolution blocks travel on each result under a private
+            # key; lift them out before the browser payload is built.
+            full_blocks = {key: result.pop('_full')
+                           for key, result in cwt_results.items()
+                           if '_full' in result}
+            output_path = os.path.join(args.output_dir,
+                                       f"{video_id}_crosswavelet_data.json")
+            output_data = {
+                'video_id': video_id,
+                'payload_version': _arrays.PAYLOAD_VERSION,
+                'crosswavelet_pairs': cwt_results,
+                'data_types': sorted({t for pair in base_pairs for t in pair}),
+                'config': {
+                    'mother_wavelet': MOTHER_WAVELET,
+                    'omega0': OMEGA0 if MOTHER_WAVELET.lower() == 'morlet' else None,
+                    'dj': DJ,
+                    's0_factor': S0_FACTOR,
+                    'significance_level': SIGNIFICANCE_LEVEL,
+                    'high_coherence_threshold': HIGH_COHERENCE_THRESHOLD,
+                    'detrend': DETREND_DATA,
+                    'edge_taper': EDGE_TAPER,
+                },
+                'provenance': _payload_provenance(config),
+                'processing_info': {
+                    'pairs_computed': len(cwt_results),
+                    'coi_excluded_from_stats': COI_EXCLUDE,
+                    'visualization_resolution':
+                        f"{MAX_TIME_POINTS_VIZ}x{MAX_FREQ_POINTS_VIZ}",
+                },
+                'precision': precision_note(),
+            }
+            # Merge rather than clobber: this file is keyed by video, so a
+            # second analysis writing pairs into it must survive a re-run.
+            # write_payload uses compact separators -- the whitespace of
+            # indent=2 is a quarter of the file and nobody reads it by eye.
+            kept = _results.write_payload(output_path, round_payload(output_data))
+            print(f"\nSaved cross-wavelet data to {output_path}")
 
-                print(f"\nSaved cross-wavelet data to {output_path}")
+            # The same schema at the resolution the analysis ran at, written
+            # once for every pair rather than merged once per pair.
+            if full_blocks:
+                full_path = os.path.join(args.output_dir,
+                                         f"{video_id}_crosswavelet_full.json")
+                _results.write_payload(full_path, round_payload({
+                    'video_id': video_id,
+                    'payload_version': _arrays.PAYLOAD_VERSION,
+                    'resolution': 'full',
+                    'crosswavelet_pairs': {k: {'visualization': v}
+                                           for k, v in full_blocks.items()},
+                    'provenance': _payload_provenance(config),
+                    'precision': precision_note(),
+                }))
+                grid = next(iter(full_blocks.values()))
+                print(f"Full resolution ({len(grid['period'])} periods x "
+                      f"{len(grid['time'])} times) -> {full_path}")
             for key, names in kept.get('kept', {}).items():
                 print(f"  kept {len(names)} existing {key} entr"
                       f"{'y' if len(names) == 1 else 'ies'} from another "
@@ -1335,12 +1283,6 @@ def main():
             for key, names in kept.get('replaced', {}).items():
                 print(f"  replaced {len(names)} existing {key} entr"
                       f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
-            
-            if OUTPUT_FORMAT in ['npz', 'both']:
-                # Save as compressed NumPy format for easier loading in Python
-                output_path_npz = os.path.join(args.output_dir, f"{video_id}_crosswavelet_data.npz")
-                np.savez_compressed(output_path_npz, **cwt_results)
-                print(f"Saved cross-wavelet data to {output_path_npz}")
             
             # Print summary
             if VERBOSE:

@@ -42,7 +42,87 @@ a 100 Hz grid — ten times the points, a hundred times the matrix, and no added
 information. The length guard therefore applies to the **common grid**, not to
 either input.
 
-## A2 — Reduction is recorded, and a cap is a cap
+## A2 — One file format
+
+**JSON, with base64 little-endian typed arrays for anything large.** No `.npz`
+anywhere. Every array field is either a plain JSON list — small, and something
+a person opens the file to read — or an object naming its encoding:
+
+```jsonc
+{"encoding": "bitmap-b64", "rows": 500, "cols": 500, "data": "…"}
+{"encoding": "f32-b64",    "shape": [128, 3026],      "data": "…"}
+```
+
+The `encoding` field is the design. A reader that meets one it does not know
+**says so by name**; a format that changed silently is how a tab ends up
+drawing an empty panel with nothing in the log. One decoder in Python
+(`common/arrays.py`), one in JavaScript (`DIMS.decodeArray`), tested against
+each other with vectors the Python side produced.
+
+There used to be two artifacts per analysis, and measured file by file the
+second one mostly held nothing the first did not:
+
+| | what the `.npz` uniquely held | verdict |
+|---|---|---|
+| RQA | `time` + `signal`, byte-identical to the source CSV after the documented cleaning; windowed metrics that duplicate the JSON's exactly | redundant |
+| cRQA | the prepared signals on the common grid; metrics duplicated | nearly redundant |
+| cross-wavelet | coherence, power and phase at 6× the time resolution | the real thing |
+
+Meanwhile the assets contract told readers "**Analyse from the `.npz`**" —
+pointing them, for RQA, at the file holding *less*.
+
+A recurrence matrix is a **bitmap**, one bit per cell, not a list of
+`[row, col]` pairs. Pairs cost about ten bytes per recurrent cell; a bitmap
+costs one bit per cell whatever the density. Measured on one ORTHO gaze matrix:
+**7,300,452 bytes as pairs against 133,803 as a bitmap, 54.6×**. Sparse only
+wins below about 1.2 % density, and RQA targets 7 % while ORTHO's gaze channels
+run 63–89 %.
+
+**Nothing derived is stored.** `sig95_xwt` — joint power divided by its own
+per-scale level, broadcast across time — was a third full grid holding the
+quotient of two fields already in the file, and a quarter of the full-resolution
+output. A reader divides.
+
+The measured cost, stated rather than glossed. On the reference study:
+
+| | before | after | |
+|---|---|---|---|
+| RQA (JSON + `.npz`) | 781,681 | 207,459 | **3.8× smaller** |
+| cRQA | 309,186 | 137,937 | **2.2× smaller** |
+| cross-wavelet, what a page fetches | 4,881,299 | 2,238,164 | **2.2× smaller** |
+| cross-wavelet, full resolution | 6,979,924 | 12,721,453 | **1.8× larger** |
+
+The last row is the price: base64 float32 against a deflate-compressed `.npz`.
+It is paid by the file a browser never fetches, and it buys one format with one
+decoder and one schema. A study that does not want it sets
+`analysis.crosswavelet.saveFullResolution: false`.
+
+## A3 — Two resolutions, and only where the second has content
+
+Same schema, two files:
+
+- `{video}_{analysis}_data.json` — reduced, what the browser fetches
+- `{video}_crosswavelet_full.json` — full resolution
+
+They differ **only** in the time axis; field names and schema are identical, so
+one reader serves both, and a notebook written against the payload does not
+break on the file it is supposed to prefer.
+
+**Only cross-wavelet gets the second file**, and that is measured rather than
+assumed: only there are the large fields two-dimensional (128 × 3026 against
+128 × 504 drawn). Everything in a recurrence result except the matrix is
+one-dimensional and small — a 6,000-point signal is 24 kB as float32 — so the
+full-resolution signal travels in the single file, and there is nothing a second
+one could hold.
+
+**The recurrence matrix is not stored at any resolution.** It is quadratic:
+3,000 points bit-packed is 1.1 MB, but 58,000 is 420 MB. The signal and the
+threshold are stored, and the matrix is one `cdist` away.
+
+Every payload carries `payload_version`. A tab meeting a newer one says so
+rather than drawing nothing.
+
+## A4 — Reduction is recorded, and a cap is a cap
 
 Everything a browser draws is reduced, and the reduction is part of the result:
 factor, method, the full length it came from, and the recurrence rate both
@@ -62,7 +142,7 @@ very sparse matrix, reproducing the rate exactly would reduce a recurrent line
 to a couple of dots. The picture must never silently contradict the number
 printed beside it.
 
-## A3 — The window is a parameter of the result
+## A5 — The window is a parameter of the result
 
 DET, LAM, RR and L_MAX are shares of the structure inside one window, and every
 one of them moves with how long that window is. So a windowed analysis records
@@ -83,7 +163,7 @@ real data, because every number stays plausible.
 
 One implementation: `common/window.py`, used by both recurrence steps.
 
-## A4 — Asked-for and achieved are both recorded
+## A6 — Asked-for and achieved are both recorded
 
 Wherever an analysis aims at something it may not hit, the payload carries both
 numbers and a warning when they are far apart.
@@ -96,7 +176,7 @@ numbers and a warning when they are far apart.
   33.7 %. DET and LAM depend strongly on the rate, so two recordings analysed at
   materially different rates are not comparable, and that is a fact about the
   data rather than an error: it is reported, not raised.
-- **The window**, as A3 describes.
+- **The window**, as A5 describes.
 - **`mcCount`**, so a study computed partly at 100 surrogates and partly at 300
   cannot be silently inconsistent.
 - **The core version that produced the file**, in `provenance`.
@@ -105,7 +185,7 @@ Rounding is uniform. Every payload passes through `round_payload` and carries a
 `precision` block; a study-owned step that skips it produces a file whose stated
 precision is not its actual precision.
 
-## A5 — A stated compute budget
+## A7 — A stated compute budget
 
 `analysis.crosswavelet.mcCount` is the number of Monte Carlo surrogates behind
 the coherence null. 300 is the publication setting; the whole ORTHO study at
@@ -114,7 +194,7 @@ inside `pycwt.wct_significance`, not the wavelet mathematics. Rewriting a
 published numerical routine is out of scope; running independent pairs
 concurrently is not, and produces byte-identical output.
 
-## A6 — What is computed is shown, or it is not computed
+## A8 — What is computed is shown, or it is not computed
 
 A system can sit in a third state — paying for something nobody reads — and
 nothing says so. The coherence null was exactly that: every study computed it,
@@ -131,14 +211,14 @@ follows from what the study contains.**
   simulation entirely.
 - An explicit `mcCount` always wins, in both directions.
 - The step **says which it chose and why**, and records the choice in the
-  payload per A4, so it is visible after the fact and not only in a log nobody
+  payload per A6, so it is visible after the fact and not only in a log nobody
   kept.
 - A tab that wants `sig95_wtc` and does not find it **says so** — "this output
   was built without a coherence null; set `analysis.crosswavelet.mcCount` and
   rebuild" — rather than drawing nothing. That is what keeps the default safe
   when someone adds such a tab later.
 
-## A7 — Significance levels are the published ones
+## A9 — Significance levels are the published ones
 
 The cross-wavelet spectrum is the square root of a product of two chi-squares
 (Torrence & Compo 1998, eq. 30), **not** a chi-square. All three significance

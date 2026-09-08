@@ -1,11 +1,11 @@
 """What an output *means*, extracted from however it is currently stored.
 
-The baseline below pins numbers, not bytes. The file format is about to change
--- index pairs become bit-packed, `.npz` goes away -- and a baseline of bytes
-would fail on that by design while telling us nothing about whether the
-analysis still gives the same answers. This module is the one place that knows
-how to read a payload, so when the format changes only this file moves and
-every expected value stays put.
+The baseline below pins numbers, not bytes. The file format **did** change --
+index pairs became bit-packed, the grids became base64 float32, the `.npz` went
+away -- and a baseline of bytes would have failed on that by design while
+saying nothing about whether the analyses still give the same answers. This
+module is the one place that knows how to read a payload; when the format
+changed, only this file moved and every expected value stayed put.
 
 Everything here is a scalar or a short list: enough to catch a changed number,
 small enough to read in a diff.
@@ -16,6 +16,10 @@ import numpy as np
 
 
 def _grid(field):
+    """A 2-D field, whether it is a nested list or a packed array."""
+    from dims_analysis.common import arrays
+    if arrays.is_packed(field):
+        return np.asarray(arrays.unpack(field), dtype=float)
     return np.array([[np.nan if c is None else c for c in row] for row in field],
                     dtype=float)
 
@@ -26,16 +30,13 @@ def _vector(field):
 
 # --- how a recurrence matrix is read today -----------------------------------
 #
-# Step 4 replaces `sparse_matrix` with a bit-packed bitmap. When it does, this
-# function grows a branch on `encoding` and nothing else in the baseline moves.
+# It was `[row, col]` index pairs and is now a bit-packed bitmap. That change
+# moved this function and left every expected value in baseline.json alone,
+# which is the whole reason the baseline reads meaning rather than bytes.
 
 def recurrence_matrix(visualization) -> np.ndarray:
-    n = visualization["matrix_size"]
-    m = np.zeros((n, n), dtype=np.uint8)
-    for row, col in visualization["sparse_matrix"]:
-        if row < n and col < n:
-            m[row, col] = 1
-    return m
+    from dims_analysis.common import arrays
+    return np.asarray(arrays.unpack(visualization["matrix"]), dtype=np.uint8)
 
 
 def diagonal_offsets(matrix, min_fraction=0.25):
@@ -102,6 +103,12 @@ def _fraction_above(values, levels, digits=6):
     return round(float(np.mean(_vector(values) > _vector(levels))), digits)
 
 
+def _ratio(vis):
+    """Joint power over its own 95 % level, per cell: what a tab thresholds."""
+    level = _vector(vis["signif_xwt"])
+    return _grid(vis["power"]) / level[:, None]
+
+
 def coherence_summary(entry) -> dict:
     """One pair of a cross-wavelet payload."""
     vis = entry["visualization"]
@@ -130,9 +137,13 @@ def coherence_summary(entry) -> dict:
         # different question -- and which the baseline was blind to until a
         # 1.5x change in it passed unnoticed. It is what the built-in tab gates
         # its phase arrows on, so a change here changes what is drawn.
-        "mean_sig95_xwt": round(float(np.nanmean(_grid(vis["sig95_xwt"]))), 6),
-        "sig95_xwt_above_one": round(
-            float(np.nanmean(_grid(vis["sig95_xwt"]) > 1.0)), 6),
+        #
+        # Derived rather than read: the payload stores the level per scale and
+        # the power per cell, and the ratio between them used to be stored a
+        # third time as a full grid. This is that ratio, computed the way the
+        # tab computes it -- so what is pinned is still what is drawn.
+        "mean_sig95_xwt": round(float(np.nanmean(_ratio(vis))), 6),
+        "sig95_xwt_above_one": round(float(np.nanmean(_ratio(vis) > 1.0)), 6),
         # The two *averaged* significances. They were unpinned for the same
         # reason `sig95_xwt` was -- nothing reads them, so nothing noticed they
         # used the wrong distribution. "Unread" is not a reason to leave a

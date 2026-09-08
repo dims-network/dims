@@ -6,7 +6,8 @@ distinguishable levels at best. Writing each one as a full float64
 (``0.5940133868313864``, seventeen significant digits) claims a precision the
 measurement never had and costs about four times the file size for it.
 
-The analysis is unaffected: it lives in the .npz beside the JSON, at float32.
+The large arrays are unaffected: they travel as base64 float32 (about seven
+significant figures) and never pass through this rounding at all.
 This module only governs the drawing layer.
 
 **Significant figures, not decimal places.** This distinction is the whole
@@ -84,7 +85,7 @@ def precision_note(figures: int = PAYLOAD_SIGNIFICANT_FIGURES) -> dict:
     """The block every output carries, so the file describes its own precision."""
     return {
         "significant_figures": figures,
-        "note": ("This file is the browser payload and is rounded. The full-resolution "
-                 "analysis is the .npz beside it — read that, not this, for anything "
-                 "beyond drawing."),
+        "note": ("Small fields are rounded to this many significant figures. "
+                 "Large arrays are base64 float32 or bitmaps and are not "
+                 "rounded — see docs/contracts/analysis-output.md."),
     }

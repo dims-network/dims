@@ -104,62 +104,73 @@ def test_the_resolved_input_is_where_the_data_actually_is(tmp_path, step):
     assert "Missing:" not in proc.stdout, proc.stdout
 
 
-NPZ_NAME = {"rqa": "{v}_rqa.npz", "crqa": "{v}_crqa.npz",
-            "crosswavelet": "{v}_crosswavelet.npz"}
-
-
 @pytest.mark.parametrize("step", STEPS)
-def test_every_step_writes_the_analysis_beside_the_payload(tmp_path, step):
-    """assets.md calls them two artifacts, not one. Only crosswavelet complied.
-
-    What goes in differs by analysis and that is not stylistic: a cross-wavelet
-    field is linear in the recording, a recurrence matrix is quadratic. The
-    recurrence steps therefore store the windowed metrics at full resolution,
-    the prepared signals and the threshold -- bounded, and what a reader
-    actually continues from.
+def test_no_step_writes_a_second_file_format(tmp_path, step):
+    """One format. The `.npz` beside each payload is gone, and it is worth
+    saying why rather than only that it is: measured file by file, the RQA
+    archive held `time` and `signal` -- byte-identical to the source CSV after
+    the documented cleaning -- plus windowed metrics that were exact duplicates
+    of the JSON's. The contract meanwhile told readers "Analyse from the .npz",
+    pointing them at the file holding *less*.
     """
-    import numpy as np
-
     project, assets = _study(tmp_path, external=False)
     proc = _run(step, project)
     assert proc.returncode == 0, proc.stdout + proc.stderr
-
-    out_dir = assets / step
-    npz_path = out_dir / NPZ_NAME[step].format(v="v1")
-    assert npz_path.exists(), (
-        f"{step} wrote no full-resolution artifact.\n{proc.stdout}")
-
-    with np.load(npz_path) as z:
-        groups = {n.split("/")[0] for n in z.files}
-        assert groups, "the archive has no groups"
-        arrays = {n.split("/", 1)[1] for n in z.files if n.startswith(f"{sorted(groups)[0]}/")}
-
-    if step == "crosswavelet":
-        assert "coherence" in arrays and "sig95_wtc" in arrays
-    else:
-        assert "windowed_RR" in arrays, arrays
-        assert "threshold" in arrays, arrays
-        assert any(a.startswith("signal") for a in arrays), arrays
+    stray = sorted((assets / step).glob("*.npz"))
+    assert not stray, f"{step} still writes a second format: {stray}"
 
 
 @pytest.mark.parametrize("step", ["rqa", "crqa"])
-def test_the_recurrence_npz_keeps_more_than_the_payload(tmp_path, step):
-    """The point of the second artifact: the JSON is reduced, this is not."""
+def test_a_recurrence_payload_carries_its_own_full_resolution_signal(tmp_path, step):
+    """One file, and complete. Everything in a recurrence result except the
+    matrix is one-dimensional and small, so the full-resolution signal travels
+    in the same file as the reduced picture -- and the matrix is one `cdist`
+    from that signal and the threshold beside it.
+    """
     import json
 
-    import numpy as np
+    from dims_analysis.common import arrays
 
     project, assets = _study(tmp_path, external=False)
     assert _run(step, project).returncode == 0
 
     payload = json.loads(next((assets / step).glob("*_data.json")).read_text())
+    assert payload["payload_version"] == arrays.PAYLOAD_VERSION
     key = "rqa_data" if step == "rqa" else "crqa_data"
     entry = next(iter(payload[key].values()))
     drawn = len(entry["visualization"]["time"])
 
-    with np.load(next((assets / step).glob("*.npz"))) as z:
-        full = len(z[next(n for n in z.files if n.endswith("/time"))])
-    assert full >= drawn, "the archive holds less than the picture"
+    block = entry["full_data"] if step == "rqa" else entry["full_stats"]
+    names = ("signal",) if step == "rqa" else ("signal_x", "signal_y")
+    full = len(arrays.unpack(block["time"]))
+    assert full >= drawn, "the payload holds less at full resolution than it draws"
+    assert full == block["n_points"]
+    for name in names:
+        assert len(arrays.unpack(block[name])) == full, f"{name} is a different length"
+    assert entry["threshold"] is not None, (
+        "without the threshold the signal cannot be turned back into a matrix")
+
+
+def test_cross_wavelet_writes_the_one_second_file_that_has_content(tmp_path):
+    """Only cross-wavelet has a second resolution worth a second file, and that
+    is measured rather than assumed: its large fields are two-dimensional, so a
+    full-resolution grid is 128 x 3026 against 128 x 504 drawn. Same schema,
+    same field names, different time axis -- so one reader serves both.
+    """
+    import json
+
+    project, assets = _study(tmp_path, external=False)
+    assert _run("crosswavelet", project).returncode == 0
+
+    drawn = json.loads((assets / "crosswavelet" / "v1_crosswavelet_data.json").read_text())
+    full = json.loads((assets / "crosswavelet" / "v1_crosswavelet_full.json").read_text())
+    assert full["resolution"] == "full"
+
+    name = sorted(drawn["crosswavelet_pairs"])[0]
+    a = drawn["crosswavelet_pairs"][name]["visualization"]
+    b = full["crosswavelet_pairs"][name]["visualization"]
+    assert set(a) == set(b), f"the two resolutions disagree about fields: {set(a) ^ set(b)}"
+    assert len(b["time"]) >= len(a["time"])
 
 
 def test_the_coherence_null_is_skipped_when_nothing_reads_it(tmp_path):

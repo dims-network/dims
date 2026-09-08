@@ -22,7 +22,7 @@ import os
 import numpy as np
 import pytest
 
-from conftest import build
+from conftest import as_array, build
 
 COUPLED = "eff_hand_l_vs_eff_hand_r"
 UNCOUPLED = ("eff_hand_l_vs_eff_other", "eff_hand_r_vs_eff_other")
@@ -45,8 +45,8 @@ def vis(pairs, key):
 
 
 def grid(field):
-    return np.array([[np.nan if c is None else c for c in row] for row in field],
-                    dtype=float)
+    """However the payload encodes a 2-D field. See conftest.as_array."""
+    return as_array(field)
 
 
 # --- the structure the network draws -----------------------------------------
@@ -217,7 +217,10 @@ def test_the_tab_and_the_payload_agree_about_the_cone(network):
     """
     for key in (COUPLED,) + UNCOUPLED:
         v = vis(network, key)
-        coherence, period, coi = v["coherence"], v["period"], v["coi"]
+        # The tab decodes before it draws; so does this, and then walks the
+        # cells one at a time exactly as the JavaScript does.
+        coherence = grid(v["coherence"])
+        period, coi = v["period"], v["coi"]
         levels = v["sig95_wtc"]
 
         tested = significant = 0
@@ -226,7 +229,7 @@ def test_the_tab_and_the_payload_agree_about_the_cone(network):
                 continue
             for j, coi_at_t in enumerate(coi):
                 value = coherence[i][j]
-                if value is None:           # undefined coherence
+                if not np.isfinite(value):  # undefined coherence
                     continue
                 if not (period[i] < coi_at_t):   # inside the cone: skip
                     continue

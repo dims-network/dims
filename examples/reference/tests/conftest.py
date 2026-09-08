@@ -70,13 +70,14 @@ def entry(study, analysis, container, name):
 
 
 def dense(vis):
-    """The drawn matrix, however the payload happens to encode it."""
-    n = vis["matrix_size"]
-    m = np.zeros((n, n), dtype=np.uint8)
-    for r, c in vis["sparse_matrix"]:
-        if r < n and c < n:
-            m[r, c] = 1
-    return m
+    """The drawn matrix, however the payload happens to encode it.
+
+    The point of routing every test through here: when the storage changed from
+    `[row, col]` index pairs to a base64 bitmap, this function moved and not one
+    expected value did.
+    """
+    from dims_analysis.common import arrays
+    return np.asarray(arrays.unpack(vis["matrix"]), dtype=np.uint8)
 
 
 def diagonal_offsets(m, min_fraction=0.25):
@@ -116,7 +117,16 @@ def pair(study, name):
 
 
 def as_array(field):
-    return np.array([[np.nan if c is None else c for c in row] for row in field],
+    """A payload field as a float array, whatever encoding it arrived in.
+
+    Same reason as `dense`: the tests assert on meaning, so the encoding is
+    known in one place and the assertions did not move when it changed.
+    """
+    from dims_analysis.common import arrays
+    if arrays.is_packed(field):
+        return np.asarray(arrays.unpack(field), dtype=float)
+    field = np.asarray(field, dtype=object)
+    return np.array(np.where(field == None, np.nan, field).tolist(),  # noqa: E711
                     dtype=float)
 
 

@@ -230,12 +230,12 @@ def test_K7_a_constant_signal_has_a_stated_result(recurrence):
 
     e = payload["rqa_data"]["flat"]
     vis = e["visualization"]
-    values = [v for row in [vis["sparse_matrix"]] for v in row]
+    drawn = int(dense(vis).sum())
     assert e["recurrence_rate"] > 0.99 or e.get("degenerate"), (
         f"a constant signal gave recurrence_rate {e['recurrence_rate']} and no "
         f"note that it is degenerate. Every point is identical to every other, "
         f"so the rate is either 1 or the input should have been refused; "
-        f"{len(values)} recurrent cells were drawn")
+        f"{drawn} recurrent cells were drawn")
 
 
 # --- K8: reduction preserves what it claims to ------------------------------

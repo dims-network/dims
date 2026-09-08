@@ -120,7 +120,7 @@ the correlation between coherence and log power. Both should be near zero.
 - Compare the fraction of above-chance cells with **0.05**, not with zero.
 - **"Not detectable" is not "absent".** A null result is a statement about one
   recording, over one band of timescales, against one kind of null.
-- Analyse the `.npz`, not the JSON. The JSON is reduced in time and rounded to
+- Analyse `_full.json`, not the reduced payload. That one is reduced in time and rounded to
   six significant figures; it is a picture, not the analysis.
 - A within-person pair scoring far above chance while between-person pairs sit
   at chance is the expected shape of a healthy analysis, not a disappointment.

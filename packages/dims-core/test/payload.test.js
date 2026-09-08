@@ -84,16 +84,16 @@ test('a recurrence payload carries the picture and what it is a reduction of', (
   assert.ok(entry, 'no entry for the data type the config asked for');
 
   const v = entry.visualization;
-  assert.ok(Array.isArray(v.sparse_matrix), 'sparse_matrix must be a list of [row, col]');
-  assert.ok(v.sparse_matrix.every(p => Array.isArray(p) && p.length === 2));
+  assert.strictEqual(v.matrix.encoding, 'bitmap-b64',
+    'the recurrence plot must arrive as a bitmap the core knows how to read');
   assert.ok(v.matrix_size > 0);
   assert.strictEqual(v.time.length, v.matrix_size,
     'the drawn time axis and the drawn matrix must be the same length');
 
-  // Indices address the REDUCED grid. A tab that assumed otherwise would draw
-  // points outside the plot, or none.
-  const max = Math.max(...v.sparse_matrix.flat());
-  assert.ok(max < v.matrix_size, `index ${max} is outside a ${v.matrix_size}-wide grid`);
+  // The bitmap describes the REDUCED grid. A tab drawing it against the full
+  // axis would draw the wrong picture at the wrong times.
+  assert.strictEqual(v.matrix.rows, v.matrix_size);
+  assert.strictEqual(v.matrix.cols, v.matrix_size);
 
   assert.ok(v.reduction, 'no reduction block: a reader cannot tell what the axis means');
   assert.ok(v.reduction.factor >= 1);
@@ -106,11 +106,16 @@ test('a cross-wavelet payload carries a chance level, not just coherence', () =>
   const pair = Object.values(cwt.crosswavelet_pairs)[0];
   const v = pair.visualization;
 
-  assert.ok(v.coherence && v.coherence.length, 'no coherence');
-  assert.strictEqual(v.coherence.length, v.period.length,
-    'coherence rows must match the period axis');
-  assert.strictEqual(v.coherence[0].length, v.time.length,
-    'coherence columns must match the time axis');
+  assert.ok(v.coherence, 'no coherence');
+  assert.strictEqual(v.coherence.encoding, 'f32-b64');
+  assert.deepStrictEqual(v.coherence.shape, [v.period.length, v.time.length],
+    'the coherence grid must match the axes it is drawn against');
+  // The per-scale power level, from which a tab derives the ratio it
+  // thresholds. Storing that ratio as a third full grid held nothing these
+  // two do not.
+  assert.strictEqual((v.signif_xwt || []).length, v.period.length);
+  assert.strictEqual(v.sig95_xwt, undefined,
+    'a derived grid is back in the payload');
   // Without this a coherence value is unreadable: unrelated signals do not
   // score zero, they score about 0.25-0.6.
   assert.ok(v.sig95_wtc, 'no sig95_wtc — there is nothing to read coherence against');

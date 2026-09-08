@@ -78,7 +78,9 @@ Every per-entity entry carries a `visualization` block, and it is a
 "visualization": {
   "time": [...], "data": [...],      // "data_x"/"data_y" for a pairwise analysis
   "matrix_size": 500,
-  "sparse_matrix": [[12, 40], ...],  // recurrent cells only, as [row, col]
+  "matrix": {                        // one bit per cell of a 500x500 grid
+    "encoding": "bitmap-b64", "rows": 500, "cols": 500, "data": "…"
+  },
   "reduction": {
     "factor": 12,
     "series": "block-mean",          // "block mode (categorical)" for coded series
@@ -90,50 +92,54 @@ Every per-entity entry carries a `visualization` block, and it is a
 }
 ```
 
-`sparse_matrix` lists only the recurrent cells of a `matrix_size` ×
-`matrix_size` grid, because a recurrence plot is a few percent ones and the
-dense form would be a hundred times larger. Indices are into the **reduced**
-grid, so they align with `time` and `data` in the same block and with nothing
-else.
+Large arrays name their encoding; short axes stay plain JSON lists. Decode with
+`DIMS.decodeArray(field)` in a tab, or `common.arrays.unpack(field)` in Python.
+The full rules — and why a bitmap rather than the `[row, col]` index pairs this
+used to carry — are in [analysis output](analysis-output.md), A2.
 
 `rate_full` and `rate_drawn` normally agree. They can differ on a very sparse
 matrix, where reproducing the rate exactly would reduce a recurrent line to a
 couple of dots; the reduction keeps the structure there and records what it
 drew, so the picture never silently contradicts the number printed beside it.
 
-## Two artifacts, not one
+## Two resolutions, one format
 
 ```
-{output_dir}/{videoID}_{slug}_data.json   the browser payload — reduced
-{output_dir}/{videoID}_{slug}.npz         the analysis — full resolution
+{output_dir}/{videoID}_{slug}_data.json          the browser payload — reduced
+{output_dir}/{videoID}_crosswavelet_full.json    the analysis — full resolution
 ```
 
-Members are `"{entity}/{array}"`, so one file holds every entity for that video
-and a new one is appended without rewriting the rest.
+Same schema, same field names; only the time axis differs, so one reader serves
+both. **Only cross-wavelet has a second file**, because only its large fields
+are two-dimensional: 128 scales × 3026 times against 128 × 504 drawn. A
+recurrence payload carries its own full-resolution signal (`full_data` for RQA,
+`full_stats` for cRQA) in the single file, because everything in it except the
+matrix is one-dimensional and small.
 
-| file | members, per entity |
-|---|---|
-| `{videoID}_crosswavelet.npz` | `time`, `period`, `freqs`, `coherence`, `power`, `phase`, `coi`, `scale_avg_power`, `sig95_wtc` |
-| `{videoID}_rqa.npz` | `time`, `signal`, `threshold`, `recurrence_rate`, `windowed_time`, `windowed_RR`, `windowed_DET`, `windowed_LAM`, `windowed_L_MAX` |
-| `{videoID}_crqa.npz` | `time`, `signal_x`, `signal_y`, `threshold`, `global_recurrence_rate`, and the same `windowed_*` |
-
-**The recurrence matrix itself is not stored**, in either file, and that is
+**The recurrence matrix itself is not stored**, at any resolution, and that is
 deliberate rather than an omission: it is quadratic in the length of the
-recording, and one Karnatak lesson would be 3.4 billion cells. What is stored
-is what a reader continues from — both prepared signals, the threshold, and the
-windowed metrics at full resolution — from which the matrix is one `cdist`
-away, at whatever resolution they can afford.
+recording, and one Karnatak lesson would be 3.4 billion cells. What is stored is
+what a reader continues from — the prepared signals, the threshold, and the
+windowed metrics at full resolution — from which the matrix is one `cdist` away.
 
-The JSON is reduced to a few hundred points so a page can draw it, and the
-reduction is recorded in it. **Analyse from the `.npz`.** On real data the JSON
-holds a sixth of the time points, and for a long time it was the only thing
-kept, so anyone continuing from a study's output was working at a fraction of
-the resolution without being told.
+Read it with:
+
+```python
+import json
+from dims_analysis.common import arrays
+
+with open("assets/crosswavelet/3120_crosswavelet_full.json") as fh:
+    payload = json.load(fh)
+v = payload["crosswavelet_pairs"]["bodysync_vs_neuralsync"]["visualization"]
+coherence = arrays.unpack(v["coherence"])   # (periods, time)
+period    = v["period"]
+null      = v["sig95_wtc"]                  # the 95% AR(1) level, or null
+```
 
 ### Precision
 
 The JSON is **rounded to 6 significant figures**, and says so: every output
-carries a `precision` block naming the figure count and pointing at the `.npz`.
+carries a `precision` block naming the figure count and what it applies to.
 
 That is not a compression trick, it is honesty about what the file is. A value
 in the payload becomes a pixel's colour on a heatmap — a few hundred
@@ -152,8 +158,9 @@ Cross-wavelet power spans eight orders of magnitude, so a fixed number of
 decimal places silently zeroes the quiet cells. Integers — counts, and the
 `[row, col]` index pairs of a sparse recurrence matrix — are left untouched.
 
-Nothing is lost to analysis: the `.npz` holds float32, which is about seven
-significant figures.
+Nothing is lost to analysis: **the large arrays are not rounded at all.** They
+travel as float32, about seven significant figures — more than this rounding
+ever claimed. Only the short readable fields pass through it.
 
 ### Reduction
 
@@ -178,16 +185,6 @@ recurrence *fraction*, then keep the densest blocks — as many as reproduce the
 original rate. Structure survives because a block on a line is denser than the
 background; the rate survives because it is what the selection is calibrated
 to.
-
-Read it with:
-
-```python
-import numpy as np
-with np.load("assets/crosswavelet/3120_crosswavelet.npz") as z:
-    coherence = z["bodysync_vs_neuralsync/coherence"]   # (periods, time)
-    period    = z["bodysync_vs_neuralsync/period"]
-    null      = z["bodysync_vs_neuralsync/sig95_wtc"]   # the 95% AR(1) level
-```
 
 ## Acceptance
 

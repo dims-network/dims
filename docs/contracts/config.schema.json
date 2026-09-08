@@ -210,7 +210,7 @@
           "saveFullResolution": {
             "type": "boolean",
             "default": true,
-            "description": "Write the analysis at the resolution it was computed at, as a compressed .npz beside the JSON. The JSON is a browser payload and is reduced; this is what a notebook or downstream analysis should read."
+            "description": "Write the analysis at the resolution it was computed at, as {video}_crosswavelet_full.json beside the payload. Same schema, same field names, different time axis. The payload is reduced for the browser; this is what a notebook or downstream analysis should read."
           }
         }
       }
