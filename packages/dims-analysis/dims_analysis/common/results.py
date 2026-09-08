@@ -26,8 +26,38 @@ import json
 import os
 
 
+#: The key every payload stamps its encoding with. When it changes, an entry
+#: nothing rewrote is an entry no reader can read.
+VERSION_KEY = "payload_version"
+
+
+def same_version(existing: dict, payload: dict) -> bool:
+    """Whether the two files are in the same format.
+
+    A file with no version at all predates versioning, so it is only "the same"
+    as another file with no version.
+    """
+    return existing.get(VERSION_KEY) == payload.get(VERSION_KEY)
+
+
 def merge_payload(existing: dict, payload: dict) -> dict:
-    """New values win, except that dicts are merged one level deep."""
+    """New values win, except that dicts are merged one level deep.
+
+    **Nothing is merged across a format change.** Preserving entries no
+    incoming run rewrote is the whole point of this function -- it is why
+    ORTHO's study-owned categorical gaze RQA survives a run of the shared RQA
+    step -- but when `payload_version` moves, those entries are in an encoding
+    the new reader does not speak, and keeping them produces a file whose
+    stated version describes only half of itself.
+
+    Found by rebuilding ORTHO at 2.0.0: four of twelve recordings kept v1
+    `sparse_matrix` entries, for gaze channels whose source CSV had gone
+    missing, inside files stamped v2 beside v2 bitmaps. A tab reading those
+    entries finds nothing and draws an empty panel, which is precisely the
+    failure this release exists to make impossible.
+    """
+    if not same_version(existing, payload):
+        return dict(payload)
     out = dict(existing)
     for key, value in payload.items():
         prior = out.get(key)
@@ -62,6 +92,8 @@ def compare_entries(existing: dict, payload: dict) -> dict:
     """
     kept: dict = {}
     replaced: dict = {}
+    stale: dict = {}
+    fresh = same_version(existing, payload)
     for key, value in payload.items():
         prior = existing.get(key)
         if not (isinstance(value, dict) and isinstance(prior, dict)):
@@ -69,10 +101,10 @@ def compare_entries(existing: dict, payload: dict) -> dict:
         extra = sorted(k for k in prior if k not in value)
         over = sorted(k for k in prior if k in value)
         if extra:
-            kept[key] = extra
+            (kept if fresh else stale)[key] = extra
         if over:
             replaced[key] = over
-    return {"kept": kept, "replaced": replaced}
+    return {"kept": kept, "replaced": replaced, "stale": stale}
 
 
 def write_payload(path: str, payload: dict, compact: bool = True) -> dict:
@@ -82,6 +114,12 @@ def write_payload(path: str, payload: dict, compact: bool = True) -> dict:
     """
     existing = read_existing(path)
     report = compare_entries(existing, payload)
+    for key, names in report.get("stale", {}).items():
+        print(f"  dropped {len(names)} {key} entr"
+              f"{'y' if len(names) == 1 else 'ies'} written by an older payload "
+              f"format, which this run did not rebuild: {', '.join(names)}")
+        print(f"       their source data is missing or their analysis did not "
+              f"run; rebuild them or they are gone from this study.")
     merged = merge_payload(existing, payload)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w") as fh:
