@@ -247,3 +247,52 @@ test('the two averaged significance levels are drawn beside what they judge', as
   assert.ok(levels.some(t => t.yaxis === 'y2'), 'no level beside the global spectrum');
   assert.ok(levels.some(t => t.yaxis === 'y3'), 'no level beside the scale-averaged power');
 });
+
+// --- a study that bumped without rebuilding ---------------------------------
+//
+// The one failure v2.0.0 most wants nobody to find by looking at a dashboard.
+// The payload format changed, so an asset built by an older core has no field
+// the new tabs read, and a tab that simply draws nothing is indistinguishable
+// from a study with no data at all.
+
+const withVersion = (name, version) => {
+  const payload = JSON.parse(read(name));
+  if (version === null) delete payload.payload_version;
+  else payload.payload_version = version;
+  return JSON.stringify(payload);
+};
+
+for (const [tab, asset, container] of [
+  ['rqa', 'assets/rqa/s1_rqa_data.json', 's1_rqa_data.json'],
+  ['crqa', 'assets/crqa/s1_crqa_data.json', 's1_crqa_data.json'],
+  ['crosswavelet', 'assets/crosswavelet/s1_crosswavelet_data.json',
+   's1_crosswavelet_data.json'],
+]) {
+  test(`the ${tab} tab names an asset from an older core instead of drawing nothing`,
+    async () => {
+      const w = await boot(CONFIG, { ...FILES, [asset]: withVersion(container, null) });
+      await open_(w, tab);
+      const text = w.document.body.textContent;
+      assert.match(text, /older than 2\.0\.0/,
+        `the ${tab} tab drew a pre-2.0.0 asset without saying it could not read it`);
+      assert.match(text, /build_assets\.py/,
+        'the message must say how to fix it');
+    });
+
+  test(`the ${tab} tab names an asset from a newer core`, async () => {
+    const w = await boot(CONFIG, { ...FILES, [asset]: withVersion(container, 99) });
+    await open_(w, tab);
+    const text = w.document.body.textContent;
+    assert.match(text, /newer core/);
+    assert.match(text, /payload version 99/);
+  });
+}
+
+test('a payload at the current version is drawn without complaint', async () => {
+  // The other direction, so the check cannot pass by refusing everything.
+  const w = await boot();
+  for (const tab of ['rqa', 'crqa', 'crosswavelet']) await open_(w, tab);
+  const text = w.document.body.textContent;
+  assert.ok(!/older than|newer core|payload version/.test(text),
+    'a current payload was reported as unreadable');
+});

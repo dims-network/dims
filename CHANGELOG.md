@@ -10,10 +10,13 @@ Full notes for each release are on
 ## v2.0.0
 
 **Every RQA, cross-RQA and cross-wavelet output produced before this release is
-unreadable by the new tabs and must be recomputed.** A study that bumps
-`dimsCore` without rebuilding its assets gets empty panels, and that must not be
-something anyone discovers by looking at a dashboard. Rebuild with
+unreadable by the new tabs and must be recomputed.** Rebuild with
 `python build_assets.py`, then `dims-analysis manifest`.
+
+A study that bumps `dimsCore` without rebuilding does **not** get empty panels:
+every tab checks `payload_version` and says which core wrote the file and what
+to run. An empty panel is indistinguishable from a study with no data, and that
+must not be something anyone discovers by looking at a dashboard.
 
 ### Why the major bump
 
