@@ -101,6 +101,13 @@ def coherence_summary(entry) -> dict:
         "mean_phase_rad": round(
             float(np.angle(np.nanmean(np.exp(1j * phase)))), 6),
         "wtc_signif_fraction": entry["statistics"].get("wtc_signif_fraction"),
+        # The *power* significance, which is a different field answering a
+        # different question -- and which the baseline was blind to until a
+        # 1.5x change in it passed unnoticed. It is what the built-in tab gates
+        # its phase arrows on, so a change here changes what is drawn.
+        "mean_sig95_xwt": round(float(np.nanmean(_grid(vis["sig95_xwt"]))), 6),
+        "sig95_xwt_above_one": round(
+            float(np.nanmean(_grid(vis["sig95_xwt"]) > 1.0)), 6),
         "alpha1": entry.get("alpha1"),
         "alpha2": entry.get("alpha2"),
     }

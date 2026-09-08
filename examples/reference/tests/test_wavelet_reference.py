@@ -326,3 +326,79 @@ def test_more_surrogates_does_not_move_the_answer():
     assert moved < 0.05, (
         f"the level moved {moved:.4f} between 20 and 100 surrogates; the cheap "
         f"setting is then not a reasonable default")
+
+
+# --- the cross-wavelet spectrum, eq. 31 --------------------------------------
+#
+# Section 6c of the paper gives a distribution for the cross-wavelet spectrum
+# that is *not* the one for a single spectrum, and this project used the single
+# one. See TORRENCE_COMPO.md in this directory.
+
+#: Eq. 31: for complex wavelets (nu = 2), Z_2(95%) = 3.999. The single-spectrum
+#: level uses chi2_2(95%)/2 = 2.9957 instead, which is 1.5 times larger.
+TC_Z2_95 = 3.999
+
+
+def ar1_background(alpha, period, dt):
+    """Torrence & Compo eq. 16, at the Fourier frequency each scale matches.
+
+        P_k = (1 - a^2) / (1 + a^2 - 2a cos(2 pi k / N))
+
+    Checked against `pycwt.significance` for alpha 0, 0.5 and 0.9: multiplying
+    this by chi2_2(0.95)/2 reproduces it exactly, so the background itself is
+    right and only its use differed.
+    """
+    frequency = dt / np.asarray(period, dtype=float)
+    return ((1 - alpha ** 2)
+            / (1 + alpha ** 2 - 2 * alpha * np.cos(2 * np.pi * frequency)))
+
+
+def test_the_cross_wavelet_significance_follows_equation_31():
+    """The level for |W_x W_y*| is not the level for a single power spectrum.
+
+    Eq. 31:  |W^X W^Y*| / (sigma_X sigma_Y)  =>  (Z_nu(p)/nu) sqrt(P^X_k P^Y_k)
+
+    Two things distinguish it from what a single spectrum uses: the constant is
+    Z_2(95%)/2 = 1.9995 rather than chi2_2(95%)/2 = 2.9957, and the background
+    is the geometric mean of the two series' spectra rather than one spectrum
+    at the mean of the two alphas.
+
+    Measured before this was fixed: the level was 1.50 times too high when the
+    two coefficients matched, 1.71 at alpha = (0.9, 0.5) and 2.39 at
+    (0.95, 0.2). Since the payload stores power/level, the stored field was 1.5
+    to 2.4 times too small -- and the built-in tab draws a phase arrow only
+    where that field exceeds 1, so it drew far too few.
+    """
+    from dims_analysis.steps import crosswavelet as cw
+
+    dt, dj, n = DT, DJ, 512
+    _W, scales, freqs, _coi, _fft, _f = transform(sine(n), dt=dt, dj=dj)
+    period = 1.0 / freqs
+
+    for alpha1, alpha2 in ((0.9, 0.9), (0.9, 0.5), (0.95, 0.2)):
+        expected = (TC_Z2_95 / 2) * np.sqrt(
+            ar1_background(alpha1, period, dt) * ar1_background(alpha2, period, dt))
+        actual = cw.cross_wavelet_significance(alpha1, alpha2, period, dt)
+        assert np.allclose(actual, expected, rtol=1e-6), (
+            f"alpha=({alpha1}, {alpha2}): mean ratio "
+            f"{float(np.mean(np.asarray(actual) / expected)):.4f} against eq. 31")
+
+
+def test_the_cross_wavelet_level_is_not_the_single_spectrum_level():
+    """The two are close enough to be mistaken for each other and different
+    enough to matter: a fixed factor of 1.4982 when the coefficients match, and
+    more when they do not."""
+    from scipy.stats import chi2
+
+    from dims_analysis.steps import crosswavelet as cw
+
+    dt, n = DT, 512
+    _W, scales, freqs, _c, _f, _f2 = transform(sine(n))
+    period = 1.0 / freqs
+
+    single = (chi2.ppf(0.95, 2) / 2) * ar1_background(0.9, period, dt)
+    cross = np.asarray(cw.cross_wavelet_significance(0.9, 0.9, period, dt))
+    ratio = float(np.mean(single / cross))
+    assert abs(ratio - 1.4982) < 0.01, (
+        f"the single-spectrum level is {ratio:.4f} times the cross-wavelet one; "
+        f"chi2_2(0.95)/Z_2(0.95) = {chi2.ppf(0.95, 2) / TC_Z2_95:.4f}")

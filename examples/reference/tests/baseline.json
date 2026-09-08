@@ -9,6 +9,7 @@
         "mean_phase_rad": 0.003938,
         "mean_power": 4.115132,
         "mean_sig95_wtc": 0.600361,
+        "mean_sig95_xwt": 0.395519,
         "n_periods": 54,
         "n_times": 341,
         "n_unusable_levels": 0,
@@ -16,6 +17,7 @@
           0.04255,
           19.4089
         ],
+        "sig95_xwt_above_one": 0.090963,
         "wtc_signif_fraction": 0.753167
       },
       "eff_hand_l_vs_eff_other": {
@@ -26,6 +28,7 @@
         "mean_phase_rad": 0.31696,
         "mean_power": 3.879848,
         "mean_sig95_wtc": 0.601244,
+        "mean_sig95_xwt": 0.345352,
         "n_periods": 54,
         "n_times": 341,
         "n_unusable_levels": 0,
@@ -33,6 +36,7 @@
           0.04255,
           19.4089
         ],
+        "sig95_xwt_above_one": 0.034919,
         "wtc_signif_fraction": 0.0366731
       },
       "eff_hand_r_vs_eff_other": {
@@ -43,6 +47,7 @@
         "mean_phase_rad": 1.145805,
         "mean_power": 4.137973,
         "mean_sig95_wtc": 0.601244,
+        "mean_sig95_xwt": 0.358211,
         "n_periods": 54,
         "n_times": 341,
         "n_unusable_levels": 0,
@@ -50,6 +55,7 @@
           0.04255,
           19.4089
         ],
+        "sig95_xwt_above_one": 0.035245,
         "wtc_signif_fraction": 0.0786362
       },
       "noise_a_vs_noise_b": {
@@ -60,6 +66,7 @@
         "mean_phase_rad": -2.350556,
         "mean_power": 5.298919,
         "mean_sig95_wtc": 0.601812,
+        "mean_sig95_xwt": 0.377972,
         "n_periods": 54,
         "n_times": 341,
         "n_unusable_levels": 0,
@@ -67,6 +74,7 @@
           0.04255,
           19.4089
         ],
+        "sig95_xwt_above_one": 0.045292,
         "wtc_signif_fraction": 0.0482318
       },
       "sine_vs_sine": {
@@ -77,6 +85,7 @@
         "mean_phase_rad": -0.0,
         "mean_power": 7.864886,
         "mean_sig95_wtc": 0.602932,
+        "mean_sig95_xwt": 0.261746,
         "n_periods": 54,
         "n_times": 341,
         "n_unusable_levels": 0,
@@ -84,6 +93,7 @@
           0.04255,
           19.4089
         ],
+        "sig95_xwt_above_one": 0.078147,
         "wtc_signif_fraction": 1.0
       },
       "sine_vs_sine_lagged": {
@@ -94,6 +104,7 @@
         "mean_phase_rad": 0.971303,
         "mean_power": 7.904431,
         "mean_sig95_wtc": 0.602932,
+        "mean_sig95_xwt": 0.262586,
         "n_periods": 54,
         "n_times": 341,
         "n_unusable_levels": 0,
@@ -101,6 +112,7 @@
           0.04255,
           19.4089
         ],
+        "sig95_xwt_above_one": 0.078093,
         "wtc_signif_fraction": 0.999661
       },
       "sine_vs_sine_x10": {
@@ -111,6 +123,7 @@
         "mean_phase_rad": 0.0,
         "mean_power": 7.864886,
         "mean_sig95_wtc": 0.602932,
+        "mean_sig95_xwt": 0.261746,
         "n_periods": 54,
         "n_times": 341,
         "n_unusable_levels": 0,
@@ -118,6 +131,7 @@
           0.04255,
           19.4089
         ],
+        "sig95_xwt_above_one": 0.078147,
         "wtc_signif_fraction": 1.0
       }
     },
