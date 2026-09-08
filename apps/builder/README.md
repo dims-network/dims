@@ -3,8 +3,11 @@
 A no-code wizard: point it at your recordings, time series and annotations, and
 it produces a working DIMS dashboard.
 
+> **Not on PyPI yet**, so install from a checkout of the monorepo.
+
 ```sh
-pip install "dims-network[builder]"
+git clone https://github.com/dims-network/dims
+pip install -e './dims[builder]'
 dims-builder
 ```
 
@@ -19,12 +22,17 @@ in step by hand; that copy is gone.
 **Linux** — `./run.sh`
 **Windows** — double-click `run.bat`
 
-Or manually (also the simplest way to avoid the macOS prompt below):
+Or manually, from this directory (also the simplest way to avoid the macOS
+prompt below) — this is what the launchers above do:
 
 ```bash
 pip install -r requirements.txt
-dims-builder
+python -m dims_builder
 ```
+
+`requirements.txt` installs what the builder needs, not the builder itself, so
+run it as a module from here. The `dims-builder` command comes from installing
+the package: `pip install -e '.[builder]'` at the repository root.
 
 > **macOS, first run only:** if you downloaded the ZIP you may see *“Apple could not
 > verify ‘run.command’ is free of malware.”* Click **Done**, then go to
@@ -73,7 +81,8 @@ Your browser opens to the wizard. Follow the 7 steps:
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.10+ — 3.12 or lower if your study starts from video, because
+  `mediapipe` ships no 3.13 wheel
 - That's it. The dashboard is in this repository, beside the builder, so
   **git and an internet connection are not required** to build a study. `git` is
   worth having afterwards, for the privacy guards a private study installs.
@@ -92,7 +101,7 @@ your-project/
   assets/elan/{id}.eaf                      # if ELAN enabled
   assets/rqa/{id}_rqa_data.json             # if RQA enabled (precomputed)
   assets/crosswavelet/{id}_crosswavelet_data.json  # if cross-wavelet enabled
-  ...                                       # the rest of the template, unchanged
+  ...                                       # the rest of the scaffold, unchanged
 ```
 
 This folder is the deployable artifact — host it on any static host that supports

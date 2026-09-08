@@ -8,12 +8,24 @@ The built-in tabs. One self-registering file each, no index, no build step.
 | `rqa.js` | recurrence plot and windowed metrics | the `rqa` analysis |
 | `crqa.js` | cross-recurrence between two signals | the `crqa` analysis |
 | `crosswavelet.js` | coherence and power against a chance level | the `crosswavelet` analysis |
+| `network.js` | who is coupled with whom, moving with the playhead | the `crosswavelet` analysis, with `mcCount` set |
 | `elan.js` | ELAN annotation tiers | `assets/elan/` |
 
-A tab is switched on by its `include_*` key in `config.json`. A study can add
-its own tabs in its `tabs/` directory; they register exactly the same way, which
-is the point — the extension path is the one the built-ins use, so it cannot
-quietly rot.
+A tab is switched on by its `include_*` key in `config.json`. `network.js` reads
+its groups and its period band from `include_network` — it draws one
+undifferentiated column of nodes without them — and it cannot tell an edge from
+chance unless `analysis.crosswavelet.mcCount` is set.
+
+A study can add its own tabs in its `tabs/` directory; they register exactly the
+same way, which is the point — the extension path is the one the built-ins use,
+so it cannot quietly rot.
+
+**Do not reuse a built-in's id.** `registerTab` refuses the duplicate with a
+`console.error`, so the study keeps a file that silently does nothing. This is
+not hypothetical: a study that owned the network tab before it became a built-in
+hit exactly this. `dims-case check` warns about it and `dims-case sync` says it
+at bump time — see `shadowed_tabs()` in
+[`dims_case/core.py`](../dims-case/dims_case/core.py).
 
 Write one against [`docs/contracts/tab.md`](../../docs/contracts/tab.md).
 

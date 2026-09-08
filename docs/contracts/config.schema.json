@@ -237,7 +237,7 @@
       }
     },
     "include_network": {
-      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core since v2.0.0 -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them. Every edge also reports what share of the window had both measures active, which assumes a measure whose near-zero means \"not moving\" -- a speed or another magnitude. It is reported and never acted on, and is omitted entirely when the raw series are not loaded.",
+      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them. Every edge also reports what share of the window had both measures active, which assumes a measure whose near-zero means \"not moving\" -- a speed or another magnitude. It is reported and never acted on, and is omitted entirely when the raw series are not loaded.",
       "oneOf": [
         {
           "type": "boolean"
