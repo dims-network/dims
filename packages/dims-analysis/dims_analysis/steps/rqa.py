@@ -78,9 +78,19 @@ except ImportError:  # standalone script inside a case repo, without the package
 
 
 
-def _provenance():
-    """What produced this file. See common/payload.py."""
-    return _payload.provenance(target_recurrence=TARGET_RECURRENCE,
+#: The step id this analysis is tuned under in `config.json`:
+#: `analysis.rqa.{window, step, targetRecurrence}`. See common/config.tuning.
+TUNING_KEY = "rqa"
+
+
+def _provenance(target_recurrence=TARGET_RECURRENCE):
+    """What produced this file, including the rate this run actually aimed at.
+
+    The module default used to be recorded here whatever the run asked for,
+    which is the A6 defect in miniature: an output that does not say what it was
+    asked for cannot be compared with another.
+    """
+    return _payload.provenance(target_recurrence=target_recurrence,
                                max_points_drawn=MAX_POINTS_DRAWN)
 
 
@@ -195,7 +205,8 @@ def downsample_for_visualization(time_series, time_values, recurrence_matrix,
 
     return data_ds, time_ds, matrix_ds, factor
 
-def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0):
+def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0,
+                             target_recurrence=TARGET_RECURRENCE):
     """
     Process RQA for a specific data type.
     """
@@ -226,7 +237,8 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     print(f"  Processing {len(data_clean)} data points")
     
     # Calculate full recurrence matrix
-    rec_matrix_full, threshold, rec_rate = calculate_recurrence_matrix(data_clean)
+    rec_matrix_full, threshold, rec_rate = calculate_recurrence_matrix(
+        data_clean, target_recurrence=target_recurrence)
     
     # Downsample for visualization
     data_vis, time_vis, rec_matrix_vis, reduction_factor = downsample_for_visualization(
@@ -244,7 +256,7 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
         print(f"  WARNING: {window_plan.warning}")
 
     # Prepare output data
-    target, achieved, rate_warning = _rec.rate_report(TARGET_RECURRENCE, rec_rate)
+    target, achieved, rate_warning = _rec.rate_report(target_recurrence, rec_rate)
     if rate_warning:
         print(f"  WARNING: {rate_warning}")
 
@@ -306,13 +318,27 @@ def main():
     parser = argparse.ArgumentParser(description='Generate RQA data for DIMS Dashboard')
     parser.add_argument('--config', default='config.json', help='Path to config.json')
     parser.add_argument('--output-dir', default='assets/rqa', help='Output directory for RQA data')
-    parser.add_argument('--window', type=float, default=20.0, help='Windowed-metric window size in seconds')
-    parser.add_argument('--step', type=float, default=1.0, help='Windowed-metric step in seconds')
+    parser.add_argument('--window', type=float, default=None,
+                        help='Windowed-metric window size in seconds '
+                             '(default: analysis.rqa.window, else 20)')
+    parser.add_argument('--step', type=float, default=None,
+                        help='Windowed-metric step in seconds '
+                             '(default: analysis.rqa.step, else 1)')
     args = parser.parse_args()
     
     # Load config
     with open(args.config, 'r') as f:
         config = json.load(f)
+
+    # Tuning belongs in the study's config, not in this file and not only on a
+    # command line the step adapter never uses. A flag still wins where one is
+    # given, so a one-off run can override without editing the study.
+    window_sec = args.window if args.window is not None else \
+        _config.tuned_number(config, TUNING_KEY, 'window', 20.0)
+    step_sec = args.step if args.step is not None else \
+        _config.tuned_number(config, TUNING_KEY, 'step', 1.0)
+    target_recurrence = _config.tuned_number(
+        config, TUNING_KEY, 'targetRecurrence', TARGET_RECURRENCE)
     
     # Check if RQA is requested
     if not _config.enabled(config, 'include_RQA'):
@@ -340,8 +366,9 @@ def main():
         # Process each data type
         rqa_results = {}
         for data_type in rqa_data_types:
-            result = process_rqa_for_datatype(video_id, data_type,
-                                              window_sec=args.window, step_sec=args.step)
+            result = process_rqa_for_datatype(
+                video_id, data_type, window_sec=window_sec, step_sec=step_sec,
+                target_recurrence=target_recurrence)
             if result:
                 rqa_results[data_type] = result
         
@@ -355,7 +382,7 @@ def main():
                 'video_id': video_id,
                 'payload_version': _arrays.PAYLOAD_VERSION,
                 'rqa_data': rqa_results,
-                'provenance': _provenance(),
+                'provenance': _provenance(target_recurrence),
                 'precision': precision_note(),
             }))
             print(f"\nSaved RQA data to {output_path}")

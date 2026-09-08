@@ -88,12 +88,18 @@ except ImportError:  # standalone script inside a case repo, without the package
 
 MAX_POINTS = 500  # visualization cap, matching step_RQA.py
 
+#: The recurrence rate the threshold search aims for, and the step id this
+#: analysis is tuned under: `analysis.crqa.{window, step, targetRecurrence}`.
+TARGET_RECURRENCE = 0.07
+TUNING_KEY = "crqa"
+
 
 # ============================================================================
 # ALGORITHMS
 # ============================================================================
 
-def calculate_cross_recurrence_matrix(emb1, emb2, threshold=None, target_recurrence=0.07):
+def calculate_cross_recurrence_matrix(emb1, emb2, threshold=None,
+                                      target_recurrence=TARGET_RECURRENCE):
     """Cross-recurrence matrix between two (embedded) series.
 
     emb1/emb2 are (N, d) arrays. Returns (matrix, threshold, actual_recurrence).
@@ -238,8 +244,12 @@ def main():
     parser = argparse.ArgumentParser(description='Generate cross-RQA data for the DIMS Dashboard')
     parser.add_argument('--config', default='config.json', help='Path to config.json')
     parser.add_argument('--output-dir', default='assets/crqa', help='Output directory')
-    parser.add_argument('--window', type=float, default=20.0, help='Sliding window size in seconds')
-    parser.add_argument('--step', type=float, default=1.0, help='Window step in seconds')
+    parser.add_argument('--window', type=float, default=None,
+                        help='Sliding window size in seconds '
+                             '(default: analysis.crqa.window, else 20)')
+    parser.add_argument('--step', type=float, default=None,
+                        help='Window step in seconds '
+                             '(default: analysis.crqa.step, else 1)')
     args = parser.parse_args()
 
     try:
@@ -248,6 +258,15 @@ def main():
     except FileNotFoundError:
         print(f"Error: Config file '{args.config}' not found.")
         return
+
+    # Tuning from the study's config, shared with rqa.py; see common/config.
+    # A command-line flag still wins, for a one-off run.
+    window_sec = args.window if args.window is not None else \
+        _config.tuned_number(config, TUNING_KEY, 'window', 20.0)
+    step_sec = args.step if args.step is not None else \
+        _config.tuned_number(config, TUNING_KEY, 'step', 1.0)
+    target_recurrence = _config.tuned_number(
+        config, TUNING_KEY, 'targetRecurrence', TARGET_RECURRENCE)
 
     if not _config.enabled(config, 'include_cRQA'):
         print("No cRQA requested in config (include_cRQA not found or empty)")
@@ -294,7 +313,8 @@ def main():
             ts1_1d, ts2_1d = ts1, ts2
 
             # Full-resolution cross-recurrence matrix (used for metrics).
-            rec_matrix, threshold, global_rr = calculate_cross_recurrence_matrix(emb1, emb2)
+            rec_matrix, threshold, global_rr = calculate_cross_recurrence_matrix(
+                emb1, emb2, target_recurrence=target_recurrence)
             print(f"  > Global cross-recurrence rate: {global_rr*100:.2f}%")
 
             # Windowed metrics along the line of synchronization (main diagonal).
@@ -304,7 +324,7 @@ def main():
             # actually used.
             dt = float(np.mean(np.diff(time_vals)))
             n = len(emb1)
-            window_plan = _window.plan(n, dt, args.window, args.step)
+            window_plan = _window.plan(n, dt, window_sec, step_sec)
             if window_plan.warning:
                 print(f"  > WARNING: {window_plan.warning}")
 
@@ -359,8 +379,8 @@ def main():
                 # the matrix is one `cdist` away given the threshold above.
                 'full_stats': {
                     'n_points': int(n),
-                    'window_size_sec': args.window,
-                    'step_size_sec': args.step,
+                    'window_size_sec': window_sec,
+                    'step_size_sec': step_sec,
                     'time': _arrays.pack_f32(time_vals),
                     'signal_x': _arrays.pack_f32(ts1_1d),
                     'signal_y': _arrays.pack_f32(ts2_1d),
@@ -376,7 +396,8 @@ def main():
                  'payload_version': _arrays.PAYLOAD_VERSION,
                  'crqa_data': video_results,
                  'provenance': _payload.provenance(
-                     target_recurrence=0.07, max_points_drawn=MAX_POINTS),
+                     target_recurrence=target_recurrence,
+                     max_points_drawn=MAX_POINTS),
                  'precision': precision_note()}))
             print(f"\nSaved cRQA data to {output_path}")
             for key, names in kept.get('kept', {}).items():
