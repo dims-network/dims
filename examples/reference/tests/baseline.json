@@ -1,0 +1,392 @@
+{
+  "crosswavelet": {
+    "entries": {
+      "eff_hand_l_vs_eff_hand_r": {
+        "alpha1": 0.856042,
+        "alpha2": 0.851218,
+        "global_power_above_signif": 0.082569,
+        "mean_coherence": 0.712397,
+        "mean_coherence_outside_coi": 0.717861,
+        "mean_global_signif": 11.152235,
+        "mean_phase_rad": 0.003938,
+        "mean_power": 4.115132,
+        "mean_sig95_wtc": 0.600361,
+        "mean_sig95_xwt": 0.395586,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "scale_avg_power_above_signif": false,
+        "scale_avg_signif": 0.1872,
+        "sig95_xwt_above_one": 0.091506,
+        "wtc_signif_fraction": 0.753167
+      },
+      "eff_hand_l_vs_eff_other": {
+        "alpha1": 0.856042,
+        "alpha2": 0.863405,
+        "global_power_above_signif": 0.0,
+        "mean_coherence": 0.321524,
+        "mean_coherence_outside_coi": 0.248738,
+        "mean_global_signif": 11.542603,
+        "mean_phase_rad": 0.31696,
+        "mean_power": 3.879848,
+        "mean_sig95_wtc": 0.601244,
+        "mean_sig95_xwt": 0.345406,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "scale_avg_power_above_signif": false,
+        "scale_avg_signif": 0.178966,
+        "sig95_xwt_above_one": 0.034973,
+        "wtc_signif_fraction": 0.0366731
+      },
+      "eff_hand_r_vs_eff_other": {
+        "alpha1": 0.851218,
+        "alpha2": 0.863405,
+        "global_power_above_signif": 0.0,
+        "mean_coherence": 0.380125,
+        "mean_coherence_outside_coi": 0.27659,
+        "mean_global_signif": 11.388153,
+        "mean_phase_rad": 1.145805,
+        "mean_power": 4.137973,
+        "mean_sig95_wtc": 0.601244,
+        "mean_sig95_xwt": 0.35826,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "scale_avg_power_above_signif": false,
+        "scale_avg_signif": 0.1821,
+        "sig95_xwt_above_one": 0.035462,
+        "wtc_signif_fraction": 0.0786362
+      },
+      "noise_a_vs_noise_b": {
+        "alpha1": 0.90161,
+        "alpha2": 0.900354,
+        "global_power_above_signif": 0.0,
+        "mean_coherence": 0.315612,
+        "mean_coherence_outside_coi": 0.243694,
+        "mean_global_signif": 15.11696,
+        "mean_phase_rad": -2.350556,
+        "mean_power": 5.298919,
+        "mean_sig95_wtc": 0.601812,
+        "mean_sig95_xwt": 0.37803,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "scale_avg_power_above_signif": false,
+        "scale_avg_signif": 0.124336,
+        "sig95_xwt_above_one": 0.045237,
+        "wtc_signif_fraction": 0.0482318
+      },
+      "sine_vs_sine": {
+        "alpha1": 0.95,
+        "alpha2": 0.95,
+        "global_power_above_signif": 0.073394,
+        "mean_coherence": 1.0,
+        "mean_coherence_outside_coi": 1.0,
+        "mean_global_signif": 24.115992,
+        "mean_phase_rad": -0.0,
+        "mean_power": 7.864886,
+        "mean_sig95_wtc": 0.602932,
+        "mean_sig95_xwt": 0.261978,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "scale_avg_power_above_signif": false,
+        "scale_avg_signif": 0.061453,
+        "sig95_xwt_above_one": 0.077984,
+        "wtc_signif_fraction": 1.0
+      },
+      "sine_vs_sine_lagged": {
+        "alpha1": 0.95,
+        "alpha2": 0.95,
+        "global_power_above_signif": 0.073394,
+        "mean_coherence": 0.986254,
+        "mean_coherence_outside_coi": 0.988654,
+        "mean_global_signif": 24.115992,
+        "mean_phase_rad": 0.971303,
+        "mean_power": 7.904431,
+        "mean_sig95_wtc": 0.602932,
+        "mean_sig95_xwt": 0.262819,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "scale_avg_power_above_signif": false,
+        "scale_avg_signif": 0.061453,
+        "sig95_xwt_above_one": 0.077876,
+        "wtc_signif_fraction": 0.999661
+      },
+      "sine_vs_sine_x10": {
+        "alpha1": 0.95,
+        "alpha2": 0.95,
+        "global_power_above_signif": 0.073394,
+        "mean_coherence": 1.0,
+        "mean_coherence_outside_coi": 1.0,
+        "mean_global_signif": 24.115992,
+        "mean_phase_rad": 0.0,
+        "mean_power": 7.864886,
+        "mean_sig95_wtc": 0.602932,
+        "mean_sig95_xwt": 0.261978,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "scale_avg_power_above_signif": false,
+        "scale_avg_signif": 0.061453,
+        "sig95_xwt_above_one": 0.077984,
+        "wtc_signif_fraction": 1.0
+      }
+    },
+    "provenance": {
+      "core_version": "2.0.0",
+      "max_freq_points": 100,
+      "max_time_points": 500,
+      "mc_count": 20,
+      "significance_level": 0.95,
+      "wct_signif_seed": 20250906
+    }
+  },
+  "crqa": {
+    "entries": {
+      "noise_a_vs_noise_b": {
+        "diagonal_offsets": [],
+        "matrix_size": 341,
+        "mean_DET": 0.292992,
+        "mean_LAM": 0.388441,
+        "mean_RR": 0.069076,
+        "rate_drawn": 0.0700372,
+        "rate_full": 0.0700006,
+        "recurrence_rate": null,
+        "recurrent_cells": 8144,
+        "reduction_factor": 3,
+        "target_recurrence": null,
+        "threshold": 0.126505,
+        "warned": false
+      },
+      "sine_vs_sine": {
+        "diagonal_offsets": [
+          -167,
+          -166,
+          -134,
+          -133,
+          -100,
+          -67,
+          -66,
+          -34,
+          -33,
+          0,
+          33,
+          34
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.897449,
+        "mean_LAM": 0.948946,
+        "mean_RR": 0.070136,
+        "rate_drawn": 0.0699254,
+        "rate_full": 0.0700016,
+        "recurrence_rate": null,
+        "recurrent_cells": 8131,
+        "reduction_factor": 3,
+        "target_recurrence": null,
+        "threshold": 0.0836888,
+        "warned": false
+      },
+      "sine_vs_sine_lagged": {
+        "diagonal_offsets": [
+          -160,
+          -127,
+          -126,
+          -94,
+          -93,
+          -60,
+          -27,
+          -26,
+          6,
+          7,
+          40,
+          73
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.840805,
+        "mean_LAM": 0.998872,
+        "mean_RR": 0.07028,
+        "rate_drawn": 0.0699512,
+        "rate_full": 0.0700006,
+        "recurrence_rate": null,
+        "recurrent_cells": 8134,
+        "reduction_factor": 3,
+        "target_recurrence": null,
+        "threshold": 0.088535,
+        "warned": false
+      }
+    },
+    "provenance": {
+      "core_version": "2.0.0",
+      "max_points_drawn": 500,
+      "target_recurrence": 0.07
+    }
+  },
+  "rqa": {
+    "entries": {
+      "noise_a": {
+        "diagonal_offsets": [
+          0
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.300295,
+        "mean_LAM": 0.391741,
+        "mean_RR": 0.071815,
+        "rate_drawn": 0.0709746,
+        "rate_full": 0.0709095,
+        "recurrence_rate": 0.0700013,
+        "recurrent_cells": 8253,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.126209,
+        "warned": false
+      },
+      "quantised": {
+        "diagonal_offsets": [
+          -170,
+          -169,
+          -168,
+          -167,
+          -166,
+          -165,
+          -164,
+          -163,
+          -162,
+          -161,
+          -160,
+          -159
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.99237,
+        "mean_LAM": 0.999319,
+        "mean_RR": 0.337653,
+        "rate_drawn": 0.337579,
+        "rate_full": 0.337677,
+        "recurrence_rate": 0.33703,
+        "recurrent_cells": 39254,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.0,
+        "warned": true
+      },
+      "sine": {
+        "diagonal_offsets": [
+          -167,
+          -166,
+          -134,
+          -133,
+          -100,
+          -67,
+          -66,
+          -34,
+          -33,
+          0,
+          33,
+          34
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.897733,
+        "mean_LAM": 0.961404,
+        "mean_RR": 0.069956,
+        "rate_drawn": 0.0715938,
+        "rate_full": 0.0716743,
+        "recurrence_rate": 0.0707669,
+        "recurrent_cells": 8325,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.0854155,
+        "warned": false
+      },
+      "sine_2x": {
+        "diagonal_offsets": [
+          -200,
+          -160,
+          -120,
+          -80,
+          -40,
+          0,
+          40,
+          80,
+          120,
+          160,
+          200
+        ],
+        "matrix_size": 409,
+        "mean_DET": 0.98479,
+        "mean_LAM": 0.999739,
+        "mean_RR": 0.06971,
+        "rate_drawn": 0.0705221,
+        "rate_full": 0.0706635,
+        "recurrence_rate": 0.0702095,
+        "recurrent_cells": 11797,
+        "reduction_factor": 5,
+        "target_recurrence": 0.07,
+        "threshold": 0.083669,
+        "warned": false
+      },
+      "sine_x10": {
+        "diagonal_offsets": [
+          -167,
+          -166,
+          -134,
+          -133,
+          -100,
+          -67,
+          -66,
+          -34,
+          -33,
+          0,
+          33,
+          34
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.897733,
+        "mean_LAM": 0.961404,
+        "mean_RR": 0.069956,
+        "rate_drawn": 0.0715938,
+        "rate_full": 0.0716743,
+        "recurrence_rate": 0.0707669,
+        "recurrent_cells": 8325,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.0854155,
+        "warned": false
+      }
+    },
+    "provenance": {
+      "core_version": "2.0.0",
+      "max_points_drawn": 500,
+      "target_recurrence": 0.07
+    }
+  }
+}

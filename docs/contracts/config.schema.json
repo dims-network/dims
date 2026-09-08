@@ -210,14 +210,57 @@
           "saveFullResolution": {
             "type": "boolean",
             "default": true,
-            "description": "Write the analysis at the resolution it was computed at, as a compressed .npz beside the JSON. The JSON is a browser payload and is reduced; this is what a notebook or downstream analysis should read."
+            "description": "Write the analysis at the resolution it was computed at, as {video}_crosswavelet_full.json beside the payload. Same schema, same field names, different time axis. The payload is reduced for the browser; this is what a notebook or downstream analysis should read."
           }
         }
       }
     },
     "include_network": {
-      "type": "boolean",
-      "description": "study-owned (case-karnatak): the cross-effector coherence graph. The tab lives in that study's tabs/ directory, not in the core, because it reads node identities out of data type names (person + body part) and means nothing to a study that names its measures differently."
+      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core since v2.0.0 -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "groups": {
+              "type": "array",
+              "description": "How this study's measures divide -- two people, two conditions, two instruments. Each group matches data type names with a regular expression; anything matching none of them is drawn in a trailing 'Other' group rather than dropped.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "match"
+                ],
+                "properties": {
+                  "match": {
+                    "type": "string",
+                    "description": "Case-insensitive regular expression on the data type name."
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "type": "string",
+                    "description": "CSS colour for this group's nodes."
+                  }
+                }
+              }
+            },
+            "band": {
+              "type": "array",
+              "description": "Period band in seconds to average each edge over, as [low, high]. Omit to use every period the analysis produced.",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      ]
     }
   }
 }

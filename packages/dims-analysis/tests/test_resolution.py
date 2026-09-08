@@ -1,9 +1,15 @@
-"""The browser payload and the analysis are two different artifacts.
+"""The reduced picture and the analysis are two resolutions of one schema.
 
 For a long time they were one file: the JSON the dashboard draws was also the
 only surviving analysis. Anyone continuing from a study's output was silently
 working at a sixth of the resolution, from a copy reduced by striding — which
 does not remove detail, it folds it back onto the frequencies that remain.
+
+Then they were two *formats* — a JSON and an `.npz` — and for RQA the second
+held nothing the first did not. Now there is one format: cross-wavelet writes
+`{video}_crosswavelet_full.json` with the same field names and the same schema
+as the payload, differing only in the time axis, and the recurrence analyses
+carry their full-resolution signal in the single file.
 """
 import importlib.util
 import os
@@ -50,60 +56,68 @@ def test_reduction_is_a_no_op_when_nothing_to_reduce():
     assert np.array_equal(cw._reduce_freq(a, 1), a)
 
 
-def test_full_resolution_artifact_is_written(tmp_path):
-    n_t, n_f = 100, 8
-    cwt = {
+def _cwt(n_f=8, n_t=100, fill=0.5):
+    """Every key `downsample_for_storage` reads. Discovered from the function,
+    not guessed: a partial dict raises a KeyError that looks like a test bug."""
+    return {
         "period": np.linspace(0.5, 8, n_f),
         "freqs": np.linspace(2, 0.125, n_f),
-        "coherence": np.random.rand(n_f, n_t),
+        "scales": np.linspace(0.5, 8, n_f),
+        "coherence": np.full((n_f, n_t), fill),
         "power": np.random.rand(n_f, n_t),
         "phase": np.random.rand(n_f, n_t),
         "coi": np.ones(n_t),
         "sig95_wtc": np.full(n_f, 0.59),
+        "signif_xwt": np.ones(n_f),
+        "global_power": np.ones(n_f),
+        "global_signif": np.ones(n_f),
     }
-    time = np.arange(n_t) * 0.02
-    path = cw.save_full_resolution(str(tmp_path), "vid1", "a_vs_b", cwt, time, np.ones(n_t))
-    assert os.path.exists(path)
-
-    with np.load(path) as z:
-        assert z["a_vs_b/coherence"].shape == (n_f, n_t), "must keep the computed resolution"
-        assert np.allclose(z["a_vs_b/sig95_wtc"], 0.59)
-
-    # a second pair joins the same file rather than replacing it
-    cw.save_full_resolution(str(tmp_path), "vid1", "c_vs_d", cwt, time, np.ones(n_t))
-    with np.load(path) as z:
-        assert "a_vs_b/coherence" in z.files and "c_vs_d/coherence" in z.files
 
 
-def test_rewriting_a_pair_replaces_it_rather_than_shadowing_it(tmp_path):
-    """Pairs are appended as zip members, which is what keeps a fifteen-pair
-    study from recompressing the whole file fifteen times. Appending the same
-    name twice would leave two members with one name -- a file that loads but
-    quietly serves the stale one. Re-running a pair must replace it."""
-    n_t, n_f = 20, 4
-    def make(fill):
-        return {
-            "period": np.linspace(0.5, 8, n_f),
-            "freqs": np.linspace(2, 0.125, n_f),
-            "coherence": np.full((n_f, n_t), fill, dtype=float),
-            "power": np.zeros((n_f, n_t)),
-            "phase": np.zeros((n_f, n_t)),
-            "coi": np.ones(n_t),
-            "sig95_wtc": np.full(n_f, 0.59),
-        }
-    time = np.arange(n_t) * 0.02
-    args = (str(tmp_path), "vid1", "a_vs_b")
-    cw.save_full_resolution(*args, make(0.1), time, np.ones(n_t))
-    cw.save_full_resolution(str(tmp_path), "vid1", "other", make(0.5), time, np.ones(n_t))
-    path = cw.save_full_resolution(*args, make(0.9), time, np.ones(n_t))
+def test_the_full_resolution_block_is_the_same_schema_as_the_drawn_one():
+    """One reader must serve both files. If the full-resolution block gained or
+    lost a field, a notebook written against the payload would break on the very
+    file it is supposed to prefer -- which is what a second *format* did.
+    """
+    n_f, n_t = 8, 100
+    results, time, avg = _cwt(n_f, n_t), np.arange(100) * 0.02, np.ones(100)
 
-    import zipfile
-    with zipfile.ZipFile(path) as zf:
-        names = zf.namelist()
-    assert len(names) == len(set(names)), f"duplicate members in the archive: {names}"
-    with np.load(path) as z:
-        assert np.allclose(z["a_vs_b/coherence"], 0.9), "re-run served the stale copy"
-        assert np.allclose(z["other/coherence"], 0.5), "rebuild lost the other pair"
+    drawn = cw.downsample_for_storage(results, time, avg,
+                                      max_time_points=20, max_freq_points=4)
+    full = cw.downsample_for_storage(results, time, avg,
+                                     max_time_points=n_t, max_freq_points=n_f)
+
+    assert set(drawn) == set(full), (
+        f"the two resolutions disagree about their fields: "
+        f"{set(drawn) ^ set(full)}")
+    assert len(full["time"]) == n_t and len(full["period"]) == n_f, (
+        "the full-resolution block must keep the resolution it was computed at")
+    assert len(drawn["time"]) <= 20 < len(full["time"])
+
+
+def test_the_large_grids_are_encoded_and_the_axes_stay_readable():
+    """A period axis is a few hundred numbers somebody opens the file to read;
+    a coherence grid is 128 x 3026 and is not."""
+    from dims_analysis.common import arrays
+
+    results = _cwt()
+    block = cw.downsample_for_storage(results, np.arange(100) * 0.02,
+                                      np.ones(100))
+    for field in ("coherence", "power", "phase"):
+        assert arrays.is_packed(block[field]), f"{field} is not encoded"
+        assert arrays.unpack(block[field]).shape == (len(block["period"]),
+                                                     len(block["time"]))
+    for field in ("time", "period", "coi", "signif_xwt"):
+        assert isinstance(block[field], list), f"{field} should stay readable"
+
+
+def test_a_derived_grid_is_not_stored():
+    """`sig95_xwt` was power divided by the per-scale level, broadcast across
+    time -- a third full grid holding the quotient of two fields already in the
+    file, and a quarter of the full-resolution output. A reader divides."""
+    block = cw.downsample_for_storage(_cwt(), np.arange(100) * 0.02, np.ones(100))
+    assert "sig95_xwt" not in block
+    assert "signif_xwt" in block, "the level itself must still be there to divide by"
 
 
 def test_phase_is_averaged_as_an_angle():
@@ -145,11 +159,23 @@ def test_no_power_means_undefined_coherence_not_perfect_coherence():
 
 def test_json_carries_no_bare_nan():
     """json.dump writes a bare NaN token, which JSON.parse rejects outright, so
-    one undefined cell would make a study's output unreadable in a browser."""
-    src = open(os.path.join(HERE, "dims_analysis", "steps", "crosswavelet.py")).read()
-    assert "_json_safe" in src
-    for field in ("'coherence': _json_safe", "'power': _json_safe", "'phase': _json_safe"):
-        assert field in src, f"{field} must go through the NaN-to-null conversion"
+    one undefined cell would make a study's output unreadable in a browser.
+
+    Asserted on the output rather than on the source, which is what it used to
+    grep: the encoded grids carry NaN as float32 bits and never meet the JSON
+    writer, and the readable axes go through `nan_to_none`. Only the result can
+    say whether both routes are covered."""
+    import json
+
+    results = _cwt()
+    results["coherence"][0, 0] = np.nan
+    results["signif_xwt"][1] = np.nan
+    results["coi"][2] = np.nan
+    block = cw.downsample_for_storage(results, np.arange(100) * 0.02, np.ones(100))
+    text = json.dumps(block)
+    assert "NaN" not in text and "Infinity" not in text, (
+        "a bare NaN token would make JSON.parse reject the whole payload")
+    json.loads(text)
 
 
 def test_statistics_survive_undefined_cells():
@@ -232,7 +258,6 @@ def test_the_payload_resolution_is_a_study_setting_not_a_constant():
         "power": np.ones((n_freq, n_time)),
         "phase": np.zeros((n_freq, n_time)),
         "coherence": np.full((n_freq, n_time), 0.5),
-        "sig95_xwt": np.ones((n_freq, n_time)),
         "signif_xwt": np.ones(n_freq),
         "global_power": np.ones(n_freq),
         "global_signif": np.ones(n_freq),
@@ -250,8 +275,9 @@ def test_the_payload_resolution_is_a_study_setting_not_a_constant():
     assert len(small["period"]) <= 10 < len(big["period"])
     # And the picture stays rectangular: a coherence row per period, a column
     # per time point. A tab draws it as a grid and says nothing if it is not.
-    assert len(small["coherence"]) == len(small["period"])
-    assert len(small["coherence"][0]) == len(small["time"])
+    from dims_analysis.common import arrays
+    grid = arrays.unpack(small["coherence"])
+    assert grid.shape == (len(small["period"]), len(small["time"]))
 
 
 def test_the_study_tuning_block_is_where_those_numbers_come_from():

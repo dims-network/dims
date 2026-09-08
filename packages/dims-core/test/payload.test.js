@@ -84,16 +84,16 @@ test('a recurrence payload carries the picture and what it is a reduction of', (
   assert.ok(entry, 'no entry for the data type the config asked for');
 
   const v = entry.visualization;
-  assert.ok(Array.isArray(v.sparse_matrix), 'sparse_matrix must be a list of [row, col]');
-  assert.ok(v.sparse_matrix.every(p => Array.isArray(p) && p.length === 2));
+  assert.strictEqual(v.matrix.encoding, 'bitmap-b64',
+    'the recurrence plot must arrive as a bitmap the core knows how to read');
   assert.ok(v.matrix_size > 0);
   assert.strictEqual(v.time.length, v.matrix_size,
     'the drawn time axis and the drawn matrix must be the same length');
 
-  // Indices address the REDUCED grid. A tab that assumed otherwise would draw
-  // points outside the plot, or none.
-  const max = Math.max(...v.sparse_matrix.flat());
-  assert.ok(max < v.matrix_size, `index ${max} is outside a ${v.matrix_size}-wide grid`);
+  // The bitmap describes the REDUCED grid. A tab drawing it against the full
+  // axis would draw the wrong picture at the wrong times.
+  assert.strictEqual(v.matrix.rows, v.matrix_size);
+  assert.strictEqual(v.matrix.cols, v.matrix_size);
 
   assert.ok(v.reduction, 'no reduction block: a reader cannot tell what the axis means');
   assert.ok(v.reduction.factor >= 1);
@@ -106,11 +106,16 @@ test('a cross-wavelet payload carries a chance level, not just coherence', () =>
   const pair = Object.values(cwt.crosswavelet_pairs)[0];
   const v = pair.visualization;
 
-  assert.ok(v.coherence && v.coherence.length, 'no coherence');
-  assert.strictEqual(v.coherence.length, v.period.length,
-    'coherence rows must match the period axis');
-  assert.strictEqual(v.coherence[0].length, v.time.length,
-    'coherence columns must match the time axis');
+  assert.ok(v.coherence, 'no coherence');
+  assert.strictEqual(v.coherence.encoding, 'f32-b64');
+  assert.deepStrictEqual(v.coherence.shape, [v.period.length, v.time.length],
+    'the coherence grid must match the axes it is drawn against');
+  // The per-scale power level, from which a tab derives the ratio it
+  // thresholds. Storing that ratio as a third full grid held nothing these
+  // two do not.
+  assert.strictEqual((v.signif_xwt || []).length, v.period.length);
+  assert.strictEqual(v.sig95_xwt, undefined,
+    'a derived grid is back in the payload');
   // Without this a coherence value is unreadable: unrelated signals do not
   // score zero, they score about 0.25-0.6.
   assert.ok(v.sig95_wtc, 'no sig95_wtc — there is nothing to read coherence against');
@@ -183,4 +188,62 @@ test('a payload for a video the config does not list is not drawn', async () => 
   });
   const options = [...w.document.querySelectorAll('#videoSelect option')].map(o => o.value);
   assert.ok(!options.includes('s99'), 'a stray asset added a recording to the study');
+});
+
+// --- what is computed is shown, or it is not computed ------------------------
+//
+// The Monte Carlo coherence null costs hours on a real study -- ORTHO's whole
+// cross-wavelet run was ~2.8 h and this is the bottleneck -- and for three
+// releases exactly one tab in one private study read it. Skipping it when
+// nothing reads it is now the default and is right; a tab that quietly draws
+// nothing either way is what turns that deliberate choice into a missing
+// feature nobody can diagnose.
+//
+// Both fixtures are real analysis output: one run with `mcCount: 20`, one with
+// the null skipped, which is what a config with no consumer gets.
+
+const cwTitle = (made) => {
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  assert.ok(fig, 'the cross-wavelet tab drew no figure at all');
+  return String(((fig.layout || {}).title || {}).text || '');
+};
+
+test('the coherence chance level is reported when it was computed', async () => {
+  const w = await boot();
+  const title = cwTitle(await open_(w, 'crosswavelet'));
+  assert.match(title, /Coherence above chance/,
+    'a study paid for a Monte Carlo null and the tab said nothing about it');
+  assert.match(title, /\d+\.\d% of cells/, 'no fraction in the caption');
+  assert.match(title, /20 surrogates/,
+    'the caption does not say how many surrogates the number rests on');
+});
+
+test('a missing coherence null is named, not silently skipped', async () => {
+  const w = await boot(CONFIG, {
+    ...FILES,
+    'assets/crosswavelet/s1_crosswavelet_data.json': read('s1_crosswavelet_no_null.json'),
+  });
+  const title = cwTitle(await open_(w, 'crosswavelet'));
+  assert.match(title, /not computed/,
+    'the null was skipped and the tab drew as if nothing were missing');
+  assert.match(title, /mcCount/,
+    'the caption must name the setting that would produce it');
+  assert.doesNotMatch(title, /Coherence above chance/,
+    'a fraction was reported for an output that has none');
+});
+
+test('the two averaged significance levels are drawn beside what they judge', async () => {
+  // Panel C plots the time-averaged spectrum and panel D the scale-averaged
+  // power. Both had a 95 % level computed for every study and read by nothing,
+  // which is how both spent three releases applying a single-spectrum
+  // chi-square to a cross-wavelet quantity with nobody noticing.
+  const w = await boot();
+  const made = await open_(w, 'crosswavelet');
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  const levels = (fig.data || []).filter(t => t.name === '95% level');
+  assert.strictEqual(levels.length, 2,
+    `expected the global and scale-averaged levels to be drawn; found ` +
+    `${levels.length} traces named "95% level"`);
+  assert.ok(levels.some(t => t.yaxis === 'y2'), 'no level beside the global spectrum');
+  assert.ok(levels.some(t => t.yaxis === 'y3'), 'no level beside the scale-averaged power');
 });

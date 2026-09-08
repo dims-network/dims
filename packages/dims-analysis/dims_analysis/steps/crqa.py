@@ -34,8 +34,11 @@ import os
 # relative import has no parent package to resolve against.
 from dims_analysis.common import assets as _assets
 from dims_analysis.common import config as _config
-from dims_analysis.common import npz as _npz
+from dims_analysis.common import limits as _limits
+from dims_analysis.common import payload as _payload
+from dims_analysis.common import arrays as _arrays
 from dims_analysis.common import series as _series
+from dims_analysis.common import window as _window
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
@@ -50,7 +53,7 @@ INPUT_DIR = 'assets/timeseries'
 
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
-# the .npz written beside the JSON and is not affected.
+# the base64 arrays, which are not rounded at all.
 try:
     from dims_analysis.common.payload import round_payload, precision_note
 except ImportError:  # standalone script inside a case repo, without the package
@@ -63,9 +66,8 @@ except ImportError:  # standalone script inside a case repo, without the package
             return {k: round_payload(v, figures) for k, v in o.items()}
         if isinstance(o, (list, tuple)):
             return [round_payload(v, figures) for v in o]
-        # Integers pass through: a sparse recurrence matrix is tens of
-        # thousands of [row, col] index pairs, and "7.0" is both wrong and
-        # larger than "7".
+        # Integers pass through: counts and array dimensions, where "7.0" is
+        # both wrong and larger than "7".
         if o is None or isinstance(o, bool) or isinstance(o, int):
             return o
         if not isinstance(o, float):
@@ -78,8 +80,9 @@ except ImportError:  # standalone script inside a case repo, without the package
 
     def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
         return {"significant_figures": figures,
-                "note": ("This file is the browser payload and is rounded. The "
-                         "full-resolution analysis is the .npz beside it.")}
+                "note": ("Small fields are rounded to this many significant "
+                         "figures. Large arrays are base64 float32 or bitmaps "
+                         "and are not rounded.")}
 
 
 
@@ -111,14 +114,10 @@ def calculate_cross_recurrence_matrix(emb1, emb2, threshold=None, target_recurre
     return recurrence_matrix, threshold, actual_recurrence
 
 
-def matrix_to_sparse_format(matrix):
-    """Convert a recurrence matrix to a sparse list of [row, col] pairs (all R==1).
-
-    Unlike a banded variant, this keeps the COMPLETE recurrence plot so the full
-    structure is visible in the dashboard.
-    """
-    rows, cols = np.where(matrix == 1)
-    return [[int(r), int(c)] for r, c in zip(rows, cols)]
+def matrix_to_bitmap(matrix):
+    """One bit per cell, base64; the COMPLETE plot, not a band. See
+    common/arrays.py for why this replaced a list of [row, col] pairs."""
+    return _arrays.pack_bitmap(matrix)
 
 
 def downsample_for_visualization(ts1, ts2, time_values, recurrence_matrix, max_points=MAX_POINTS):
@@ -183,9 +182,15 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
     except Exception as e:
         print(f"  [Error] Failed to read CSVs: {e}")
         return None, None, None
-    if t1 is None or t2 is None or len(t1) < 10 or len(t2) < 10:
+    if t1 is None or t2 is None or len(t1) < _limits.MIN_POINTS \
+            or len(t2) < _limits.MIN_POINTS:
         print("  [Error] Insufficient or malformed data in one of the series.")
         return None, None, None
+    for name, values in (("first", v1), ("second", v2)):
+        if float(np.std(values)) <= _limits.MIN_VARIANCE:
+            print(f"  [Error] The {name} series does not vary; there is nothing "
+                  f"to measure against it.")
+            return None, None, None
 
     # Common overlapping time range, sampled on a uniform grid at the finer of the
     # two median sampling intervals.
@@ -203,43 +208,30 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
     if n < 10:
         print(f"  [Error] Insufficient overlapping samples ({n}).")
         return None, None, None
+    # The grid takes the finer of the two sampling intervals, so a pair can be
+    # far longer than either series -- and the matrix is quadratic in it.
+    try:
+        _limits.check_length(n, "this pair on its common grid")
+    except _limits.InputTooLarge as exc:
+        print(f"  [skip] {exc}")
+        return None, None, None
+
     common_time = t_start + np.arange(n) * dt
 
     raw_s1 = np.interp(common_time, t1, v1)
     raw_s2 = np.interp(common_time, t2, v2)
 
-    s1_norm = (raw_s1 - np.mean(raw_s1)) / (np.std(raw_s1) + 1e-6)
-    s2_norm = (raw_s2 - np.mean(raw_s2)) / (np.std(raw_s2) + 1e-6)
+    # One normalisation, shared with RQA; see common/series.py. This used to
+    # add 1e-6 to the standard deviation where rqa.py did not, which made the
+    # two steps' stored thresholds incomparable.
+    s1_norm = _series.normalise(raw_s1)
+    s2_norm = _series.normalise(raw_s2)
     return s1_norm, s2_norm, common_time
 
 
 # ============================================================================
 # MAIN
 # ============================================================================
-
-def save_full_resolution(out_dir, video_id, pair_key, entry, time_vals, ts1, ts2):
-    """The analysis, beside the browser payload. See common/npz.py.
-
-    Not the cross-recurrence matrix: it is quadratic in the recording. What is
-    stored is the windowed metrics at full resolution, both prepared signals and
-    the threshold -- enough to rebuild the matrix with one cdist at whatever
-    resolution the reader can afford.
-    """
-    wm = entry.get('windowed_metrics') or {}
-    arrays = {
-        'time': np.asarray(time_vals, dtype=np.float64),
-        'signal_x': np.asarray(ts1, dtype=np.float64),
-        'signal_y': np.asarray(ts2, dtype=np.float64),
-        'threshold': np.asarray([entry.get('threshold', np.nan)], dtype=np.float64),
-        'global_recurrence_rate': np.asarray(
-            [entry.get('global_recurrence_rate', np.nan)], dtype=np.float64),
-    }
-    for key in ('time', 'RR', 'DET', 'LAM', 'L_MAX'):
-        if key in wm:
-            arrays[f'windowed_{key}'] = np.asarray(wm[key], dtype=np.float64)
-    return _npz.add_group(os.path.join(out_dir, f"{video_id}_crqa.npz"),
-                          pair_key, arrays)
-
 
 def main():
     global INPUT_DIR
@@ -306,27 +298,24 @@ def main():
             print(f"  > Global cross-recurrence rate: {global_rr*100:.2f}%")
 
             # Windowed metrics along the line of synchronization (main diagonal).
+            # The placement is common/window.py, shared with rqa.py: this file
+            # used to carry its own copy, in samples, so the reported time axis
+            # moved with the sampling rate and nothing recorded what window was
+            # actually used.
             dt = float(np.mean(np.diff(time_vals)))
-            if dt <= 0:
-                dt = 0.033
             n = len(emb1)
-            win_points = max(2, int(args.window / dt))
-            step_points = max(1, int(args.step / dt))
-            # Short-series adaptation: cap the window to half the series and refine
-            # the step so we always get several windows (otherwise a single trivial
-            # window renders as a blank metric chart). Long series are unaffected.
-            win_points = min(win_points, max(2, n // 2))
-            n_eff = max(1, n - win_points)
-            step_points = max(1, min(step_points, n_eff // 20))
+            window_plan = _window.plan(n, dt, args.window, args.step)
+            if window_plan.warning:
+                print(f"  > WARNING: {window_plan.warning}")
 
-            windowed_metrics = {'time': [], 'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
-            print(f"  > Windowed metrics (window={args.window}s, step={args.step}s)...")
-            for start_idx in range(0, max(1, n - win_points), step_points):
-                end_idx = start_idx + win_points
+            windowed_metrics = {'time': window_plan.centres(time_vals),
+                                'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
+            print(f"  > Windowed metrics ({len(window_plan)} windows of "
+                  f"{window_plan.used[0]:.4g}s, step {window_plan.used[1]:.4g}s)...")
+            for start_idx in window_plan.starts:
+                end_idx = start_idx + window_plan.length
                 w_matrix = rec_matrix[start_idx:end_idx, start_idx:end_idx]
                 rr, det, lam, l_max = calculate_window_metrics(w_matrix, dt)
-                center_time = time_vals[min(start_idx + win_points // 2, n - 1)]
-                windowed_metrics['time'].append(float(center_time))
                 windowed_metrics['RR'].append(rr)
                 windowed_metrics['DET'].append(det)
                 windowed_metrics['LAM'].append(lam)
@@ -336,7 +325,7 @@ def main():
             ts1_vis, ts2_vis, time_vis, matrix_vis, reduction_factor = downsample_for_visualization(
                 ts1_1d, ts2_1d, time_vals, rec_matrix
             )
-            sparse_matrix = matrix_to_sparse_format(matrix_vis)
+            bitmap = matrix_to_bitmap(matrix_vis)
 
             pair_key = f"{type1}_vs_{type2}"
             video_results[pair_key] = {
@@ -346,12 +335,14 @@ def main():
                 'global_recurrence_rate': float(global_rr),
                 'time_range': [float(time_vals[0]), float(time_vals[-1])],
                 'windowed_metrics': windowed_metrics,
+                # Asked-for beside used; see common/window.py.
+                'window': window_plan.report(),
                 'visualization': {
                     'time': time_vis.tolist(),
                     'data_x': ts1_vis.tolist(),
                     'data_y': ts2_vis.tolist(),
                     'matrix_size': len(time_vis),
-                    'sparse_matrix': sparse_matrix,  # full RP, reduced
+                    'matrix': bitmap,          # bitmap-b64, the full plot reduced
                     # What this plot is a reduction OF.
                     'reduction': {
                         'factor': int(reduction_factor),
@@ -363,24 +354,29 @@ def main():
                         'rate_drawn': _reduce.rate_of(matrix_vis),
                     },
                 },
+                # The analysis at full resolution, in the same file as the
+                # picture: both prepared signals on the common grid, from which
+                # the matrix is one `cdist` away given the threshold above.
                 'full_stats': {
                     'n_points': int(n),
                     'window_size_sec': args.window,
                     'step_size_sec': args.step,
+                    'time': _arrays.pack_f32(time_vals),
+                    'signal_x': _arrays.pack_f32(ts1_1d),
+                    'signal_y': _arrays.pack_f32(ts2_1d),
                 },
             }
-            try:
-                save_full_resolution(args.output_dir, vid, pair_key,
-                                     video_results[pair_key], time_vals, ts1_1d, ts2_1d)
-            except Exception as exc:  # noqa: BLE001 - never lose a run over this
-                print(f"  WARNING: could not write full-resolution output ({exc})")
             print(f"  > {pair_key}: matrix {len(time_vis)}x{len(time_vis)}, "
-                  f"{len(sparse_matrix)} recurrent points, {len(windowed_metrics['time'])} windows")
+                  f"{len(windowed_metrics['time'])} windows")
 
         if video_results:
             output_path = os.path.join(args.output_dir, f"{vid}_crqa_data.json")
             kept = _results.write_payload(output_path, round_payload(
-                {'video_id': vid, 'crqa_data': video_results,
+                {'video_id': vid,
+                 'payload_version': _arrays.PAYLOAD_VERSION,
+                 'crqa_data': video_results,
+                 'provenance': _payload.provenance(
+                     target_recurrence=0.07, max_points_drawn=MAX_POINTS),
                  'precision': precision_note()}))
             print(f"\nSaved cRQA data to {output_path}")
             for key, names in kept.get('kept', {}).items():

@@ -110,8 +110,13 @@ full schema is [`config.schema.json`](contracts/config.schema.json).
   "include_cRQA":        [["bodysync", "neuralsync"]],
   "include_crosswavelet": [["bodysync", "neuralsync"]],
 
-  // Tabs that need no analysis are plain switches.
-  "include_elan": true
+  // Tabs that need no analysis of their own are plain switches.
+  "include_elan": true,
+
+  // The cross-effector network draws its edges from the cross-wavelet output
+  // above, and switching it on also switches on the Monte Carlo coherence
+  // null -- without which no edge can be told from chance.
+  "include_network": true
 }
 ```
 
@@ -133,12 +138,16 @@ python build_assets.py             # actually run it
 it can see, which analyses are switched on, and which time series it could not
 find — which is the fastest way to discover that a file is misnamed.
 
-The cross-wavelet step estimates its significance level by simulation and is
-the slow one; on a long recording it is minutes per pair, not seconds.
+The cross-wavelet step estimates its coherence chance level by simulation and
+is the slow one; on a long recording it is minutes per pair, not seconds. It
+runs only when something in your config reads it, and the step says which it
+chose — see [analysis output](contracts/analysis-output.md), A8.
 
-Each analysis writes two files: a reduced JSON the browser draws, and a
-full-resolution `.npz` beside it. **Continue your own analysis from the
-`.npz`**, never from the JSON.
+Each analysis writes one JSON, reduced to a few hundred points so a page can
+draw it. Cross-wavelet writes a second, `_full.json`, in the same schema at the
+resolution it was computed at. **Continue your own analysis from `_full.json`**
+where it exists; a recurrence payload carries its own full-resolution signal, so
+there is nothing beside it to prefer.
 
 ## 5. Look at it
 

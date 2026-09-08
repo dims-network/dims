@@ -6,7 +6,8 @@ distinguishable levels at best. Writing each one as a full float64
 (``0.5940133868313864``, seventeen significant digits) claims a precision the
 measurement never had and costs about four times the file size for it.
 
-The analysis is unaffected: it lives in the .npz beside the JSON, at float32.
+The large arrays are unaffected: they travel as base64 float32 (about seven
+significant figures) and never pass through this rounding at all.
 This module only governs the drawing layer.
 
 **Significant figures, not decimal places.** This distinction is the whole
@@ -65,11 +66,26 @@ def round_payload(obj, figures: int = PAYLOAD_SIGNIFICANT_FIGURES):
     return round_significant(obj, figures)
 
 
+def provenance(**extra) -> dict:
+    """What produced this file, recorded in it.
+
+    An output that does not say how it was made cannot be compared with
+    another. Two real cases: a study computed partly at 100 surrogates and
+    partly at 300 was silently inconsistent because the count was nowhere in
+    the payload; and a recurrence analysis that reached 33.7% against a 7%
+    target looked identical to one that was asked for 33.7%.
+    """
+    from dims_analysis import __version__
+    out = {"core_version": __version__}
+    out.update({k: v for k, v in extra.items() if v is not None})
+    return out
+
+
 def precision_note(figures: int = PAYLOAD_SIGNIFICANT_FIGURES) -> dict:
     """The block every output carries, so the file describes its own precision."""
     return {
         "significant_figures": figures,
-        "note": ("This file is the browser payload and is rounded. The full-resolution "
-                 "analysis is the .npz beside it — read that, not this, for anything "
-                 "beyond drawing."),
+        "note": ("Small fields are rounded to this many significant figures. "
+                 "Large arrays are base64 float32 or bitmaps and are not "
+                 "rounded — see docs/contracts/analysis-output.md."),
     }

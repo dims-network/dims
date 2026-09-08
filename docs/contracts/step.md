@@ -115,7 +115,7 @@ previously copied into ten or twelve places, in signatures that disagreed.
 | `recurrence` | one recurrence rule for RQA and cross-RQA: `threshold_for_target`, `recurrence_rate`, `line_lengths`, `window_metrics` |
 | `reduce` | reducing for the browser without lying: `block_mean` for series, `block_binary` for a recurrence matrix |
 | `results` | `write_payload`, which merges; `compare_entries`, which says what a re-run replaced |
-| `npz` | `add_group`, appending a full-resolution array group without recompressing the file |
+| `arrays` | `pack_bitmap` / `pack_f32`, for anything too large to be a readable JSON list |
 | `payload` | `round_payload`: browser payloads carry significant figures, not decimal places |
 
 ## Rules
@@ -131,7 +131,8 @@ previously copied into ten or twelve places, in signatures that disagreed.
    module-level constant cannot vary per study without editing the source,
    which is exactly how a fork ends up maintaining its own copy of an analysis.
 4. **Write both resolutions.** The JSON is the browser payload and may be
-   reduced; the `.npz` beside it is the real result. Record the reduction
+   reduced; `_full.json` beside it, where one exists, is the real result at
+   the resolution it was computed at. Record the reduction
    factor in the payload — a reader who cannot tell a 500-point plot from a
    6000-point one does not know what the axis means. Never let a reduction be
    the only surviving analysis.

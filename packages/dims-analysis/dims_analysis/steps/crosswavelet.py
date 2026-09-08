@@ -14,17 +14,20 @@ import os
 
 # Absolute, not relative: the tests load these steps by file path, where a
 # relative import has no parent package to resolve against.
+from dims_analysis.common import arrays as _arrays
 from dims_analysis.common import assets as _assets
 from dims_analysis.common import coherence as _coh
 from dims_analysis.common import config as _config
+from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
+from dims_analysis.common import tc98 as _tc98
 import argparse
 from scipy import signal
 import warnings
 
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
-# the .npz written beside the JSON and is not affected.
+# the base64 arrays, which are not rounded at all.
 try:
     from dims_analysis.common.payload import round_payload, precision_note
 except ImportError:  # standalone script inside a case repo, without the package
@@ -53,7 +56,7 @@ except ImportError:  # standalone script inside a case repo, without the package
     def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
         return {"significant_figures": figures,
                 "note": ("This file is the browser payload and is rounded. The "
-                         "full-resolution analysis is the .npz beside it.")}
+                         "large arrays are base64 float32.")}
 
 
 warnings.filterwarnings('ignore')
@@ -82,8 +85,8 @@ USE_AR1_NOISE = True        # Use AR1 noise model for significance (vs white noi
 MONTE_CARLO_ITERATIONS = 0  # Number of Monte Carlo iterations (0 = use theoretical)
 
 # Significance for the *coherence* itself, which is a different question from
-# sig95_xwt. sig95_xwt asks "is there more joint energy here than red noise
-# would give?" -- a statement about power. Coherence asks "is the phase lag
+# the cross-wavelet power significance. `signif_xwt` answers "is there more
+# joint energy here than red noise would give?" -- a statement about power. Coherence asks "is the phase lag
 # steadier than red noise would give?", and it needs its own null, because a
 # coherence estimate does not sit at 0 under independence: it is a ratio taken
 # over a smoothing neighbourhood, so a handful of random phases still average
@@ -126,6 +129,46 @@ WCT_SIGNIF_SEED = 20250906
 CONFIG_TUNING_KEY = "crosswavelet"
 
 
+#: Config keys that switch on a tab which reads `sig95_wtc`. The coherence
+#: chance level is displayed by exactly one tab today -- case-karnatak's
+#: cross-effector network -- while every study paid to compute it. So the
+#: default follows what the study actually contains, and any study can ask for
+#: it explicitly. See docs/contracts/analysis-output.md, A7.
+COHERENCE_NULL_CONSUMERS = ("include_network",)
+
+#: What to use when a consumer is present and the study did not say.
+DEFAULT_MC_COUNT_WITH_CONSUMER = 100
+
+
+def _payload_provenance(config):
+    """Recorded per file: the core that produced it and the surrogate count."""
+    from dims_analysis.common.payload import provenance
+    tune = _tuning(config)
+    return provenance(mc_count=mc_count_for(config),
+                      significance_level=SIGNIFICANCE_LEVEL,
+                      wct_signif_seed=WCT_SIGNIF_SEED,
+                      max_time_points=int(tune.get("maxTimePoints",
+                                                   MAX_TIME_POINTS_VIZ)),
+                      max_freq_points=int(tune.get("maxFreqPoints",
+                                                   MAX_FREQ_POINTS_VIZ)))
+
+
+def mc_count_for(config):
+    """How many surrogates to run, and it is a real decision, not a constant.
+
+    An explicit `analysis.crosswavelet.mcCount` always wins, in both
+    directions. Otherwise: 100 if this config enables a tab that reads the
+    result, 0 if nothing does.
+    """
+    given = _tuning(config).get("mcCount")
+    if given is not None:
+        return int(given)
+    for key in COHERENCE_NULL_CONSUMERS:
+        if _config.enabled(config, key):
+            return DEFAULT_MC_COUNT_WITH_CONSUMER
+    return 0
+
+
 def _tuning(config):
     return ((config or {}).get("analysis") or {}).get(CONFIG_TUNING_KEY) or {}
 
@@ -156,14 +199,13 @@ COHERENCE_SCALE_WIDTH = 0.6     # DEPRECATED, no effect
 # of an analysis, and these were exactly that.
 MAX_TIME_POINTS_VIZ = 500    # Maximum time points for visualization (downsampling)
 MAX_FREQ_POINTS_VIZ = 100    # Maximum frequency points for visualization
-# Full-resolution output is NOT controlled here. It is written as a compressed
-# .npz beside the JSON, on by default, and switched off per study with
-# analysis.crosswavelet.saveFullResolution = false. The old module-level switch
-# embedded full-resolution arrays as JSON *lists* inside the browser payload,
-# which on a two-minute Karnatak recording would have added roughly half a
-# gigabyte of text to a file a browser has to parse. It was removed rather than
-# defaulted off, because the next person to find it would have turned it on.
-OUTPUT_FORMAT = 'json'       # Output format: 'json', 'npz', or 'both'
+# Full-resolution output is NOT controlled here. It goes into a second JSON,
+# `{video}_crosswavelet_full.json`, on by default and switched off per study
+# with analysis.crosswavelet.saveFullResolution = false. It is a separate file
+# and not a switch that fattens the browser payload, because an old module-level
+# switch did exactly that -- full-resolution arrays as JSON *lists* inside the
+# file a page parses, roughly half a gigabyte of text on a two-minute Karnatak
+# recording. Same schema, same field names, different time axis.
 
 # ---------- Analysis Coverage Parameters ----------
 COMPUTE_ALL_PAIRS = True        # Compute all possible pairs (not just specified)
@@ -266,6 +308,17 @@ def load_and_prepare_timeseries(video_id, data_type, detrend=DETREND_DATA):
     
     return data_normalized, time_clean, dt, std, var
 
+#: The AR(1) coefficient is clamped into this range. The upper bound avoids
+#: >= 1, which breaks the significance test. The lower bound is **not** zero:
+#: pycwt's rednoise() takes a separate branch at exactly g == 0 that calls
+#: numpy.randn, removed in NumPy 2, so a signal with no autocorrelation raised
+#: AttributeError and silently lost its coherence null. 0.01 is inside the
+#: range where the null barely moves -- measured across alpha 0.3 to 0.97 the
+#: 95% level varied by 0.005, within the Monte Carlo noise -- so this changes
+#: no result, it only keeps the code out of a broken branch.
+AR1_MIN, AR1_MAX = 0.01, 0.95
+
+
 def _ar1_alpha(data):
     """Lag-1 autocorrelation (AR1 coefficient) for the red-noise significance test.
 
@@ -275,16 +328,13 @@ def _ar1_alpha(data):
     instead of crashing the whole step.
     """
     try:
-        return wavelet.ar1(data)[0]
+        alpha = float(wavelet.ar1(data)[0])
     except Exception:  # noqa: BLE001 — pycwt raises a bare Warning here
         x = np.asarray(data, dtype=float)
         x = x - np.mean(x)
         denom = np.sum(x * x)
-        if denom <= 0:
-            return 0.0
-        alpha = float(np.sum(x[:-1] * x[1:]) / denom)
-        # Keep it in a sane red-noise range (avoid >=1, which breaks significance).
-        return min(max(alpha, 0.0), 0.95)
+        alpha = 0.0 if denom <= 0 else float(np.sum(x[:-1] * x[1:]) / denom)
+    return min(max(alpha, AR1_MIN), AR1_MAX)
 
 # Monte Carlo coherence nulls are expensive and highly reusable, so they are
 # cached at two levels: in memory for this process, and on disk across runs.
@@ -316,7 +366,8 @@ def _wct_cache_path(key):
     digest = hashlib.sha256(repr(key).encode("utf-8")).hexdigest()[:32]
     return os.path.join(_WCT_CACHE_DIR, f"wct_{digest}.npy")
 
-def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet):
+def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet,
+                           mc_count=None):
     """95% coherence level under an AR(1) null, as a per-scale vector.
 
     Returns None if the Monte Carlo is disabled or fails, in which case the
@@ -344,7 +395,18 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
     Cost is independent of the recording length: pycwt sizes its own surrogates
     from the scale range, so a 2-minute and a 20-minute video pay the same.
     """
-    if not WCT_SIGNIF_ENABLED:
+    # Clamped here too, not only in _ar1_alpha: this is the function that hands
+    # coefficients to pycwt, whose rednoise() has a separate branch at exactly
+    # g == 0 calling numpy.randn, removed in NumPy 2. A caller passing 0
+    # deserves a level, not an AttributeError swallowed into a missing field.
+    alpha1 = min(max(float(alpha1), AR1_MIN), AR1_MAX)
+    alpha2 = min(max(float(alpha2), AR1_MIN), AR1_MAX)
+    if mc_count is None:
+        mc_count = WCT_SIGNIF_MC_COUNT
+    mc_count = int(mc_count)
+    # 0 means: this study has nothing that reads the result, so do not
+    # spend hours computing it. See docs/contracts/analysis-output.md.
+    if not WCT_SIGNIF_ENABLED or mc_count <= 0:
         return None
 
     # Round the coefficients: the null is very insensitive to alpha (the 95%
@@ -352,7 +414,7 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
     # decimals can share a result.
     key = (round(float(alpha1), 2), round(float(alpha2), 2),
            round(float(dt), 6), round(float(dj), 6), round(float(s0), 6),
-           int(n_scales), float(SIGNIFICANCE_LEVEL), int(WCT_SIGNIF_MC_COUNT),
+           int(n_scales), float(SIGNIFICANCE_LEVEL), int(mc_count),
            str(MOTHER_WAVELET).lower(), float(OMEGA0), WCT_SIGNIF_SEED)
     if key in _WCT_SIGNIF_CACHE:
         return _WCT_SIGNIF_CACHE[key]
@@ -382,7 +444,7 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
         level = wavelet.wct_significance(
             float(alpha1), float(alpha2), dt, dj, s0, int(n_scales) - 1,
             significance_level=SIGNIFICANCE_LEVEL, wavelet=mother_wavelet,
-            mc_count=WCT_SIGNIF_MC_COUNT, progress=False, cache=False
+            mc_count=mc_count, progress=False, cache=False
         )
     except Exception as exc:  # noqa: BLE001 -- never fail the whole step over this
         if VERBOSE:
@@ -422,9 +484,47 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
 
     return level
 
+#: Torrence & Compo (1998) eq. 31 as printed: for complex wavelets, nu = 2 and
+#: Z_2(95%) = 3.999. A real-valued wavelet would use Z_1(95%) = 2.182. The code
+#: derives Z from eq. 30 instead of reading it from here -- the averaged tests
+#: need values at nu the paper does not tabulate -- and `common/tc98.py` says
+#: why. This stays as the published anchor the derivation is tested against.
+Z2_95 = _tc98.Z2_95_PUBLISHED
+
+#: Re-exported so a reader of this step, and the reference tests, find the
+#: significance maths where it is used as well as where it is defined.
+ar1_background = _tc98.ar1_background
+
+
+def cross_wavelet_significance(alpha1, alpha2, period, dt,
+                               significance_level=None):
+    """The 95% level for |W_x W_y*|, per Torrence & Compo eq. 31.
+
+        |W^X W^Y*| / (sigma_X sigma_Y)  =>  (Z_nu(p) / nu) sqrt(P^X_k P^Y_k)
+
+    This is **not** the single-spectrum level of eq. 18, and using that one
+    here is the defect this replaces. Two things differ: the constant is
+    Z_2(95%)/2 = 1.9993 rather than chi2_2(95%)/2 = 2.9957, and the background
+    is the geometric mean of the two series' own spectra rather than one
+    spectrum evaluated at the mean of their two coefficients.
+
+    Measured against the paper before the fix: the level came out 1.50 times
+    too high when the two coefficients matched, 1.71 at alpha = (0.9, 0.5), and
+    2.39 at (0.95, 0.2). The payload stores power/level, so the stored
+    `sig95_xwt` was that much too small -- and the cross-wavelet tab draws a
+    phase arrow only where it exceeds 1, so it drew far too few.
+
+    The implementation is `tc98.local_significance`; this wrapper is the name
+    the step and its tests already use.
+    """
+    level = SIGNIFICANCE_LEVEL if significance_level is None else significance_level
+    return _tc98.local_significance(alpha1, alpha2, period, dt, level)
+
+
 def compute_cross_wavelet_standard(data1, data2, time, dt,
                                    mother=MOTHER_WAVELET, omega0=OMEGA0,
-                                   dj=DJ, s0=None, J=None, max_period=None):
+                                   dj=DJ, s0=None, J=None, max_period=None,
+                                   mc_count=None):
     """
     Compute cross-wavelet transform between two time series using pycwt standard approach.
     
@@ -501,17 +601,18 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     
     # Calculate phase difference
     phase = np.angle(XWT)
-    
+
     # Convert frequencies to periods
     period = 1 / freqs
-    
-    # Calculate significance for XWT
-    signif_xwt, _ = wavelet.significance(
-        1.0, dt, scales, 0, np.mean([alpha1, alpha2]),
-        significance_level=SIGNIFICANCE_LEVEL, wavelet=mother_wavelet
-    )
-    sig95_xwt = np.ones([1, N]) * signif_xwt[:, None]
-    sig95_xwt = power / sig95_xwt
+
+    # Significance for the cross-wavelet spectrum, which has its own
+    # distribution -- Torrence & Compo eq. 31, not the single-spectrum eq. 18.
+    # See cross_wavelet_significance below.
+    # One number per scale. The ratio `power / signif_xwt` -- which is what a
+    # tab actually thresholds at 1 -- is not stored: it is a quotient of two
+    # fields already in the file, and as a third full grid it was a quarter of
+    # the full-resolution output holding nothing new.
+    signif_xwt = cross_wavelet_significance(alpha1, alpha2, period, dt)
     
     # ------------------------------------------------------------------
     # Wavelet coherence (Torrence & Webster 1999):
@@ -558,7 +659,7 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # it, 0.27 and 0.55 look like "some coupling" and "more coupling", when in
     # fact the first is exactly what independent signals produce.
     sig95_wtc = _wct_significance_level(alpha1, alpha2, dt, dj, s0, len(scales),
-                                        mother_wavelet)
+                                        mother_wavelet, mc_count=mc_count)
     if sig95_wtc is not None and len(sig95_wtc) != len(scales):
         if VERBOSE:
             print(f"  WARNING: coherence significance length {len(sig95_wtc)} "
@@ -571,13 +672,21 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # Global wavelet spectrum (time-averaged)
     global_power = power.mean(axis=1)
     
-    # Calculate degrees of freedom for global spectrum
-    dof = N - scales
-    global_signif, _ = wavelet.significance(
-        1.0, dt, scales, 1, np.mean([alpha1, alpha2]),
-        significance_level=SIGNIFICANCE_LEVEL, dof=dof, wavelet=mother_wavelet
-    )
-    
+    # The 95% level for that time-averaged spectrum. `global_power` is a mean of
+    # |W_x W_y*|, so it needs the cross-wavelet distribution of eq. 30 at the
+    # degrees of freedom time-averaging buys (eq. 23) -- not the single-spectrum
+    # chi-square, and not one spectrum at the mean of the two alphas, which is
+    # what this used to do. Both were the eq. 31 defect, one level up.
+    #
+    # `N - scales` is the number of points averaged, reduced towards the long
+    # scales because those are increasingly inside the cone of influence. It is
+    # Torrence & Compo's own convention, kept so this stays comparable with
+    # their code and with pycwt's example.
+    n_averaged = N - scales
+    global_signif = _tc98.time_average_significance(
+        alpha1, alpha2, scales, dt, n_averaged, mother_wavelet,
+        level=SIGNIFICANCE_LEVEL)
+
     return {
         'W1': W1,
         'W2': W2,
@@ -589,7 +698,6 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
         'freqs': freqs,
         'period': period,
         'coi': coi,
-        'sig95_xwt': sig95_xwt,
         'sig95_wtc': sig95_wtc,
         'signif_xwt': signif_xwt,
         'global_power': global_power,
@@ -615,6 +723,30 @@ def _reduce_time(a, factor):
     return t.reshape(*t.shape[:-1], keep // factor, factor).mean(axis=-1)
 
 
+def _reduce_null(levels, factor):
+    """Reduce the coherence null along the period axis, NaN-aware.
+
+    Rows lying entirely inside the cone of influence carry NaN: no threshold
+    could be estimated there. Both directions matter when blocks are averaged.
+    A NaN neighbour must not drag a usable row to NaN, or good rows are lost;
+    and a block that is *all* NaN must stay NaN rather than becoming a number,
+    or a whole period band reads as always-significant.
+
+    Returns None when there is no null to reduce, which is what a study that
+    did not ask for the Monte Carlo produces.
+    """
+    if levels is None:
+        return None
+    values = np.asarray(levels, dtype=float)
+    if factor <= 1:
+        return np.real(values)
+    keep = (len(values) // factor) * factor
+    if keep == 0:
+        return np.real(values)
+    with np.errstate(invalid='ignore'):
+        return np.nanmean(values[:keep].reshape(-1, factor), axis=1)
+
+
 def _reduce_freq(a, factor):
     """Block-average along the first (period/frequency) axis."""
     if factor <= 1:
@@ -635,10 +767,13 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
     """
     n_time = len(time)
     n_freq = len(cwt_results['freqs'])
-    
-    # Determine downsampling factors
-    time_factor = max(1, n_time // max_time_points)
-    freq_factor = max(1, n_freq // max_freq_points)
+
+    # `reduce.factor_for`, not floor division. This step computed its own
+    # factors the old way, so the cap was a suggestion: 1024 samples against a
+    # 500-point cap gave factor 2 and drew 512, and 999 gave factor 1 and drew
+    # all 999 -- twice the cap, across every array in the file.
+    time_factor = _reduce.factor_for(n_time, max_time_points)
+    freq_factor = _reduce.factor_for(n_freq, max_freq_points)
     
     # Block-average, not stride. See _reduce_time / _reduce_freq.
     time_ds = _reduce_time(time, time_factor)
@@ -653,23 +788,13 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
     _ph = cwt_results['phase']
     phase_ds = np.angle(_reduce_time(_reduce_freq(np.exp(1j * np.asarray(_ph)), freq_factor), time_factor))
     coherence_ds = np.real(_reduce_time(_reduce_freq(cwt_results['coherence'], freq_factor), time_factor))
-    sig95_xwt_ds = np.real(_reduce_time(_reduce_freq(cwt_results['sig95_xwt'], freq_factor), time_factor))
 
     coi_ds = np.real(_reduce_time(cwt_results['coi'], time_factor))
     signif_xwt_ds = np.real(_reduce_freq(cwt_results['signif_xwt'], freq_factor))
     # Per-period coherence null; may be absent if the Monte Carlo was skipped.
     # Averaged with NaN-awareness: COI-only rows are NaN and must not poison
     # their neighbours in a block.
-    sig95_wtc = cwt_results.get('sig95_wtc')
-    if sig95_wtc is None:
-        sig95_wtc_ds = None
-    elif freq_factor <= 1:
-        sig95_wtc_ds = np.real(sig95_wtc)
-    else:
-        _w = np.asarray(sig95_wtc, dtype=float)
-        _keep = (len(_w) // freq_factor) * freq_factor
-        with np.errstate(invalid='ignore'):
-            sig95_wtc_ds = np.nanmean(_w[:_keep].reshape(-1, freq_factor), axis=1)
+    sig95_wtc_ds = _reduce_null(cwt_results.get('sig95_wtc'), freq_factor)
     global_power_ds = np.real(_reduce_freq(cwt_results['global_power'], freq_factor))
     global_signif_ds = np.real(_reduce_freq(cwt_results['global_signif'], freq_factor))
     scale_avg_power_ds = np.real(_reduce_time(scale_avg_power, time_factor))
@@ -678,34 +803,36 @@ def downsample_for_storage(cwt_results, time, scale_avg_power,
         print(f"  Reduced for the browser: time {n_time}->{len(time_ds)}, "
               f"freq {n_freq}->{len(freqs_ds)} (block-averaged)")
 
-    # NaN has no JSON literal and JSON.parse() rejects it outright, so the
-    # unusable (COI-only) scales are emitted as null instead.
-    sig95_wtc_json = (None if sig95_wtc_ds is None else
-                      [None if not np.isfinite(v) else float(v)
-                       for v in sig95_wtc_ds])
-
-    def _json_safe(a):
-        """NaN has no JSON literal, and JSON.parse rejects the bare token that
-        json.dump would write. Undefined cells travel as null, which the browser
-        draws as a gap."""
-        a = np.asarray(a, dtype=float)
-        return np.where(np.isfinite(a), a, None).tolist()
-
+    # The three two-dimensional fields are where the size is -- 128 scales by
+    # 504 times, three times over -- so they travel as base64 float32 rather
+    # than as text. NaN survives that and means what it means in the analysis:
+    # this cell has no value. The browser decoder turns it into null, which is
+    # what Plotly draws as a gap.
+    #
+    # The one-dimensional axes stay as plain JSON lists. They are a few hundred
+    # numbers, a reader opens this file and looks at them, and `nan_to_none`
+    # keeps the bare NaN token out -- `JSON.parse` rejects it outright, so a
+    # single undefined cell would make a study's whole payload unreadable.
     return {
-        'time': time_ds.tolist(),
-        'freqs': freqs_ds.tolist(),
-        'period': period_ds.tolist(),
-        'scales': scales_ds.tolist(),
-        'power': _json_safe(power_ds),
-        'phase': _json_safe(phase_ds),
-        'coherence': _json_safe(coherence_ds),
-        'coi': coi_ds.tolist(),
-        'sig95_xwt': _json_safe(sig95_xwt_ds),
-        'sig95_wtc': sig95_wtc_json,
-        'signif_xwt': signif_xwt_ds.tolist(),
-        'global_power': global_power_ds.tolist(),
-        'global_signif': global_signif_ds.tolist(),
-        'scale_avg_power': scale_avg_power_ds.tolist(),
+        'time': _arrays.nan_to_none(time_ds),
+        'freqs': _arrays.nan_to_none(freqs_ds),
+        'period': _arrays.nan_to_none(period_ds),
+        'scales': _arrays.nan_to_none(scales_ds),
+        'power': _arrays.pack_f32(power_ds),
+        'phase': _arrays.pack_f32(phase_ds),
+        'coherence': _arrays.pack_f32(coherence_ds),
+        'coi': _arrays.nan_to_none(coi_ds),
+        'sig95_wtc': (None if sig95_wtc_ds is None
+                      else _arrays.nan_to_none(sig95_wtc_ds)),
+        # The per-scale 95 % level. `sig95_xwt` -- power divided by this,
+        # broadcast across time -- used to be stored as a third full grid
+        # beside `power`, which is a quotient of two fields already in the
+        # file: a quarter of the full-resolution output holding nothing new.
+        # A reader divides; `crosswavelet.js` does exactly that.
+        'signif_xwt': _arrays.nan_to_none(signif_xwt_ds),
+        'global_power': _arrays.nan_to_none(global_power_ds),
+        'global_signif': _arrays.nan_to_none(global_signif_ds),
+        'scale_avg_power': _arrays.nan_to_none(scale_avg_power_ds),
         'downsampling_factors': {
             'time_factor': time_factor,
             'freq_factor': freq_factor
@@ -861,7 +988,8 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
     cwt_results = compute_cross_wavelet_standard(
         data1_interp, data2_interp, time_common, dt,
         mother=MOTHER_WAVELET, omega0=OMEGA0, dj=DJ,
-        max_period=_tuning(config).get("maxPeriod")
+        max_period=_tuning(config).get("maxPeriod"),
+        mc_count=mc_count_for(config)
     )
     
     # Calculate scale-averaged wavelet power
@@ -891,15 +1019,14 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
         scale_avg = power / scale_avg
         scale_avg_power = cwt_results['dj'] * dt / Cdelta * scale_avg[sel, :].sum(axis=0)
         
-        # Significance for scale-averaged power
-        scale_avg_signif, _ = wavelet.significance(
-            1.0, dt, cwt_results['scales'], 2, 
-            np.mean([cwt_results['alpha1'], cwt_results['alpha2']]),
-            significance_level=SIGNIFICANCE_LEVEL,
-            dof=[cwt_results['scales'][sel[0]], cwt_results['scales'][sel[-1]]],
-            wavelet=cwt_results['mother']
-        )
-        
+        # The 95% level for it, eqs. 25-28 with the cross-wavelet distribution
+        # of eq. 30 in place of the chi-square -- the third and last place the
+        # eq. 31 defect lived.
+        scale_avg_signif = _tc98.scale_average_significance(
+            cwt_results['alpha1'], cwt_results['alpha2'],
+            cwt_results['scales'], dt, cwt_results['dj'], sel,
+            cwt_results['mother'], level=SIGNIFICANCE_LEVEL)
+
         if VERBOSE:
             print(f"  Scale-averaging band: {avg_period_min:.2f} - {avg_period_max:.2f}")
     else:
@@ -949,101 +1076,98 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
             'interpolation_method': INTERPOLATION_METHOD
         }
     
-    # The analysis itself, at the resolution it was computed at. The JSON beside
-    # it is a browser payload; this is what a notebook or any downstream
-    # analysis should read. Off with
-    # analysis.crosswavelet.saveFullResolution = false.
+    # The analysis at the resolution it was computed at, in the **same schema**
+    # as the block above and with the same field names -- only the time axis
+    # differs, so one reader serves both. It travels on the result under a
+    # private key and `main()` writes every pair's at once; writing it here
+    # would mean re-reading and re-merging the whole file once per pair, which
+    # is what the .npz this replaces did.
+    #
+    # Cross-wavelet is the only analysis with a second file, and that is
+    # measured rather than assumed: its large fields are two-dimensional
+    # (128 scales x 3026 times against 128 x 504 drawn). A recurrence payload's
+    # are one-dimensional and small enough to carry at full resolution in the
+    # single file, and its matrix is not stored at any resolution because it is
+    # quadratic. Off with analysis.crosswavelet.saveFullResolution = false.
     if _tuning(config).get("saveFullResolution", True):
-        try:
-            npz = save_full_resolution(_EFFECTIVE_OUTPUT_DIR, video_id,
-                                       f"{data_type1}_vs_{data_type2}",
-                                       cwt_results, time_common, scale_avg_power)
-            if VERBOSE:
-                print(f"  Full-resolution analysis -> {npz}")
-        except Exception as exc:  # noqa: BLE001 - never lose a run over this
-            print(f"  WARNING: could not write full-resolution output ({exc})")
+        result['_full'] = downsample_for_storage(
+            cwt_results, time_common, scale_avg_power,
+            max_time_points=len(time_common),
+            max_freq_points=len(cwt_results['freqs']))
 
     return result
 
 
-def save_full_resolution(out_dir, video_id, pair_key, cwt_results, time, scale_avg_power):
-    """Write the analysis at the resolution it was computed at.
+#: What a worker process has to be told, because `spawn` -- the default on
+#: macOS and Windows -- re-imports this module rather than forking it, so the
+#: values `main()` set are back at their defaults in the child.
+_WORKER_STATE = ("VERBOSE", "DEBUG_MODE", "INPUT_DIR", "_EFFECTIVE_OUTPUT_DIR")
 
-    The JSON beside this is a *browser payload*: reduced to a few hundred points
-    so a page can draw it. It was for a long time the only thing kept, which
-    meant anyone continuing the analysis from a study's output was silently
-    working at a fraction of the resolution -- and, before block-averaging, from
-    an aliased copy.
 
-    This is the artifact to analyse from. Compressed .npz, one file per video,
-    with a group of arrays per pair.
+def _worker_state() -> dict:
+    return {name: globals()[name] for name in _WORKER_STATE}
+
+
+def _apply_worker_state(state: dict) -> None:
+    globals().update(state)
+
+
+def _compute_one(job):
+    """One pair, in whichever process this is. Module-level so it can be pickled."""
+    state, video_id, type1, type2, config = job
+    _apply_worker_state(state)
+    return (f"{type1}_vs_{type2}",
+            process_cross_wavelet_pair(video_id, type1, type2, config))
+
+
+def _compute_pairs(video_id, pairs, config, jobs):
+    """`(pair_key, result)` for each pair, serially or across processes.
+
+    Serial and parallel must produce **byte-identical** output, so results are
+    yielded in the order the pairs were listed rather than as they finish, and
+    nothing here touches a shared file. The Monte Carlo null is seeded, so a
+    surrogate set does not depend on which process drew it.
+
+    The reason to bother: ORTHO's cross-wavelet run is ~2.8 hours and the
+    bottleneck is a Python double loop inside `pycwt.wct_significance` -- 6.9M
+    `numpy.ma.__getitem__` calls per six surrogates. Rewriting a published
+    numerical routine is out of scope; running independent pairs at the same
+    time is not.
     """
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, f"{video_id}_crosswavelet.npz")
+    workers = _worker_count(jobs, len(pairs))
+    if workers <= 1:
+        for type1, type2 in pairs:
+            yield f"{type1}_vs_{type2}", process_cross_wavelet_pair(
+                video_id, type1, type2, config)
+        return
 
-    prefix = pair_key.replace('/', '_')
-    arrays = {
-        f"{prefix}/time": np.asarray(time, dtype=np.float64),
-        f"{prefix}/period": np.real(cwt_results['period']).astype(np.float64),
-        f"{prefix}/freqs": np.real(cwt_results['freqs']).astype(np.float64),
-        f"{prefix}/coherence": np.real(cwt_results['coherence']).astype(np.float32),
-        f"{prefix}/power": np.real(cwt_results['power']).astype(np.float32),
-        f"{prefix}/phase": np.real(cwt_results['phase']).astype(np.float32),
-        f"{prefix}/coi": np.real(cwt_results['coi']).astype(np.float64),
-        f"{prefix}/scale_avg_power": np.real(scale_avg_power).astype(np.float64),
-    }
-    if cwt_results.get('sig95_wtc') is not None:
-        arrays[f"{prefix}/sig95_wtc"] = np.asarray(cwt_results['sig95_wtc'], dtype=np.float64)
+    from concurrent.futures import ProcessPoolExecutor
 
-    # Append rather than rewrite. A .npz is a zip of .npy members, so a new
-    # pair can be added without touching the ones already there. The obvious
-    # implementation -- load everything, add one pair, recompress -- is
-    # quadratic: a study with fifteen pairs recompressed the whole file fifteen
-    # times, and on a twenty-minute recording that is gigabytes of needless work
-    # per video, with every earlier pair held in memory while it happens.
-    if not _append_to_npz(path, arrays):
-        # A name collision (the same pair written twice, e.g. a re-run) or a
-        # corrupt file: fall back to rebuilding the file from scratch.
-        existing = {}
-        if os.path.exists(path):
-            try:
-                with np.load(path, allow_pickle=False) as z:
-                    existing = {k: z[k] for k in z.files}
-            except Exception:  # noqa: BLE001 - a corrupt file is replaced
-                existing = {}
-        existing.update(arrays)
-        np.savez_compressed(path, **existing)
-    return path
+    if VERBOSE:
+        print(f"Computing {len(pairs)} pairs across {workers} processes")
+    state = _worker_state()
+    jobs_ = [(state, video_id, t1, t2, config) for t1, t2 in pairs]
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        # `map` keeps input order, which is what makes the output byte-identical
+        # to a serial run: the payload is a dict written in insertion order.
+        for pair_key, result in pool.map(_compute_one, jobs_):
+            yield pair_key, result
 
 
-def _append_to_npz(path, arrays):
-    """Add arrays to a .npz as new zip members. False if that is not possible.
+def _worker_count(jobs, n_pairs: int) -> int:
+    """How many processes to use. `jobs=0` means "as many as make sense here".
 
-    Returns False when any name is already present (the caller then rebuilds the
-    file, so a re-run replaces a pair instead of shadowing it with a duplicate
-    zip entry) or when the existing file cannot be read as a zip.
+    Never more than there are pairs: an idle worker still pays the cost of
+    re-importing numpy, scipy and pycwt.
     """
-    import zipfile
-    from numpy.lib import format as _npformat
+    if n_pairs <= 1:
+        return 1
+    if jobs and jobs > 0:
+        return min(int(jobs), n_pairs)
+    if jobs == 0:
+        return 1
+    return min(os.cpu_count() or 1, n_pairs)
 
-    members = {f"{name}.npy": arr for name, arr in arrays.items()}
-    if os.path.exists(path):
-        try:
-            with zipfile.ZipFile(path) as zf:
-                if set(zf.namelist()) & set(members):
-                    return False
-        except (zipfile.BadZipFile, OSError):
-            return False
-    mode = 'a' if os.path.exists(path) else 'w'
-    try:
-        with zipfile.ZipFile(path, mode=mode, compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            for member, arr in members.items():
-                with zf.open(member, 'w', force_zip64=True) as fh:
-                    _npformat.write_array(fh, np.asarray(arr), allow_pickle=False)
-    except (zipfile.BadZipFile, OSError):
-        return False
-    return True
 
 def main():
     parser = argparse.ArgumentParser(description='Generate Cross-Wavelet data for DIMS Dashboard')
@@ -1051,6 +1175,10 @@ def main():
     parser.add_argument('--output-dir', default=OUTPUT_DIR, help='Output directory for cross-wavelet data')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--jobs', type=int, default=-1, metavar='N',
+                        help='Pairs to compute at once. -1 (default) uses one '
+                             'process per core, 0 or 1 runs serially. Output is '
+                             'byte-identical either way.')
     args = parser.parse_args()
     
     # Override global settings if command-line args provided
@@ -1086,6 +1214,19 @@ def main():
     #   * a legacy flat list of data types, expanded to all unique pairs below.
     raw_cwt = _config.as_list(config, 'include_crosswavelet',
                               'pairs of data types')
+
+    # Say which way the coherence null went and why. The decision is a real one
+    # -- it is the difference between seconds and hours -- and it used to be a
+    # constant nobody could see, let alone change.
+    _mc = mc_count_for(config)
+    if _mc > 0:
+        _why = ("mcCount is set in config.json"
+                if _tuning(config).get("mcCount") is not None
+                else f"{' or '.join(COHERENCE_NULL_CONSUMERS)} is enabled")
+        print(f"coherence null: {_mc} surrogates ({_why})")
+    else:
+        print("coherence null: skipped -- nothing in this config reads it. "
+              "Set analysis.crosswavelet.mcCount to compute it anyway.")
     if all(isinstance(item, (list, tuple)) and len(item) == 2 for item in raw_cwt):
         base_pairs = [(t1, t2) for t1, t2 in raw_cwt]
     else:
@@ -1120,7 +1261,6 @@ def main():
         print(f"Edge Tapering: {EDGE_TAPER} (α={TAPER_ALPHA})" if EDGE_TAPER else "Edge Tapering: False")
         print(f"High Coherence Threshold: {HIGH_COHERENCE_THRESHOLD}")
         print(f"Visualization Resolution: {MAX_TIME_POINTS_VIZ} × {MAX_FREQ_POINTS_VIZ}")
-        print(f"Output Format: {OUTPUT_FORMAT}")
         print("="*60)
     
     # Process each video
@@ -1143,52 +1283,72 @@ def main():
         if VERBOSE:
             print(f"Computing {len(pairs_to_compute)} pair(s)")
         
-        # Process each pair
-        for data_type1, data_type2 in pairs_to_compute:
-            pair_key = f"{data_type1}_vs_{data_type2}"
-            
-            result = process_cross_wavelet_pair(
-                video_id, data_type1, data_type2, config
-            )
-            
+        # Process each pair, concurrently when there is more than one and the
+        # run asked for it. Pairs are independent -- each reads two CSVs and
+        # writes nothing -- and the Monte Carlo null's disk cache is written
+        # through a temporary file and renamed, so workers sharing it is safe.
+        for pair_key, result in _compute_pairs(video_id, pairs_to_compute,
+                                               config, args.jobs):
             if result:
                 cwt_results[pair_key] = result
         
         # Save results
         if cwt_results:
-            # Determine output format and save
-            if OUTPUT_FORMAT in ['json', 'both']:
-                output_path = os.path.join(args.output_dir, f"{video_id}_crosswavelet_data.json")
-                
-                output_data = {
-                    'video_id': video_id,
-                    'crosswavelet_pairs': cwt_results,
-                    'data_types': sorted({t for pair in base_pairs for t in pair}),
-                    'config': {
-                        'mother_wavelet': MOTHER_WAVELET,
-                        'omega0': OMEGA0 if MOTHER_WAVELET.lower() == 'morlet' else None,
-                        'dj': DJ,
-                        's0_factor': S0_FACTOR,
-                        'significance_level': SIGNIFICANCE_LEVEL,
-                        'high_coherence_threshold': HIGH_COHERENCE_THRESHOLD,
-                        'detrend': DETREND_DATA,
-                        'edge_taper': EDGE_TAPER
-                    },
-                    'processing_info': {
-                        'pairs_computed': len(cwt_results),
-                        'coi_excluded_from_stats': COI_EXCLUDE,
-                        'visualization_resolution': f"{MAX_TIME_POINTS_VIZ}x{MAX_FREQ_POINTS_VIZ}"
-                    }
-                }
-                
-                output_data['precision'] = precision_note()
-                # Merge rather than clobber: this file is keyed by video, so a
-                # second analysis writing pairs into it must survive a re-run.
-                # write_payload uses compact separators -- the whitespace of
-                # indent=2 is a quarter of the file and nobody reads it by eye.
-                kept = _results.write_payload(output_path, round_payload(output_data))
+            # The full-resolution blocks travel on each result under a private
+            # key; lift them out before the browser payload is built.
+            full_blocks = {key: result.pop('_full')
+                           for key, result in cwt_results.items()
+                           if '_full' in result}
+            output_path = os.path.join(args.output_dir,
+                                       f"{video_id}_crosswavelet_data.json")
+            output_data = {
+                'video_id': video_id,
+                'payload_version': _arrays.PAYLOAD_VERSION,
+                'crosswavelet_pairs': cwt_results,
+                'data_types': sorted({t for pair in base_pairs for t in pair}),
+                'config': {
+                    'mother_wavelet': MOTHER_WAVELET,
+                    'omega0': OMEGA0 if MOTHER_WAVELET.lower() == 'morlet' else None,
+                    'dj': DJ,
+                    's0_factor': S0_FACTOR,
+                    'significance_level': SIGNIFICANCE_LEVEL,
+                    'high_coherence_threshold': HIGH_COHERENCE_THRESHOLD,
+                    'detrend': DETREND_DATA,
+                    'edge_taper': EDGE_TAPER,
+                },
+                'provenance': _payload_provenance(config),
+                'processing_info': {
+                    'pairs_computed': len(cwt_results),
+                    'coi_excluded_from_stats': COI_EXCLUDE,
+                    'visualization_resolution':
+                        f"{MAX_TIME_POINTS_VIZ}x{MAX_FREQ_POINTS_VIZ}",
+                },
+                'precision': precision_note(),
+            }
+            # Merge rather than clobber: this file is keyed by video, so a
+            # second analysis writing pairs into it must survive a re-run.
+            # write_payload uses compact separators -- the whitespace of
+            # indent=2 is a quarter of the file and nobody reads it by eye.
+            kept = _results.write_payload(output_path, round_payload(output_data))
+            print(f"\nSaved cross-wavelet data to {output_path}")
 
-                print(f"\nSaved cross-wavelet data to {output_path}")
+            # The same schema at the resolution the analysis ran at, written
+            # once for every pair rather than merged once per pair.
+            if full_blocks:
+                full_path = os.path.join(args.output_dir,
+                                         f"{video_id}_crosswavelet_full.json")
+                _results.write_payload(full_path, round_payload({
+                    'video_id': video_id,
+                    'payload_version': _arrays.PAYLOAD_VERSION,
+                    'resolution': 'full',
+                    'crosswavelet_pairs': {k: {'visualization': v}
+                                           for k, v in full_blocks.items()},
+                    'provenance': _payload_provenance(config),
+                    'precision': precision_note(),
+                }))
+                grid = next(iter(full_blocks.values()))
+                print(f"Full resolution ({len(grid['period'])} periods x "
+                      f"{len(grid['time'])} times) -> {full_path}")
             for key, names in kept.get('kept', {}).items():
                 print(f"  kept {len(names)} existing {key} entr"
                       f"{'y' if len(names) == 1 else 'ies'} from another "
@@ -1196,12 +1356,6 @@ def main():
             for key, names in kept.get('replaced', {}).items():
                 print(f"  replaced {len(names)} existing {key} entr"
                       f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
-            
-            if OUTPUT_FORMAT in ['npz', 'both']:
-                # Save as compressed NumPy format for easier loading in Python
-                output_path_npz = os.path.join(args.output_dir, f"{video_id}_crosswavelet_data.npz")
-                np.savez_compressed(output_path_npz, **cwt_results)
-                print(f"Saved cross-wavelet data to {output_path_npz}")
             
             # Print summary
             if VERBOSE:

@@ -46,6 +46,44 @@ the acceptance check is specifically that it **fails when it should** — this
 repository has twice shipped a check that could not fail: a privacy hook that
 inspected an empty staging area, and a vendor check with no callers.
 
+## The reference study is not optional
+
+`examples/reference/` is a synthetic study whose answers are known before
+anything runs: a 2 s sine recurs at 2 s, a copy delayed 0.4 s puts its
+cross-recurrence line 0.4 s off the diagonal, two independent red noises beat a
+95 % level 5 % of the time, and the wavelet constants are Torrence & Compo's
+published ones. Every claim in it is checked against pyrqa, against that paper,
+or against an independently computed null — never against this project's own
+previous output.
+
+**Any change to `steps/rqa.py`, `steps/crqa.py`, `steps/crosswavelet.py` or
+anything under `common/` runs it, and it must be green before the change is
+committed:**
+
+```sh
+pip install -e packages/dims-analysis && pip install pytest pyrqa
+python -m pytest examples/reference/tests -q
+```
+
+`pyrqa` is `importorskip`ed, so a machine without OpenCL stays green while the
+independent oracle for DET, LAM and RR silently does not run. Check `-rs` and
+make sure the skips are ones you meant. CI installs `pocl-opencl-icd` and fails
+outright if pyrqa is missing, for exactly this reason.
+
+This matters beyond this repository. The analyses are **not** vendored — a
+study installs them from the core it pins — so a defect that gets past here
+reaches `case-demo`, `case-ortho` and `case-karnatak` the moment they bump, and
+lands in their committed assets. That is how the nine already found got where
+they were. The generated `core-update.yml` in every study therefore runs this
+same suite against the candidate release before it will open the bump PR.
+
+`tests/baseline.json` pins every number the analyses currently produce.
+When it fails, **read the diff before doing anything else**: it is telling you
+what your change did to the answers. Regenerate it only after deciding the new
+numbers are better, with `python examples/reference/tests/make_baseline.py`, and
+say in the commit message why each number moved. Regenerating first is how a
+regression becomes the new normal.
+
 ## Scope
 
 Do what the issue asks. Issues labelled `agent-ready` name the files, link the

@@ -95,10 +95,15 @@ def test_a_new_study_builds_its_own_assets(tmp_path):
                        cwd=study, capture_output=True, text=True)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
 
-    # 6. Both resolutions, for both analyses, and the JSON must parse.
-    for rel in ("assets/rqa/s01_rqa_data.json", "assets/rqa/s01_rqa.npz",
-                "assets/crqa/s01_crqa_data.json", "assets/crqa/s01_crqa.npz"):
+    # 6. One file per analysis, and the JSON must parse. The `.npz` that used
+    # to sit beside each of these is gone: for RQA it held the source CSV
+    # re-cleaned plus a copy of the JSON's own windowed metrics.
+    for rel in ("assets/rqa/s01_rqa_data.json",
+                "assets/crqa/s01_crqa_data.json"):
         assert os.path.exists(os.path.join(study, rel)), f"no {rel}"
+    stray = [p for p in os.listdir(os.path.join(study, "assets/rqa"))
+             if p.endswith(".npz")]
+    assert not stray, f"a second file format came back: {stray}"
     payload = json.load(open(os.path.join(study, "assets/rqa/s01_rqa_data.json")))
     assert payload["video_id"] == "s01"
     assert "bodysync" in payload["rqa_data"]
