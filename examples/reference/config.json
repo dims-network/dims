@@ -6,6 +6,9 @@
   ],
   "dataTypes": {
     "reference": [
+      "eff_hand_l",
+      "eff_hand_r",
+      "eff_other",
       "flat",
       "noise_a",
       "noise_b",
@@ -34,8 +37,21 @@
     [
       "noise_a",
       "noise_b"
+    ],
+    [
+      "eff_hand_l",
+      "eff_hand_r"
+    ],
+    [
+      "eff_hand_l",
+      "eff_other"
+    ],
+    [
+      "eff_hand_r",
+      "eff_other"
     ]
   ],
+  "include_network": true,
   "analysis": {
     "crosswavelet": {
       "mcCount": 20

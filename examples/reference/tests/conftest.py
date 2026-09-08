@@ -94,3 +94,29 @@ def diagonal_offsets(m, min_fraction=0.25):
     return found
 
 
+
+
+# --- cross-wavelet -----------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def coherence_study(tmp_path_factory):
+    """Cross-wavelet. ~40 s at the reference study's mcCount of 20."""
+    study, out = build(tmp_path_factory, "crosswavelet")
+    return study, out
+
+
+def pair(study, name):
+    path = os.path.join(study, "assets", "crosswavelet",
+                        "reference_crosswavelet_data.json")
+    with open(path) as fh:
+        payload = json.load(fh)
+    assert name in payload["crosswavelet_pairs"], (
+        f"no pair {name}; found {sorted(payload['crosswavelet_pairs'])}")
+    return payload["crosswavelet_pairs"][name]["visualization"]
+
+
+def as_array(field):
+    return np.array([[np.nan if c is None else c for c in row] for row in field],
+                    dtype=float)
+
+

@@ -12,32 +12,10 @@ import os
 import numpy as np
 import pytest
 
-from conftest import LAG_S, PERIOD_S, build
+from conftest import LAG_S, PERIOD_S, as_array, coherence_study, pair  # noqa: F401
 
 
 # --- K5: a known lag has a known phase ---------------------------------------
-
-@pytest.fixture(scope="session")
-def coherence_study(tmp_path_factory):
-    """Cross-wavelet. ~40 s at the reference study's mcCount of 20."""
-    study, out = build(tmp_path_factory, "crosswavelet")
-    return study, out
-
-
-def pair(study, name):
-    path = os.path.join(study, "assets", "crosswavelet",
-                        "reference_crosswavelet_data.json")
-    with open(path) as fh:
-        payload = json.load(fh)
-    assert name in payload["crosswavelet_pairs"], (
-        f"no pair {name}; found {sorted(payload['crosswavelet_pairs'])}")
-    return payload["crosswavelet_pairs"][name]["visualization"]
-
-
-def as_array(field):
-    return np.array([[np.nan if c is None else c for c in row] for row in field],
-                    dtype=float)
-
 
 def band_mask(period, low=1.6, high=2.5):
     """Scales around the 2 s component the signals actually contain."""

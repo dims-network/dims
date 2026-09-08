@@ -21,6 +21,20 @@ cells by construction.
 | `noise_a`, `noise_b` | independent AR(1), a known *absence* of relationship |
 | `flat` | zero variance — the degenerate case |
 | `quantised` | many equal distances, so a 7 % target cannot be met |
+| `eff_hand_l`, `eff_hand_r`, `eff_other` | three effectors: the first two share 70 % of their variation, the third shares none |
+
+The three effectors carry the structure a cross-effector network exists to
+find, and deliberately the shape of the real Karnatak result — within-person
+coupling real, between-person at chance. Measured: 0.75 of cells above chance
+for the coupled pair, 0.04 and 0.08 for the other two. One solid edge, two
+dashed.
+
+Coupling is made by **sharing a red-noise component**, not by adding a
+sinusoid, and that choice is itself a finding. A first attempt shared a 3 s
+sine: the coupled pair read 1.00 above chance inside that band, but so did the
+*unrelated* pairs at 0.30 and 0.42. The AR(1) null assumes both signals are red
+noise, and a signal carrying a deterministic rhythm is not — so the null
+understates its level and independence stops looking like independence.
 
 The data is generated rather than committed: producing it is the same
 from-zero path a real study takes, and a formula describes it exactly, so
@@ -33,6 +47,7 @@ The assertions live beside the data, one file per analysis:
 | `tests/test_rqa.py` | recurrence, determinism, the achieved rate, a constant signal |
 | `tests/test_crqa.py` | the known lag, 20 samples off the diagonal |
 | `tests/test_crosswavelet.py` | the known phase, the chance level, and the Monte Carlo that produces it |
+| `tests/test_network.py` | what the cross-effector network needs from a payload, and how it breaks |
 
 The cross-wavelet file tests the simulation two ways, and both are needed. That
 it is **calibrated** — signals drawn from the null exceed the 95 % level in 5 %

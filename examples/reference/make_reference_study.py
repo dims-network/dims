@@ -15,8 +15,8 @@ from-zero path a study takes, and so the repository does not carry a megabyte
 of CSV that a formula describes exactly.
 
 What each signal is for, and the expectation it supports, is in
-`docs/contracts/analysis-output.md`. The assertions themselves are
-`packages/dims-analysis/tests/test_reference_study.py`.
+`docs/contracts/analysis-output.md`. The assertions are in `tests/`, one file
+per analysis, beside this generator.
 """
 from __future__ import annotations
 
@@ -53,6 +53,34 @@ def ar1(alpha: float, seed: int) -> np.ndarray:
     return (x - x.mean()) / x.std()
 
 
+#: How much of a coupled effector is the shared component, by amplitude. Two
+#: effectors sharing this much of their variation are genuinely coupled; one
+#: that shares none is not.
+EFFECTOR_SHARED = 0.7
+
+
+def _effector(seed: int, shared: float, shared_seed: int = 30) -> np.ndarray:
+    """A movement-like signal: red noise, some of it shared with its partners.
+
+    Coupling is created by **sharing a noise component**, not by adding a
+    sinusoid, and the difference matters. The AR(1) null assumes both signals
+    are red noise; a signal carrying a deterministic rhythm is not, so the null
+    understates its level and even an unrelated partner reads as coupled.
+    Measured on a first attempt that used a shared 3 s sinusoid: inside that
+    band the genuinely coupled pair read 1.00 above chance, but the *unrelated*
+    pairs read 0.30 and 0.42 -- against the 0.05 that independence should give.
+
+    Sharing red noise keeps every signal the shape the null assumes, so the
+    only thing separating a coupled pair from an uncoupled one is the coupling.
+    """
+    own = ar1(0.85, seed)
+    if shared <= 0:
+        return own
+    common = ar1(0.85, shared_seed)
+    mixed = shared * common + (1.0 - shared) * own
+    return (mixed - mixed.mean()) / mixed.std()
+
+
 def signals() -> dict[str, np.ndarray]:
     t = time_axis()
     f = 1.0 / PERIOD
@@ -79,6 +107,14 @@ def signals() -> dict[str, np.ndarray]:
         # for real -- a piece at rest gives ties -- and reaches 12.7 % against
         # a 7 % target with nothing said about it.
         "quantised": np.round(sine * 1.5) / 1.5,
+        # Three "effectors", with the coupling structure a cross-effector
+        # network exists to find -- and deliberately the same shape as the real
+        # Karnatak result: within-person coupling real, between-person at
+        # chance. `hand_l` and `hand_r` share a rhythm, `other` does not, so a
+        # correct network draws one solid edge and two dashed ones.
+        "eff_hand_l": _effector(seed=31, shared=EFFECTOR_SHARED),
+        "eff_hand_r": _effector(seed=32, shared=EFFECTOR_SHARED),
+        "eff_other": _effector(seed=33, shared=0.0),
     }
 
 
@@ -100,15 +136,26 @@ def config() -> dict:
         "dataTypes": {"reference": sorted(signals())},
         "include_RQA": ["sine", "noise_a", "quantised", "flat"],
         "include_cRQA": [["sine", "sine_lagged"]],
-        "include_crosswavelet": [["sine", "sine_lagged"], ["noise_a", "noise_b"]],
+        "include_crosswavelet": [
+            ["sine", "sine_lagged"],
+            ["noise_a", "noise_b"],
+            # Every pair of the three effectors, which is what a cross-effector
+            # network draws. One of the three is genuinely coupled.
+            ["eff_hand_l", "eff_hand_r"],
+            ["eff_hand_l", "eff_other"],
+            ["eff_hand_r", "eff_other"],
+        ],
+        # The cross-effector network reads every pair of these. Its presence is
+        # also what would switch the coherence null on by default, if mcCount
+        # below did not already ask for it explicitly.
+        "include_network": True,
         "analysis": {
             "crosswavelet": {
-                # Set explicitly, and this study is the first user of that
-                # escape hatch: there is no tab here that reads the coherence
-                # null, so the default would skip it -- and the null is exactly
-                # what one of the known answers tests. 20 surrogates is enough
-                # to show the fraction lands near 0.05 and fast enough to run
-                # on every change.
+                # Set explicitly. `include_network` above would switch the
+                # null on anyway, at the default 100; 20 is enough to show the
+                # fraction lands near 0.05 and keeps the study fast enough to
+                # run on every change. An explicit value winning over the
+                # default is itself part of the contract.
                 "mcCount": 20,
             }
         },
