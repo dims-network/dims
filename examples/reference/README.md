@@ -48,6 +48,40 @@ The assertions live beside the data, one file per analysis:
 | `tests/test_crqa.py` | the known lag, 20 samples off the diagonal |
 | `tests/test_crosswavelet.py` | the known phase, the chance level, and the Monte Carlo that produces it |
 | `tests/test_network.py` | what the cross-effector network needs from a payload, and how it breaks |
+| `tests/test_baseline.py` | every number, pinned against `baseline.json` |
+
+## Running them while changing things
+
+```sh
+cd dims
+python -m pytest examples/reference -q          # 42 tests, about 6 s
+```
+
+Two kinds, and both are needed.
+
+The first four files check **properties**: DET agrees with its own definition
+and with pyrqa, the cross-recurrence line sits at the lag that was put in, the
+phase is 2·π·f·τ, unrelated signals beat chance 5 % of the time. A property
+survives a change that shifts every value slightly — which is exactly what a
+refactor of how something is stored or computed can do.
+
+`test_baseline.py` is the one that does not. It pins every number the analyses
+currently produce, through `summary.py`, which reads **meaning rather than
+bytes** — so replacing the payload format moves that one file and leaves the
+expected values alone.
+
+Checked by sabotage, three ways:
+
+| what was broken | what the baseline said |
+|---|---|
+| reduction back to striding | `rqa/noise_a.rate_drawn: 0.0709746 → 0.0735611` |
+| recurrence target 7 % → 8 % | `mean_DET: 0.300346 → 0.340744`, and the provenance directly |
+| phase averaged as a scalar | `mean_phase_rad: 0.003938 → 0.002944` |
+
+**When the baseline fails, do not regenerate it.** Look at which number moved
+and by how much, decide whether the new value is better, and only then run
+`python tests/make_baseline.py` — saying in the commit why each number moved.
+Regenerating first is how a regression becomes the new normal.
 
 The cross-wavelet file tests the simulation two ways, and both are needed. That
 it is **calibrated** — signals drawn from the null exceed the 95 % level in 5 %

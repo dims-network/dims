@@ -1,0 +1,218 @@
+{
+  "crosswavelet": {
+    "entries": {
+      "eff_hand_l_vs_eff_hand_r": {
+        "alpha1": 0.856042,
+        "alpha2": 0.851218,
+        "mean_coherence": 0.712397,
+        "mean_coherence_outside_coi": 0.717861,
+        "mean_phase_rad": 0.003938,
+        "mean_power": 4.115132,
+        "mean_sig95_wtc": 0.600361,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "wtc_signif_fraction": 0.753167
+      },
+      "eff_hand_l_vs_eff_other": {
+        "alpha1": 0.856042,
+        "alpha2": 0.863405,
+        "mean_coherence": 0.321524,
+        "mean_coherence_outside_coi": 0.248738,
+        "mean_phase_rad": 0.31696,
+        "mean_power": 3.879848,
+        "mean_sig95_wtc": 0.601244,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "wtc_signif_fraction": 0.0366731
+      },
+      "eff_hand_r_vs_eff_other": {
+        "alpha1": 0.851218,
+        "alpha2": 0.863405,
+        "mean_coherence": 0.380125,
+        "mean_coherence_outside_coi": 0.27659,
+        "mean_phase_rad": 1.145805,
+        "mean_power": 4.137973,
+        "mean_sig95_wtc": 0.601244,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "wtc_signif_fraction": 0.0786362
+      },
+      "noise_a_vs_noise_b": {
+        "alpha1": 0.90161,
+        "alpha2": 0.900354,
+        "mean_coherence": 0.315612,
+        "mean_coherence_outside_coi": 0.243694,
+        "mean_phase_rad": -2.350556,
+        "mean_power": 5.298919,
+        "mean_sig95_wtc": 0.601812,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "wtc_signif_fraction": 0.0482318
+      },
+      "sine_vs_sine_lagged": {
+        "alpha1": 0.95,
+        "alpha2": 0.95,
+        "mean_coherence": 0.986254,
+        "mean_coherence_outside_coi": 0.988654,
+        "mean_phase_rad": 0.971303,
+        "mean_power": 7.904431,
+        "mean_sig95_wtc": 0.602932,
+        "n_periods": 54,
+        "n_times": 341,
+        "n_unusable_levels": 0,
+        "period_range": [
+          0.04255,
+          19.4089
+        ],
+        "wtc_signif_fraction": 0.999661
+      }
+    },
+    "provenance": {
+      "core_version": "1.5.2",
+      "max_freq_points": 100,
+      "max_time_points": 500,
+      "mc_count": 20,
+      "significance_level": 0.95,
+      "wct_signif_seed": 20250906
+    }
+  },
+  "crqa": {
+    "entries": {
+      "sine_vs_sine_lagged": {
+        "diagonal_offsets": [
+          -160,
+          -127,
+          -126,
+          -94,
+          -93,
+          -60,
+          -27,
+          -26,
+          6,
+          7,
+          40,
+          73
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.841211,
+        "mean_LAM": 0.999287,
+        "mean_RR": 0.07033,
+        "rate_drawn": 0.0699512,
+        "rate_full": 0.0700006,
+        "recurrence_rate": null,
+        "recurrent_cells": 8134,
+        "reduction_factor": 3,
+        "target_recurrence": null,
+        "threshold": 0.0885348,
+        "warned": false
+      }
+    },
+    "provenance": {
+      "core_version": "1.5.2",
+      "max_points_drawn": 500,
+      "target_recurrence": 0.07
+    }
+  },
+  "rqa": {
+    "entries": {
+      "noise_a": {
+        "diagonal_offsets": [
+          0
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.300346,
+        "mean_LAM": 0.402242,
+        "mean_RR": 0.071868,
+        "rate_drawn": 0.0709746,
+        "rate_full": 0.0709095,
+        "recurrence_rate": 0.0700013,
+        "recurrent_cells": 8253,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.126209,
+        "warned": false
+      },
+      "quantised": {
+        "diagonal_offsets": [
+          -170,
+          -169,
+          -168,
+          -167,
+          -166,
+          -165,
+          -164,
+          -163,
+          -162,
+          -161,
+          -160,
+          -159
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.992438,
+        "mean_LAM": 1.005204,
+        "mean_RR": 0.335642,
+        "rate_drawn": 0.337579,
+        "rate_full": 0.337677,
+        "recurrence_rate": 0.33703,
+        "recurrent_cells": 39254,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.0,
+        "warned": true
+      },
+      "sine": {
+        "diagonal_offsets": [
+          -167,
+          -166,
+          -134,
+          -133,
+          -100,
+          -67,
+          -66,
+          -34,
+          -33,
+          0,
+          33,
+          34
+        ],
+        "matrix_size": 341,
+        "mean_DET": 0.899161,
+        "mean_LAM": 0.986754,
+        "mean_RR": 0.070081,
+        "rate_drawn": 0.0715938,
+        "rate_full": 0.0716743,
+        "recurrence_rate": 0.0707669,
+        "recurrent_cells": 8325,
+        "reduction_factor": 3,
+        "target_recurrence": 0.07,
+        "threshold": 0.0854155,
+        "warned": false
+      }
+    },
+    "provenance": {
+      "core_version": "1.5.2",
+      "max_points_drawn": 500,
+      "target_recurrence": 0.07
+    }
+  }
+}
