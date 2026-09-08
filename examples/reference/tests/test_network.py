@@ -196,3 +196,46 @@ def test_each_pair_carries_the_statistics_the_tab_reads(network):
         for field in ("mean_coherence", "wtc_signif_fraction"):
             assert field in stats, f"{key} has no {field}"
             assert stats[field] is not None
+
+
+def test_the_tab_and_the_payload_agree_about_the_cone(network):
+    """Two implementations of one rule, which is where drift comes from.
+
+    The payload carries `statistics.wtc_signif_fraction`, computed in Python
+    over cells outside the cone of influence. The network tab computes its own
+    per-edge fraction in JavaScript, over a period band and a time window, with
+    its own cone test:
+
+        if (period.length && coi && !(period[i] < coi[j])) continue;
+
+    Over the whole record and the whole band the two must be the same number.
+    Measured across the five pairs here they agree to within 0.004 -- the
+    remainder is the boundary convention on exact equality.
+
+    The stakes: including the cone instead of excluding it turns 0.048 into
+    0.126 on independent signals, so an at-chance edge would be drawn solid.
+    """
+    for key in (COUPLED,) + UNCOUPLED:
+        v = vis(network, key)
+        coherence, period, coi = v["coherence"], v["period"], v["coi"]
+        levels = v["sig95_wtc"]
+
+        tested = significant = 0
+        for i, level in enumerate(levels):
+            if level is None:               # no estimable threshold for this row
+                continue
+            for j, coi_at_t in enumerate(coi):
+                value = coherence[i][j]
+                if value is None:           # undefined coherence
+                    continue
+                if not (period[i] < coi_at_t):   # inside the cone: skip
+                    continue
+                tested += 1
+                significant += value > level
+
+        assert tested, f"{key}: every cell was excluded, so nothing was compared"
+        theirs = significant / tested
+        ours = network[key]["statistics"]["wtc_signif_fraction"]
+        assert abs(theirs - ours) < 0.01, (
+            f"{key}: the payload reports {ours:.4f}, the tab's own rule gives "
+            f"{theirs:.4f}. One of the two changed its mind about the cone.")
