@@ -53,13 +53,14 @@ The assertions live beside the data, one file per analysis:
 | `tests/test_metrics.py` | RR, DET, LAM and L_MAX, for **both** RQA and cross-RQA, against pyrqa |
 | `tests/test_coherence_metrics.py` | cross-wavelet: the scale axis, amplitude invariance, and the signature of the defect this project was rebuilt around |
 | `tests/test_determinism.py` | two runs give identical output; one step does not erase another |
+| `tests/test_wavelet_reference.py` | the transform and all three significance levels, against Torrence & Compo (1998) — see `TORRENCE_COMPO.md` |
 | `tests/test_baseline.py` | every number, pinned against `baseline.json` |
 
 ## Running them while changing things
 
 ```sh
 cd dims
-python -m pytest examples/reference -q          # 42 tests, about 6 s
+python -m pytest examples/reference -q          # 116 tests, about 20 s
 ```
 
 Two kinds, and both are needed.
@@ -95,9 +96,23 @@ scale range, where fewer independent cycles fit, so a stub returning a
 plausible constant fails. Checked: a constant passes the calibration tests and
 fails the shape test.
 
-Each names the defect it would have caught. Two are `xfail(strict=True)` today — they are the
-specification for work that has not landed yet, and strictness means they fail
-the moment they start passing, so a fix cannot go unnoticed.
+Each names the defect it would have caught. There is no `xfail` left: the two
+that pinned the averaged significance levels as known-wrong are now ordinary
+passing tests. Where a defect is recorded rather than fixed, mark it
+`xfail(strict=True)` — strictness means it fails the moment it starts passing,
+so a fix cannot go unnoticed and a stale pin cannot survive.
+
+**This suite is a gate, not a convenience.** Every change to `steps/rqa.py`,
+`steps/crqa.py`, `steps/crosswavelet.py` or anything under `common/` runs it
+before being committed, and the generated `core-update.yml` in every study runs
+it against a candidate release before offering the bump — because the analyses
+are not vendored, so a study that bumps takes this code and bakes its answers
+into committed assets. See `AGENTS.md`.
+
+One caution: `pyrqa` is `importorskip`ed, so a machine without OpenCL stays
+green while the independent oracle for DET, LAM and RR does not run at all.
+Pass `-rs` and read the skips. CI installs `pocl-opencl-icd` and fails outright
+if pyrqa is missing.
 
 Requirements this study exists to check: `docs/contracts/analysis-output.md`.
 
@@ -115,6 +130,7 @@ was already known.
 | 33.7 % against a 7 % target | a quantised signal puts the threshold percentile on a plateau. Recorded now, with a warning that DET and LAM are not comparable across different achieved rates. |
 | the cross-wavelet cap | 1024 samples against a 500-point cap drew 512 — the step computed its own reduction factors by floor division. |
 | `numpy.randn` | pycwt's red-noise generator branches at exactly zero autocorrelation and calls a function removed in NumPy 2, so white noise silently lost its chance level. |
+| the wrong distribution, three times | the cross-wavelet spectrum is the square root of a product of two chi-squares (Torrence & Compo eq. 30), not a chi-square. All three significance levels used the chi-square and evaluated the background at the mean of the two AR(1) coefficients: the local level was 1.50-2.39x too high, the time-averaged 1.32-1.37x, the scale-averaged 1.267x. |
 
 Three things were also measured and turned out **not** to be defects, which is
 the other half of the value: DET on a pure sine is 0.899 and not ~1.0; the
