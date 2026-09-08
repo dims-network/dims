@@ -5,7 +5,12 @@ venv/
 .DS_Store
 
 # builder runtime state
-app/_staging/
+# Uploads the wizard has staged but not yet placed in a study. The path
+# moved when the package was renamed app/ -> dims_builder/, and the old
+# pattern kept matching nothing -- so a test run left 72 MB of sample
+# media sitting untracked in the working tree, one `git add -A` from a
+# commit.
+dims_builder/_staging/
 app/_state.json
 
 # generated dashboard projects (don't commit user output)

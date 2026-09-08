@@ -131,3 +131,50 @@ def test_a_study_with_no_tabs_of_its_own_is_fine(tmp_path):
     dest = str(tmp_path / "study")
     vendored(dest, "rqa")
     assert shadowed_tabs(dest) == []
+
+
+# --- a study that removes a tab of its own ----------------------------------
+
+def test_removing_a_study_tab_removes_its_script_tag(tmp_path):
+    """Found while upgrading `case-karnatak` to v2.0.0, on the first study that
+    ever needed it.
+
+    The cross-effector network became a built-in, so the study deleted its own
+    `tabs/network.js`. `_register_study_tabs` returned early on an empty `tabs/`
+    and left the block exactly as it was -- a `<script src="tabs/network.js">`
+    pointing at a file that is no longer there. The page still loads; the
+    browser logs a 404 nobody reads.
+
+    A study's tab list is generated from what is in `tabs/`, so *nothing* there
+    has to mean an empty list, not the previous list.
+    """
+    from dims_case.core import BEGIN, END, _register_study_tabs
+
+    dest = tmp_path / "study"
+    (dest / "tabs").mkdir(parents=True)
+    (dest / "tabs" / "network.js").write_text("window.DIMS.registerTab({id:'network'});")
+    (dest / "index.html").write_text(
+        f"<head>\n    {BEGIN} -->\n"
+        f'    <script src="tabs/network.js"></script>\n    {END}\n</head>\n')
+
+    _register_study_tabs(str(dest))
+    assert 'src="tabs/network.js"' in (dest / "index.html").read_text()
+
+    (dest / "tabs" / "network.js").unlink()
+    _register_study_tabs(str(dest))
+    page = (dest / "index.html").read_text()
+    assert 'src="tabs/network.js"' not in page, (
+        "the deleted tab still has a script tag, so the page 404s on load")
+    assert BEGIN in page and END in page, "the block itself must survive"
+
+
+def test_removing_the_whole_tabs_directory_does_the_same(tmp_path):
+    from dims_case.core import BEGIN, END, _register_study_tabs
+
+    dest = tmp_path / "study"
+    dest.mkdir()
+    (dest / "index.html").write_text(
+        f"<head>\n    {BEGIN} -->\n"
+        f'    <script src="tabs/gone.js"></script>\n    {END}\n</head>\n')
+    _register_study_tabs(str(dest))
+    assert 'src="tabs/gone.js"' not in (dest / "index.html").read_text()

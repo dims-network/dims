@@ -7,6 +7,26 @@ version in its `dims-case.json` and takes a fix by bumping it, never by editing
 Full notes for each release are on
 [GitHub Releases](https://github.com/dims-network/dims/releases).
 
+## v2.0.1
+
+**Deleting a study-owned tab left its `<script>` tag behind.** `dims-case sync`
+generates the study's tab list from what is in `tabs/`, and an empty directory
+made it leave the previous list alone — so a study that dropped a tab kept a tag
+pointing at a file that is no longer there. The page loads; the browser logs a
+404 nobody reads.
+
+Found on the first study that needed it: `case-karnatak` deleting its own
+`tabs/network.js` now that the cross-effector network is a built-in, which is
+the migration v2.0.0 asks for. Re-run `dims-case sync` to fix an affected study.
+
+**The builder's staging directory was ignored under its pre-rename path.**
+`app/_staging/` stopped matching when the package became `dims_builder/`, so a
+test run left staged uploads in the working tree — and 996 of them reached
+v2.0.0's commits. The content is the builder's own sample data and git stored
+12 distinct blobs behind those paths, 9 of them already tracked in
+`apps/builder/samples/`, so the repository grew by almost nothing; the paths are
+untracked again here.
+
 ## v2.0.0
 
 **Every RQA, cross-RQA and cross-wavelet output produced before this release is

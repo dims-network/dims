@@ -530,14 +530,25 @@ def _write_index(dest):
 
 
 def _register_study_tabs(dest):
-    """List whatever is in tabs/ inside the preserved block."""
+    """Rewrite the study-owned tab list from whatever is in `tabs/`.
+
+    Generated from the directory, which means **nothing there produces an empty
+    list, not the previous list**. Both early returns used to leave the block
+    untouched, so a study that deleted a tab kept a `<script>` pointing at a
+    file that was no longer there -- the page still loads and the browser logs a
+    404 nobody reads.
+
+    Found on the first study that ever needed it: `case-karnatak` deleted its own
+    `tabs/network.js` when the cross-effector network became a built-in.
+    """
     tabs_dir = os.path.join(dest, "tabs")
-    if not os.path.isdir(tabs_dir):
-        return
-    files = sorted(f for f in os.listdir(tabs_dir) if f.endswith(".js"))
-    if not files:
-        return
+    files = []
+    if os.path.isdir(tabs_dir):
+        files = sorted(f for f in os.listdir(tabs_dir) if f.endswith(".js"))
+
     target = os.path.join(dest, "index.html")
+    if not os.path.exists(target):
+        return
     s = open(target).read()
     i, j = s.find(BEGIN), s.find(END)
     if i == -1 or j == -1:
@@ -546,7 +557,7 @@ def _register_study_tabs(dest):
     block = (BEGIN + "\n"
              "         Tabs that only make sense for this study. Same contract\n"
              "         as a built-in one: docs/contracts/tab.md -->\n"
-             + tags + "\n    " + END)
+             + (tags + "\n" if tags else "") + "    " + END)
     open(target, "w").write(s[:i] + block + s[j + len(END):])
 
 
