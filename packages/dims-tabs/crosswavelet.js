@@ -111,6 +111,35 @@
             }, 100);
         },
 
+        // What the Monte Carlo coherence null cost, and what it says -- or, when
+        // it was not run, that it was not run and how to get it.
+        //
+        // This is the visible half of a rule the analysis already follows: the
+        // null is computed when something in the study reads it, and skipped
+        // otherwise. Skipping it is the right default -- it is hours of compute
+        // for ORTHO -- but a tab that quietly draws nothing turns a deliberate
+        // choice into a missing feature, and that is how a study ends up paying
+        // for a number nobody ever sees.
+        chanceLevelNote(pairData) {
+            const stats = pairData.statistics || {};
+            const provenance = (this.crossWaveletData || {}).provenance || {};
+            const fraction = stats.wtc_signif_fraction;
+
+            if (fraction === null || fraction === undefined) {
+                return 'Coherence chance level: not computed for this output. '
+                     + 'Set analysis.crosswavelet.mcCount in config.json and rebuild.';
+            }
+            const surrogates = provenance.mc_count;
+            const median = stats.wtc_signif_level_median;
+            const level = (typeof median === 'number')
+                ? `, median level ${median.toFixed(3)}` : '';
+            const count = (typeof surrogates === 'number')
+                ? `${surrogates} surrogates` : 'a Monte Carlo null';
+            return `Coherence above chance (outside the cone): `
+                 + `${(fraction * 100).toFixed(1)}% of cells `
+                 + `(${count}${level})`;
+        },
+
         createCrossWaveletPlot(containerId, pairKey, pairData) {
             // Check if Plotly is loaded
             if (!window.Plotly) {
@@ -437,7 +466,28 @@ if (arrowData.x.length > 0) {
                     showlegend: false
                 });
             }
-            
+
+            // The 95% level for that spectrum, beside it. It is computed for
+            // every study and, until this drew it, read by nothing -- which is
+            // how it went three releases applying a single-spectrum chi-square
+            // to a cross-wavelet quantity without anyone noticing. A number
+            // nobody looks at is a number nobody checks.
+            if (stats.global_signif && stats.global_signif.length > 0) {
+                traces.push({
+                    x: stats.global_signif,
+                    y: log2Period,
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: window.DIMS.theme().trace, width: 1, dash: 'dash' },
+                    name: '95% level',
+                    xaxis: 'x2',
+                    yaxis: 'y2',
+                    hovertemplate: '95% level: %{x:.4f}<br>Period: %{customdata:.2f}s<extra></extra> ',
+                    customdata: vis.period,
+                    showlegend: false
+                });
+            }
+
             // ========== PANEL D: Scale-averaged cross-wavelet power (bottom) ==========
             if (vis.scale_avg_power && vis.scale_avg_power.length > 0) {
                 traces.push({
@@ -452,6 +502,23 @@ if (arrowData.x.length > 0) {
                     hovertemplate: 'Time: %{x:.1f}s<br>Power: %{y:.4f}<extra></extra>',
                     showlegend: false
                 });
+
+                // Its own 95% level: one number, so a flat line.
+                if (typeof stats.scale_avg_signif === 'number'
+                        && stats.scale_avg_signif > 0) {
+                    traces.push({
+                        x: [vis.time[0], vis.time[vis.time.length - 1]],
+                        y: [stats.scale_avg_signif, stats.scale_avg_signif],
+                        type: 'scatter',
+                        mode: 'lines',
+                        line: { color: window.DIMS.theme().trace, width: 1, dash: 'dash' },
+                        name: '95% level',
+                        xaxis: 'x3',
+                        yaxis: 'y3',
+                        hovertemplate: '95% level: %{y:.4f}<extra></extra>',
+                        showlegend: false
+                    });
+                }
             }
             
             // Create period tick labels (powers of 2)
@@ -473,6 +540,7 @@ if (arrowData.x.length > 0) {
                 text: `Cross-Wavelet: ${dataType1} ↔ ${dataType2}<br>` +
                     `<sub>Mean Coherence: ${stats.mean_coherence.toFixed(3)}, Max: ${stats.max_coherence.toFixed(3)}, ` +
                     `AR1: α₁=${pairData.alpha1.toFixed(3)}, α₂=${pairData.alpha2.toFixed(3)}</sub><br>` +
+                    `<sub>${this.chanceLevelNote(pairData)}</sub><br>` +
                     `<sub style="font-size: 9px;">Phase arrows (in 95% ridges): ` +
                     `→ in-phase (0°) | ↗ ${dataType1} leads 45° | ↑ ${dataType1} leads 90° | ↖ ${dataType1} leads 135° | ` +
                     `← anti-phase (180°) | ↙ ${dataType2} leads 135° | ↓ ${dataType2} leads 90° | ↘ ${dataType2} leads 45°</sub>`,

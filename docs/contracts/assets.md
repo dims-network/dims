@@ -38,6 +38,11 @@ modules among them — is a unit change and a rename, nothing more.
 
 ## Analysis output
 
+Where a result goes and what it is called is here. **What has to be in it** —
+the bounds, the recorded reduction, the window, asked-for beside achieved, and
+which significance level is the right one — is
+[analysis output](analysis-output.md).
+
 ```
 {output_dir}/{videoID}_{slug}_data.json
 {

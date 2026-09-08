@@ -57,8 +57,13 @@ def main():
             # these tests need is every key the tabs read in the shape the
             # analyses write, not a megabyte of it. These are the same knobs a
             # study uses to size its own payloads.
+            # A small picture, and an explicit coherence null. Explicit
+            # because this config enables nothing that reads `sig95_wtc`, so
+            # the default is to skip the Monte Carlo -- which is the *other*
+            # fixture below.
             "analysis": {"crosswavelet": {"maxTimePoints": 60,
-                                          "maxFreqPoints": 24}},
+                                          "maxFreqPoints": 24,
+                                          "mcCount": 20}},
         }
         with open(os.path.join(work, "config.json"), "w") as fh:
             json.dump(config, fh, indent=2)
@@ -80,6 +85,26 @@ def main():
             dst = os.path.join(HERE, name)
             shutil.copyfile(src, dst)
             written.append((name, os.path.getsize(dst)))
+
+        # And the same study with the coherence null skipped, which is what a
+        # config with no consumer gets by default. Both states of that rule are
+        # real payloads here, so the tab is tested against what it will meet
+        # rather than against a fixture edited to look like it.
+        without = json.loads(json.dumps(config))
+        without["analysis"]["crosswavelet"]["mcCount"] = 0
+        with open(os.path.join(work, "config.json"), "w") as fh:
+            json.dump(without, fh, indent=2)
+        shutil.rmtree(os.path.join(work, "assets", "crosswavelet"))
+        run = subprocess.run(
+            [sys.executable, "-m", "dims_analysis.cli", "run",
+             "--config", "config.json", "--steps", "crosswavelet"],
+            cwd=work, capture_output=True, text=True)
+        if run.returncode != 0:
+            sys.exit("the no-null run failed:\n" + run.stdout[-3000:] + run.stderr[-3000:])
+        src = os.path.join(work, "assets", "crosswavelet", "s1_crosswavelet_data.json")
+        dst = os.path.join(HERE, "s1_crosswavelet_no_null.json")
+        shutil.copyfile(src, dst)
+        written.append(("s1_crosswavelet_no_null.json", os.path.getsize(dst)))
 
         with open(os.path.join(HERE, "config.json"), "w") as fh:
             json.dump(config, fh, indent=2)

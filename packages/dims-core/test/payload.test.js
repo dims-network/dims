@@ -184,3 +184,61 @@ test('a payload for a video the config does not list is not drawn', async () => 
   const options = [...w.document.querySelectorAll('#videoSelect option')].map(o => o.value);
   assert.ok(!options.includes('s99'), 'a stray asset added a recording to the study');
 });
+
+// --- what is computed is shown, or it is not computed ------------------------
+//
+// The Monte Carlo coherence null costs hours on a real study -- ORTHO's whole
+// cross-wavelet run was ~2.8 h and this is the bottleneck -- and for three
+// releases exactly one tab in one private study read it. Skipping it when
+// nothing reads it is now the default and is right; a tab that quietly draws
+// nothing either way is what turns that deliberate choice into a missing
+// feature nobody can diagnose.
+//
+// Both fixtures are real analysis output: one run with `mcCount: 20`, one with
+// the null skipped, which is what a config with no consumer gets.
+
+const cwTitle = (made) => {
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  assert.ok(fig, 'the cross-wavelet tab drew no figure at all');
+  return String(((fig.layout || {}).title || {}).text || '');
+};
+
+test('the coherence chance level is reported when it was computed', async () => {
+  const w = await boot();
+  const title = cwTitle(await open_(w, 'crosswavelet'));
+  assert.match(title, /Coherence above chance/,
+    'a study paid for a Monte Carlo null and the tab said nothing about it');
+  assert.match(title, /\d+\.\d% of cells/, 'no fraction in the caption');
+  assert.match(title, /20 surrogates/,
+    'the caption does not say how many surrogates the number rests on');
+});
+
+test('a missing coherence null is named, not silently skipped', async () => {
+  const w = await boot(CONFIG, {
+    ...FILES,
+    'assets/crosswavelet/s1_crosswavelet_data.json': read('s1_crosswavelet_no_null.json'),
+  });
+  const title = cwTitle(await open_(w, 'crosswavelet'));
+  assert.match(title, /not computed/,
+    'the null was skipped and the tab drew as if nothing were missing');
+  assert.match(title, /mcCount/,
+    'the caption must name the setting that would produce it');
+  assert.doesNotMatch(title, /Coherence above chance/,
+    'a fraction was reported for an output that has none');
+});
+
+test('the two averaged significance levels are drawn beside what they judge', async () => {
+  // Panel C plots the time-averaged spectrum and panel D the scale-averaged
+  // power. Both had a 95 % level computed for every study and read by nothing,
+  // which is how both spent three releases applying a single-spectrum
+  // chi-square to a cross-wavelet quantity with nobody noticing.
+  const w = await boot();
+  const made = await open_(w, 'crosswavelet');
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  const levels = (fig.data || []).filter(t => t.name === '95% level');
+  assert.strictEqual(levels.length, 2,
+    `expected the global and scale-averaged levels to be drawn; found ` +
+    `${levels.length} traces named "95% level"`);
+  assert.ok(levels.some(t => t.yaxis === 'y2'), 'no level beside the global spectrum');
+  assert.ok(levels.some(t => t.yaxis === 'y3'), 'no level beside the scale-averaged power');
+});

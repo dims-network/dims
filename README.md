@@ -44,6 +44,7 @@ read individually; you should not need to read this whole directory to start.
 | Add or change a **Python analysis** | [`docs/contracts/step.md`](docs/contracts/step.md) |
 | Know what goes in `config.json` | [`docs/contracts/config.schema.json`](docs/contracts/config.schema.json) |
 | Know where a data file belongs | [`docs/contracts/assets.md`](docs/contracts/assets.md) |
+| Know what an **analysis result must contain** | [`docs/contracts/analysis-output.md`](docs/contracts/analysis-output.md) |
 | Work with **human-subject data** | [`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md) |
 | Set up a new study | [`docs/contracts/case.md`](docs/contracts/case.md) |
 | Check whether a study's data is sound | [`packages/dims-notebooks/`](packages/dims-notebooks/) |

@@ -28,7 +28,8 @@
   "analysis": {
     "crosswavelet": {
       "maxTimePoints": 60,
-      "maxFreqPoints": 24
+      "maxFreqPoints": 24,
+      "mcCount": 20
     }
   }
 }

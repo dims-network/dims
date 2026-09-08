@@ -63,7 +63,11 @@ function makeEnv({ config, files = {}, scripts }) {
   w.Plotly = {
     newPlot: (el, data, layout) => {
       attach(typeof el === 'string' ? w.document.getElementById(el) : el);
-      plotted.push({ el: el && (el.id || el), n: (data || []).length });
+      // The layout is kept, not only the trace count: a caption is something a
+      // reader acts on, so a test that cannot see it cannot check it. The
+      // coherence chance level is drawn as one, and its absence is a sentence.
+      plotted.push({ el: el && (el.id || el), n: (data || []).length,
+                     data: data || [], layout: layout || {} });
       return Promise.resolve();
     },
     react: (el) => { attach(typeof el === 'string' ? w.document.getElementById(el) : el); return Promise.resolve(); },
