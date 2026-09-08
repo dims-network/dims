@@ -6,6 +6,7 @@ the generated project's assets/.
 """
 import csv
 import os
+import shutil
 import uuid
 
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
@@ -15,6 +16,11 @@ from . import media, precompute, project, validate
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
 STAGING_DIR = os.path.join(HERE, "_staging")
+
+# Two complete sessions that ship with the builder, so someone can see a working
+# dashboard before they have data of their own -- and so a bug report can say
+# "with the samples" and mean one specific thing.
+SAMPLES_DIR = os.path.join(os.path.dirname(HERE), "samples")
 
 # Infer the asset role from a filename.
 TRANSCRIPT_SUFFIX = "_transcript.json"
@@ -88,67 +94,89 @@ def create_app():
     def api_project():
         data = request.get_json(force=True)
         output_dir = (data.get("output_dir") or "").strip()
-        source = (data.get("template_source") or "").strip()
+        visibility = (data.get("visibility") or "private").strip()
         meta = data.get("config") or {}
         if not output_dir:
-            return jsonify(error="Please choose an output folder."), 400
+            return jsonify(error="Please choose a folder for the study."), 400
         try:
-            project.acquire_template(output_dir, source)
+            report = project.create_project(output_dir, visibility)
         except project.ProjectError as e:
             return jsonify(error=str(e)), 400
-        state["output_dir"] = os.path.abspath(os.path.expanduser(output_dir))
-        # seed metadata into config
+        state["output_dir"] = report["output_dir"]
+        state["visibility"] = visibility
         for k in ("title", "subtitle", "authors", "contacts", "defaultWindowSize"):
             if k in meta:
                 state["config"][k] = meta[k]
-        return jsonify(ok=True, output_dir=state["output_dir"], config=state["config"])
+        return jsonify(ok=True, config=state["config"], **report)
+
+    @app.post("/api/open")
+    def api_open():
+        """Reopen a study the builder made earlier, with everything filled in.
+
+        Files already in assets/ are staged from where they are, so reopening
+        does not copy a study's data anywhere -- for a private study that would
+        be the wrong thing to do quietly.
+        """
+        data = request.get_json(force=True)
+        output_dir = (data.get("output_dir") or "").strip()
+        if not output_dir:
+            return jsonify(error="Please choose the study's folder."), 400
+        try:
+            found = project.read_project(output_dir)
+        except project.ProjectError as e:
+            return jsonify(error=str(e)), 400
+
+        state["output_dir"] = found["output_dir"]
+        state["visibility"] = found["visibility"]
+        state["config"] = dict(found["config"])
+        state["staged"] = {}
+        for item in found["assets"]:
+            fid = uuid.uuid4().hex
+            entry = {
+                "id": fid, "name": item["name"], "path": item["path"],
+                "role": item["role"], "videoID": item["videoID"],
+                "dataType": item["dataType"],
+                "columns": _csv_columns(item["path"]) if item["role"] == "timeseries" else [],
+                "in_place": True,
+            }
+            entry["issues"] = validate.validate_file(item["role"], item["path"])
+            state["staged"][fid] = entry
+        return jsonify(ok=True, output_dir=found["output_dir"],
+                       visibility=found["visibility"],
+                       dims_core=found["dims_core"],
+                       config=_assemble_config(),
+                       files=[_public(e) for e in state["staged"].values()])
+
+    @app.post("/api/samples")
+    def api_samples():
+        """Stage the sample sessions that ship with the builder.
+
+        Copied into staging and pushed through the same inference, splitting and
+        validation an upload takes -- so the button exercises the real path
+        rather than a shortcut around it, and `session2.csv` still demonstrates
+        the auto-split into three measures.
+        """
+        if not os.path.isdir(SAMPLES_DIR):
+            return jsonify(error="The sample data is missing from this install "
+                                 f"(expected at {SAMPLES_DIR})."), 400
+        names = sorted(n for n in os.listdir(SAMPLES_DIR)
+                       if not n.startswith(".") and not n.endswith(".md")
+                       and os.path.isfile(os.path.join(SAMPLES_DIR, n)))
+        if not names:
+            return jsonify(error="The sample folder is empty."), 400
+        added = []
+        for name in names:
+            with open(os.path.join(SAMPLES_DIR, name), "rb") as fh:
+                added.extend(_stage_stream(fh, name))
+        return jsonify(files=added, count=len(added))
 
     @app.post("/api/upload")
     def api_upload():
         if "file" not in request.files:
             return jsonify(error="No file in request."), 400
         f = request.files["file"]
-        fid = uuid.uuid4().hex
-        safe_name = os.path.basename(f.filename or "file")
-        staged_path = os.path.join(STAGING_DIR, f"{fid}__{safe_name}")
-        f.save(staged_path)
-
-        role = infer_role(safe_name)
-        vid, dt = _suggest_ids(safe_name, role)
-
-        # A time-series CSV with Time + several value columns is auto-split into
-        # one single-column CSV per value column (the template's one-column-per-
-        # dataType convention). Each split becomes its own staged file.
-        fields = ("id", "name", "role", "videoID", "dataType", "columns", "issues")
-        if role == "timeseries":
-            base = os.path.splitext(safe_name)[0]
-            splits = media.split_timeseries_csv(staged_path, STAGING_DIR, fid, base)
-            if splits:
-                out_files = []
-                for s in splits:
-                    e = {
-                        "id": s["id"], "name": s["name"], "path": s["path"],
-                        "role": "timeseries", "videoID": base, "dataType": s["dataType"],
-                        "columns": ["Time", s["column"]],
-                    }
-                    e["issues"] = validate.validate_file("timeseries", s["path"])
-                    state["staged"][s["id"]] = e
-                    out_files.append({k: e[k] for k in fields})
-                # The original multi-column upload is not staged (only its splits).
-                try:
-                    os.remove(staged_path)
-                except OSError:
-                    pass
-                return jsonify(files=out_files)
-
-        entry = {
-            "id": fid, "name": safe_name, "path": staged_path,
-            "role": role, "videoID": vid, "dataType": dt,
-            "columns": _csv_columns(staged_path) if role == "timeseries" else [],
-        }
-        entry["issues"] = validate.validate_file(role, staged_path)
-        state["staged"][fid] = entry
-        return jsonify(files=[{k: entry[k] for k in fields}], file={k: entry[k] for k in fields})
+        added = _stage_stream(f, os.path.basename(f.filename or "file"))
+        return jsonify(files=added, file=added[0] if added else None)
 
     @app.post("/api/assign")
     def api_assign():
@@ -162,13 +190,15 @@ def create_app():
                 entry[k] = data[k]
         # re-validate with the (possibly new) role
         entry["issues"] = validate.validate_file(entry["role"], entry["path"])
-        return jsonify(ok=True, file={k: entry[k] for k in
-                       ("id", "name", "role", "videoID", "dataType", "columns", "issues")})
+        return jsonify(ok=True, file=_public(entry))
 
     @app.delete("/api/upload/<fid>")
     def api_delete_upload(fid):
         entry = state["staged"].pop(fid, None)
-        if entry:
+        # A file reopened from a study lives in its assets/, not in staging.
+        # Removing it here would delete the study's data because someone took a
+        # row off a list, which is not what that gesture means.
+        if entry and not entry.get("in_place"):
             try:
                 os.remove(entry["path"])
             except OSError:
@@ -322,6 +352,63 @@ def create_app():
         return jsonify(ok=True, url=url)
 
     # --- helpers ---
+    PUBLIC_FIELDS = ("id", "name", "role", "videoID", "dataType", "columns",
+                     "issues", "in_place")
+
+    def _public(entry):
+        return {k: entry.get(k) for k in PUBLIC_FIELDS}
+
+    def _stage_stream(stream, safe_name):
+        """Stage one incoming file and return the rows the wizard should show.
+
+        One path for an upload and for the sample data, so the button that loads
+        the samples exercises what a real file goes through rather than a
+        shortcut around it -- including the split below, which is the behaviour
+        the samples exist to demonstrate.
+        """
+        fid = uuid.uuid4().hex
+        staged_path = os.path.join(STAGING_DIR, f"{fid}__{safe_name}")
+        if hasattr(stream, "save"):
+            stream.save(staged_path)
+        else:
+            with open(staged_path, "wb") as out:
+                shutil.copyfileobj(stream, out)
+
+        role = infer_role(safe_name)
+        vid, dt = _suggest_ids(safe_name, role)
+
+        # A CSV with Time plus several value columns becomes one single-column
+        # CSV per measure, which is the layout every analysis reads.
+        if role == "timeseries":
+            base = os.path.splitext(safe_name)[0]
+            splits = media.split_timeseries_csv(staged_path, STAGING_DIR, fid, base)
+            if splits:
+                rows = []
+                for sp in splits:
+                    entry = {
+                        "id": sp["id"], "name": sp["name"], "path": sp["path"],
+                        "role": "timeseries", "videoID": base,
+                        "dataType": sp["dataType"],
+                        "columns": ["Time", sp["column"]],
+                    }
+                    entry["issues"] = validate.validate_file("timeseries", sp["path"])
+                    state["staged"][sp["id"]] = entry
+                    rows.append(_public(entry))
+                try:
+                    os.remove(staged_path)      # only the splits are kept
+                except OSError:
+                    pass
+                return rows
+
+        entry = {
+            "id": fid, "name": safe_name, "path": staged_path,
+            "role": role, "videoID": vid, "dataType": dt,
+            "columns": _csv_columns(staged_path) if role == "timeseries" else [],
+        }
+        entry["issues"] = validate.validate_file(role, staged_path)
+        state["staged"][fid] = entry
+        return [_public(entry)]
+
     def _session_summary():
         """Per-session video & time-series geometry for the align step.
 
@@ -352,7 +439,14 @@ def create_app():
         return [sessions[v] for v in order]
 
     def _assemble_config():
-        """Derive videoIDs/dataTypes from staged files, merged with metadata + toggles."""
+        """The study's config: what the files say, plus what the wizard was told.
+
+        `videoIDs` and `dataTypes` are **derived** and never edited by hand --
+        they are a description of what is in assets/, and a config that
+        disagrees with the folder produces a tab that draws nothing. Everything
+        else comes from the wizard's own steps and is passed through, so a key
+        the wizard learns tomorrow needs no change here.
+        """
         cfg = dict(state["config"])
         video_ids = []
         data_types = {}
@@ -368,13 +462,17 @@ def create_app():
                     data_types[vid].append(e["dataType"])
         cfg["videoIDs"] = video_ids
         cfg["dataTypes"] = data_types
-        cfg.setdefault("include_RQA", state["config"].get("include_RQA", []))
-        cfg.setdefault("include_crosswavelet", state["config"].get("include_crosswavelet", []))
-        cfg.setdefault("include_cRQA", state["config"].get("include_cRQA", []))
-        cfg.setdefault("include_elan", state["config"].get("include_elan", False))
-        cfg.setdefault("defaultWindowSize", state["config"].get("defaultWindowSize", 5))
-        for k in ("title", "subtitle", "authors", "contacts"):
-            cfg.setdefault(k, state["config"].get(k, ""))
+
+        # The coherence null is expensive and only the network reads it, so the
+        # analysis defaults it on when the network is on. Recording the number
+        # here means the study says what it will do before it does it, rather
+        # than the wizard and the analysis each having an opinion.
+        if cfg.get("include_network"):
+            tuning = dict(cfg.get("analysis") or {})
+            cw = dict(tuning.get("crosswavelet") or {})
+            cw.setdefault("mcCount", 100)
+            tuning["crosswavelet"] = cw
+            cfg["analysis"] = tuning
         return cfg
 
     return app

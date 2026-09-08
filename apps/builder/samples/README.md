@@ -31,21 +31,16 @@ early then phase-lock around 4 s, while `gaze` keeps its own slower rhythm —
 ideal for trying **pairwise** cross-wavelet / cross-RQA (e.g. compute
 `bodysync × neuralsync` and `neuralsync × gaze` but skip `bodysync × gaze`).
 
-## How to test
+## How to use them
 
-1. Run `dims-builder` (browser opens to the wizard).
-2. **Step 1** — pick an empty output folder and keep the built-in scaffold,
-   which is the one that ships inside the builder. Set a title.
-3. **Step 2** — drag a session's files into the dropzone (or use *browse*).
-   For `session2`, dropping the single `session2.csv` yields three data-type rows
-   automatically (`bodysync` / `neuralsync` / `gaze`); the rest map to the session
-   ID automatically.
-4. **Step 4 (Optional analyses)** — enable **RQA** (pick data types), and
-   **cross-wavelet** / **cross-RQA** (pick the specific signal *pairs* — chips
-   show every possible pair, all selected by default; click to toggle). Optionally
-   enable ELAN.
-5. **Build → Precompute → Preview** — the dashboard opens with the video,
-   time-series, RQA, cross-wavelet, and cross-RQA tabs populated.
+Press **Load the example study** in step 2 of the wizard. That stages every file
+here through the same path an upload takes — including the split of
+`session2.csv` into three measures — so what you get is what a real drag-and-drop
+produces.
+
+Then: step 4, switch on what you like; **Build → Compute → Open it**. Measured
+end to end with recurrence, cross-recurrence, cross-wavelet (20 surrogates) and
+the network switched on: the analyses take about a minute, and every tab draws.
 
 > These signals are synthetic (phase-coupled sinusoids + noise), chosen so the
 > analyses are non-trivial — not real recordings.

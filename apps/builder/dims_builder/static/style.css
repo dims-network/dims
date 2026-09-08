@@ -167,3 +167,55 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .msg.error { color: var(--err); }
 .msg.ok { color: var(--ok); }
 .spinner { color: var(--muted); }
+
+/* --- v2: the wizard's own furniture -------------------------------------- */
+
+/* A choice between two whole paths, not a setting: given room rather than
+   squeezed into the same row as the fields it changes. */
+.choice { display: grid; gap: 6px; margin-bottom: 18px; }
+.choice .radio { display: block; }
+.choice small { display: block; color: var(--muted); font-size: 12px; margin-left: 24px; }
+
+/* Something the reader must act on, distinct from a hint (which they may
+   ignore) and from an error (which they caused). */
+.note {
+  border-left: 3px solid var(--accent); background: rgba(91, 140, 255, .07);
+  padding: 10px 14px; margin: 14px 0; border-radius: 0 8px 8px 0; font-size: 13px;
+}
+.note:empty { display: none; }
+.note.warn { border-left-color: var(--warn); background: rgba(230, 170, 60, .08); }
+.note small { display: block; color: var(--muted); margin-top: 6px; }
+.note .codebox { margin: 8px 0 0; }
+
+/* Settings a study may never need. Closed by default, so the common path is
+   short and the uncommon one is still reachable without editing JSON. */
+.advanced { margin: 10px 0 0; border: 1px solid var(--border); border-radius: 8px; }
+.advanced > summary {
+  cursor: pointer; padding: 8px 12px; color: var(--muted); font-size: 13px;
+  user-select: none;
+}
+.advanced > summary:hover { color: var(--fg); }
+.advanced[open] > summary { border-bottom: 1px solid var(--border); }
+.advanced > *:not(summary) { padding: 0 12px; }
+.advanced > *:not(summary):last-child { padding-bottom: 12px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.grid label { margin: 0; }
+.grid small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+.actions.inline { margin: 0 0 14px; }
+.actions.inline small { color: var(--muted); font-size: 12px; }
+
+textarea {
+  width: 100%; padding: 8px 10px; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 8px; font-family: inherit;
+  font-size: 13px; resize: vertical;
+}
+
+/* A file already inside the study, reopened rather than dropped. It behaves
+   differently -- removing the row does not delete it -- so it must not look
+   identical to one that was just added. */
+.filerow.in-place .fname::after {
+  content: "in the study"; display: block; font-weight: 400; font-size: 11px;
+  color: var(--muted); text-transform: none;
+}
