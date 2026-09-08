@@ -685,7 +685,22 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # Global wavelet spectrum (time-averaged)
     global_power = power.mean(axis=1)
     
-    # Calculate degrees of freedom for global spectrum
+    # KNOWN WRONG, and deliberately left so rather than half-corrected.
+    #
+    # This is the same defect that eq. 31 fixed for the local spectrum: it
+    # applies a *single-spectrum* significance to a cross-wavelet quantity, and
+    # evaluates the background at the mean of the two alphas rather than
+    # combining the two spectra. `power` here is |W_x W_y*|.
+    #
+    # Torrence & Compo give eq. 31 only for the local spectrum; the
+    # time-averaged and scale-averaged cross-wavelet distributions are in
+    # Torrence & Webster (1999), which is not in examples/reference/. Guessing
+    # at them would be worse than the current state, which is at least
+    # recorded.
+    #
+    # Nothing reads either field -- grepped across dims-tabs and both studies'
+    # own tabs -- so this is stored, wrong, and unused. It should be corrected
+    # against that paper or removed; there is a test pinning the fact.
     dof = N - scales
     global_signif, _ = wavelet.significance(
         1.0, dt, scales, 1, np.mean([alpha1, alpha2]),
@@ -1024,7 +1039,8 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
         scale_avg = power / scale_avg
         scale_avg_power = cwt_results['dj'] * dt / Cdelta * scale_avg[sel, :].sum(axis=0)
         
-        # Significance for scale-averaged power
+        # Significance for scale-averaged power.
+        # KNOWN WRONG in the same way as global_signif above, and unread.
         scale_avg_signif, _ = wavelet.significance(
             1.0, dt, cwt_results['scales'], 2, 
             np.mean([cwt_results['alpha1'], cwt_results['alpha2']]),

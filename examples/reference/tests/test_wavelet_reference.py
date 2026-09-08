@@ -402,3 +402,42 @@ def test_the_cross_wavelet_level_is_not_the_single_spectrum_level():
     assert abs(ratio - 1.4982) < 0.01, (
         f"the single-spectrum level is {ratio:.4f} times the cross-wavelet one; "
         f"chi2_2(0.95)/Z_2(0.95) = {chi2.ppf(0.95, 2) / TC_Z2_95:.4f}")
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "Known and unfixed. `global_signif` and `scale_avg_signif` apply a "
+    "single-spectrum significance to a cross-wavelet quantity and evaluate the "
+    "background at the mean of the two alphas -- the same defect eq. 31 fixed "
+    "for the local spectrum. Torrence & Compo give eq. 31 only for the local "
+    "case; the time- and scale-averaged cross-wavelet distributions are in "
+    "Torrence & Webster (1999), which is not in this directory, and guessing "
+    "would be worse than a recorded wrong. Nothing reads either field, so this "
+    "is stored, wrong and unused: correct it against that paper, or delete it."))
+def test_the_averaged_significances_use_the_cross_wavelet_distribution():
+    """The two siblings of the eq. 31 defect, pinned so they are not forgotten.
+
+    A locally correct `sig95_xwt` beside a globally wrong `global_signif` in
+    the same file is worse than either alone, because nothing in the payload
+    says which is which.
+    """
+    from dims_analysis.steps import crosswavelet as cw
+
+    n = 512
+    _W, scales, freqs, _coi, _fft, _f = transform(sine(n))
+    period = 1.0 / freqs
+    alpha1, alpha2 = 0.9, 0.5
+
+    # What eq. 31's reasoning implies for an averaged quantity: the background
+    # is the geometric mean of the two spectra, whatever the constant becomes.
+    combined = np.sqrt(cw.ar1_background(alpha1, period, DT)
+                       * cw.ar1_background(alpha2, period, DT))
+    single = cw.ar1_background(float(np.mean([alpha1, alpha2])), period, DT)
+
+    global_signif, _ = pycwt.significance(
+        1.0, DT, scales, 1, float(np.mean([alpha1, alpha2])),
+        significance_level=0.95, dof=n - scales, wavelet=MOTHER)
+
+    implied = np.asarray(global_signif) / single
+    assert np.allclose(np.asarray(global_signif) / combined, implied, rtol=0.02), (
+        "global_signif is built on the mean-alpha spectrum rather than the "
+        "geometric mean of the two")

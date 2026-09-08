@@ -90,6 +90,21 @@ On the reference study the share of cells the built-in tab would call
 significant went from 3.13 % to 9.10 % once corrected — it was drawing about a
 third of the phase arrows it should.
 
+### Two siblings, still wrong
+
+The same mistake is in `global_signif` (crosswavelet.py:690) and
+`scale_avg_signif` (:1028), which apply single-spectrum significance to
+cross-wavelet quantities and use the mean of the two α. They are **not** fixed:
+the paper gives eq. 31 only for the *local* spectrum, and the time- and
+scale-averaged cross-wavelet distributions are in Torrence & Webster (1999),
+which is not in this directory. Guessing at them would be worse than a recorded
+wrong.
+
+Nothing reads either field — checked across `dims-tabs/` and both studies' own
+tabs — so they are computed, stored, and unused. Either correct them against
+that paper or delete them. `test_wavelet_reference.py` carries an
+`xfail(strict=True)` so the decision cannot quietly lapse.
+
 ## What this paper does **not** cover
 
 Wavelet **coherence** is not in it. The smoothing operator and the coherence
