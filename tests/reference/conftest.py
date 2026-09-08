@@ -23,7 +23,13 @@ import sys
 import numpy as np
 import pytest
 
-REFERENCE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#: The study these tests read. It lives in `examples/`, because it is a study --
+#: `serve.py` it and open it in a browser -- and the suite lives here with the
+#: other suites. They used to be the same directory, which meant `build()` below
+#: copied the tests into every temporary study it made.
+REFERENCE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "examples", "reference")
 GENERATOR = os.path.join(REFERENCE, "make_reference_study.py")
 
 # Straight from the generator, and deliberately restated rather than imported:

@@ -303,7 +303,7 @@ jobs:
                  "without it those tests skip silently and this gate proves nothing"
             exit 1
           }
-          python -m pytest /tmp/core/examples/reference/tests -q
+          python -m pytest /tmp/core/tests/reference -q
 
       # Needs "Allow GitHub Actions to create and approve pull requests" in the
       # organisation's Actions settings. Until that is on, this step fails and

@@ -62,7 +62,7 @@ committed:**
 
 ```sh
 pip install -e packages/dims-analysis && pip install pytest pyrqa
-python -m pytest examples/reference/tests -q
+python -m pytest tests/reference -q
 ```
 
 `pyrqa` is `importorskip`ed, so a machine without OpenCL stays green while the
@@ -80,7 +80,7 @@ same suite against the candidate release before it will open the bump PR.
 `tests/baseline.json` pins every number the analyses currently produce.
 When it fails, **read the diff before doing anything else**: it is telling you
 what your change did to the answers. Regenerate it only after deciding the new
-numbers are better, with `python examples/reference/tests/make_baseline.py`, and
+numbers are better, with `python tests/reference/make_baseline.py`, and
 say in the commit message why each number moved. Regenerating first is how a
 regression becomes the new normal.
 
