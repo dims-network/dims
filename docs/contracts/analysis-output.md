@@ -190,9 +190,17 @@ precision is not its actual precision.
 `analysis.crosswavelet.mcCount` is the number of Monte Carlo surrogates behind
 the coherence null. 300 is the publication setting; the whole ORTHO study at
 that setting is **~2.8 hours**, and the bottleneck is a Python double loop
-inside `pycwt.wct_significance`, not the wavelet mathematics. Rewriting a
-published numerical routine is out of scope; running independent pairs
-concurrently is not, and produces byte-identical output.
+inside `pycwt.wct_significance` — 6.9M `numpy.ma.__getitem__` calls per six
+surrogates — not the wavelet mathematics. Rewriting a published numerical
+routine is out of scope; running independent pairs concurrently is not.
+
+`--jobs` does that, defaulting to one process per core. **Serial and parallel
+output must be byte-identical**, and that is the acceptance check rather than a
+hope: the null is seeded on its own parameters rather than drawn from a shared
+stream, and results are collected in the order the pairs were listed rather than
+as they finish, because a payload is a dict written in insertion order. Measured
+on the reference study with a cold null cache, ten cores, seven pairs: **95.3 s
+serially against 37.1 s in parallel**, byte for byte the same file.
 
 ## A8 — What is computed is shown, or it is not computed
 

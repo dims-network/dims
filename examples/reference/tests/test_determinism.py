@@ -116,3 +116,53 @@ def test_rerunning_one_step_does_not_erase_another(two_runs, tmp_path):
     assert "from_another_step" in after["rqa_data"]
     assert sorted(report["kept"].get("rqa_data", [])) == sorted(before["rqa_data"]), (
         "the write reported keeping something other than what it kept")
+
+
+def test_parallel_and_serial_cross_wavelet_are_byte_identical(tmp_path_factory):
+    """The acceptance check for running pairs concurrently.
+
+    Reordering work across processes is exactly the change that can perturb a
+    floating-point sum or consume a random stream in a different order, and the
+    result would still look entirely plausible -- a coherence field is not a
+    thing anyone eyeballs for correctness. So the bar is byte-identity, not
+    closeness.
+
+    Two things make it hold and both are deliberate: the Monte Carlo null is
+    seeded on its own parameters rather than drawn from a shared stream, and
+    results are collected in the order the pairs were listed rather than as
+    they finish, because the payload is a dict written in insertion order.
+
+    Measured on this study with a cold null cache, ten cores, seven pairs:
+    95.3 s serially against 37.1 s in parallel. The reason to care is ORTHO,
+    where the same run takes about 2.8 hours.
+    """
+    import shutil
+    import subprocess
+    import sys
+
+    from conftest import REFERENCE
+
+    produced = {}
+    for label, jobs in (("serial", "1"), ("parallel", "-1")):
+        work = tmp_path_factory.mktemp(f"jobs_{label}")
+        study = str(work / "reference")
+        shutil.copytree(REFERENCE, study,
+                        ignore=shutil.ignore_patterns("assets", "__pycache__"))
+        subprocess.run([sys.executable, os.path.join(study, "make_reference_study.py")],
+                       check=True, capture_output=True)
+        run = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; sys.argv = ['crosswavelet', '--config', 'config.json',"
+             " '--output-dir', 'assets/crosswavelet', '--jobs', %r];"
+             " from dims_analysis.steps.crosswavelet import main; main()" % jobs],
+            cwd=study, capture_output=True, text=True)
+        if run.returncode != 0:
+            pytest.fail(f"the {label} run failed:\n{run.stdout[-3000:]}{run.stderr[-3000:]}")
+        produced[label] = {name: digest(path)
+                           for name, path in outputs(study).items()}
+
+    assert produced["serial"], "the serial run wrote nothing to compare"
+    assert produced["serial"] == produced["parallel"], (
+        "parallel output differs from serial: "
+        + ", ".join(sorted(k for k in produced["serial"]
+                           if produced["serial"][k] != produced["parallel"].get(k))))

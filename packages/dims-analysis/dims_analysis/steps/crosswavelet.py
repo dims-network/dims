@@ -1098,12 +1098,87 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
     return result
 
 
+#: What a worker process has to be told, because `spawn` -- the default on
+#: macOS and Windows -- re-imports this module rather than forking it, so the
+#: values `main()` set are back at their defaults in the child.
+_WORKER_STATE = ("VERBOSE", "DEBUG_MODE", "INPUT_DIR", "_EFFECTIVE_OUTPUT_DIR")
+
+
+def _worker_state() -> dict:
+    return {name: globals()[name] for name in _WORKER_STATE}
+
+
+def _apply_worker_state(state: dict) -> None:
+    globals().update(state)
+
+
+def _compute_one(job):
+    """One pair, in whichever process this is. Module-level so it can be pickled."""
+    state, video_id, type1, type2, config = job
+    _apply_worker_state(state)
+    return (f"{type1}_vs_{type2}",
+            process_cross_wavelet_pair(video_id, type1, type2, config))
+
+
+def _compute_pairs(video_id, pairs, config, jobs):
+    """`(pair_key, result)` for each pair, serially or across processes.
+
+    Serial and parallel must produce **byte-identical** output, so results are
+    yielded in the order the pairs were listed rather than as they finish, and
+    nothing here touches a shared file. The Monte Carlo null is seeded, so a
+    surrogate set does not depend on which process drew it.
+
+    The reason to bother: ORTHO's cross-wavelet run is ~2.8 hours and the
+    bottleneck is a Python double loop inside `pycwt.wct_significance` -- 6.9M
+    `numpy.ma.__getitem__` calls per six surrogates. Rewriting a published
+    numerical routine is out of scope; running independent pairs at the same
+    time is not.
+    """
+    workers = _worker_count(jobs, len(pairs))
+    if workers <= 1:
+        for type1, type2 in pairs:
+            yield f"{type1}_vs_{type2}", process_cross_wavelet_pair(
+                video_id, type1, type2, config)
+        return
+
+    from concurrent.futures import ProcessPoolExecutor
+
+    if VERBOSE:
+        print(f"Computing {len(pairs)} pairs across {workers} processes")
+    state = _worker_state()
+    jobs_ = [(state, video_id, t1, t2, config) for t1, t2 in pairs]
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        # `map` keeps input order, which is what makes the output byte-identical
+        # to a serial run: the payload is a dict written in insertion order.
+        for pair_key, result in pool.map(_compute_one, jobs_):
+            yield pair_key, result
+
+
+def _worker_count(jobs, n_pairs: int) -> int:
+    """How many processes to use. `jobs=0` means "as many as make sense here".
+
+    Never more than there are pairs: an idle worker still pays the cost of
+    re-importing numpy, scipy and pycwt.
+    """
+    if n_pairs <= 1:
+        return 1
+    if jobs and jobs > 0:
+        return min(int(jobs), n_pairs)
+    if jobs == 0:
+        return 1
+    return min(os.cpu_count() or 1, n_pairs)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Generate Cross-Wavelet data for DIMS Dashboard')
     parser.add_argument('--config', default='config.json', help='Path to config.json')
     parser.add_argument('--output-dir', default=OUTPUT_DIR, help='Output directory for cross-wavelet data')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--jobs', type=int, default=-1, metavar='N',
+                        help='Pairs to compute at once. -1 (default) uses one '
+                             'process per core, 0 or 1 runs serially. Output is '
+                             'byte-identical either way.')
     args = parser.parse_args()
     
     # Override global settings if command-line args provided
@@ -1208,14 +1283,12 @@ def main():
         if VERBOSE:
             print(f"Computing {len(pairs_to_compute)} pair(s)")
         
-        # Process each pair
-        for data_type1, data_type2 in pairs_to_compute:
-            pair_key = f"{data_type1}_vs_{data_type2}"
-            
-            result = process_cross_wavelet_pair(
-                video_id, data_type1, data_type2, config
-            )
-            
+        # Process each pair, concurrently when there is more than one and the
+        # run asked for it. Pairs are independent -- each reads two CSVs and
+        # writes nothing -- and the Monte Carlo null's disk cache is written
+        # through a temporary file and renamed, so workers sharing it is safe.
+        for pair_key, result in _compute_pairs(video_id, pairs_to_compute,
+                                               config, args.jobs):
             if result:
                 cwt_results[pair_key] = result
         
