@@ -19,6 +19,7 @@ import json
 
 
 import os
+import re
 
 
 import shutil
@@ -49,6 +50,115 @@ RESTRICTED = ["assets/videos", "assets/timeseries", "assets/transcripts",
               "assets/elan", "assets/motion_tracking"]
 
 
+#: The payload encoding this core reads. Kept in step with
+#: `dims_analysis.common.arrays.PAYLOAD_VERSION` -- read from there when the
+#: analyses are installed, and declared here so `dims-case` works without them,
+#: which is the normal state of a study repository's CI.
+PAYLOAD_VERSION = 2
+try:                                             # pragma: no cover - optional
+    from dims_analysis.common.arrays import PAYLOAD_VERSION as _ANALYSIS_VERSION
+    PAYLOAD_VERSION = _ANALYSIS_VERSION
+except ImportError:
+    pass
+
+
+def stale_assets(dest, expected=None):
+    """Committed analysis outputs the pinned core cannot read.
+
+    v2.0.0 changed the payload format, so a study that bumps `dimsCore` and does
+    not rebuild has assets no tab can draw. The dashboard says so when someone
+    opens it -- but the person who bumped and the person who opens it are not
+    always the same person, and CI is where the first one finds out.
+
+    A study with nothing committed under `assets/` is every private study, and
+    is not an error: its data lives outside the repository and there is nothing
+    here to compare.
+    """
+    expected = PAYLOAD_VERSION if expected is None else expected
+    assets = os.path.join(dest, "assets")
+    problems = []
+    for root, dirs, files in os.walk(assets):
+        dirs.sort()
+        for name in sorted(files):
+            if not name.endswith("_data.json"):
+                continue
+            rel = os.path.relpath(os.path.join(root, name), dest)
+            try:
+                with open(os.path.join(root, name)) as fh:
+                    found = json.load(fh).get("payload_version")
+            except (OSError, ValueError) as exc:
+                problems.append(f"{rel} could not be read as a payload ({exc}).")
+                continue
+            if found == expected:
+                continue
+            if found is not None and found > expected:
+                problems.append(
+                    f"{rel} is payload version {found} and this core reads "
+                    f"{expected}: the assets are newer than the pinned core. "
+                    f"Bump dimsCore rather than rebuilding, or the study loses "
+                    f"work.")
+            else:
+                shown = "an older core" if found is None else f"payload version {found}"
+                problems.append(
+                    f"{rel} was written by {shown} and this core reads "
+                    f"{expected}; every analysis tab will refuse it. Rebuild: "
+                    f"python build_assets.py")
+    return problems
+
+
+#: A tab declares its id to `DIMS.registerTab`, and the host keys on that rather
+#: than on the filename.
+_TAB_ID = re.compile(r"""\bid\s*:\s*['"]([\w-]+)['"]""")
+
+
+def _tab_ids(path):
+    try:
+        with open(path) as fh:
+            return set(_TAB_ID.findall(fh.read()))
+    except OSError:                              # pragma: no cover - unreadable
+        return set()
+
+
+def shadowed_tabs(dest):
+    """Study-owned tabs whose id a vendored built-in already claims.
+
+    `registerTab` refuses a duplicate id with a `console.error` and carries on,
+    so the study keeps a file that does nothing and nobody is told which of the
+    two is on screen. It became reachable in v2.0.0, when the cross-effector
+    network -- which had lived in one study -- became a built-in.
+
+    Reported, never deleted: whether to keep a customised copy under a new id or
+    drop it for the built-in is the study owner's call.
+    """
+    tabs_dir = os.path.join(dest, "tabs")
+    vendor_dir = os.path.join(dest, "vendor", "dims-tabs")
+    if not os.path.isdir(tabs_dir) or not os.path.isdir(vendor_dir):
+        return []
+
+    built_in = {}
+    for name in sorted(os.listdir(vendor_dir)):
+        if name.endswith(".js"):
+            for tab_id in _tab_ids(os.path.join(vendor_dir, name)):
+                built_in[tab_id] = name
+
+    problems = []
+    for name in sorted(os.listdir(tabs_dir)):
+        if not name.endswith(".js"):
+            continue
+        for tab_id in sorted(_tab_ids(os.path.join(tabs_dir, name))):
+            if tab_id in built_in:
+                problems.append(
+                    f"tabs/{name} registers the tab id '{tab_id}', which the "
+                    f"built-in vendor/dims-tabs/{built_in[tab_id]} also claims. "
+                    f"The built-in loads first and wins; this study's copy is "
+                    f"ignored. Delete tabs/{name}, or give it an id of its own.")
+    return problems
+
+
+# The names are historical on purpose: these are the files a study carried in
+# its own `opt/` before the shared analyses became the dims-analysis package, and
+# recognising them is how `adopt` clears the leftovers. They are data about the
+# past, not a stale reference to fix.
 SHARED_STEPS = {"step_RQA.py", "step_cRQA.py", "step_crosswavelet.py",
                 "requirements.txt"}
 
@@ -299,7 +409,7 @@ jobs:
                  "without it those tests skip silently and this gate proves nothing"
             exit 1
           }
-          python -m pytest /tmp/core/examples/reference/tests -q
+          python -m pytest /tmp/core/tests/reference -q
 
       # Needs "Allow GitHub Actions to create and approve pull requests" in the
       # organisation's Actions settings. Until that is on, this step fails and

@@ -201,16 +201,37 @@
           },
           "window": {
             "type": "number",
-            "description": "Windowed-metric window, in seconds."
+            "description": "Windowed-metric window, in seconds (rqa, crqa; default 20). Shortened automatically when the recording cannot hold twenty of them, and the payload records asked-for beside used."
           },
           "step": {
             "type": "number",
-            "description": "Windowed-metric step, in seconds."
+            "description": "Windowed-metric step, in seconds (rqa, crqa; default 1)."
           },
           "saveFullResolution": {
             "type": "boolean",
             "default": true,
             "description": "Write the analysis at the resolution it was computed at, as {video}_crosswavelet_full.json beside the payload. Same schema, same field names, different time axis. The payload is reduced for the browser; this is what a notebook or downstream analysis should read."
+          },
+          "targetRecurrence": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 1,
+            "description": "Recurrence rate the threshold search aims for, as a fraction (default 0.07). DET and LAM depend strongly on it, so two recordings analysed at different rates are not comparable; the payload records asked-for beside achieved."
+          },
+          "mcCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "crosswavelet: Monte Carlo surrogates behind the coherence null. 300 is the publication setting and costs about 2.8 hours on a twelve-recording study; 0 skips it. Defaults to 100 when include_network is set and 0 otherwise, because the network is the only thing that reads the null."
+          },
+          "maxTimePoints": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "crosswavelet: width of the stored picture, in samples (default 500). The analysis runs at full resolution whatever this is; it caps what the browser fetches."
+          },
+          "maxFreqPoints": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "crosswavelet: height of the stored picture, in scales (default 100)."
           }
         }
       }

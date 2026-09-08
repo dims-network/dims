@@ -135,7 +135,7 @@ jobs:
           PY
 
       - name: The reference study answers what it should
-        run: python -m pytest examples/reference/tests -q -rs
+        run: python -m pytest tests/reference -q -rs
 
   dashboard-host:
     runs-on: ubuntu-latest

@@ -1,2 +1,3 @@
 flask
 imageio-ffmpeg
+jsonschema

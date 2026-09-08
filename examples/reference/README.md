@@ -42,25 +42,27 @@ The data is generated rather than committed: producing it is the same
 from-zero path a real study takes, and a formula describes it exactly, so
 carrying a megabyte of CSV would only add something to drift.
 
-The assertions live beside the data, one file per analysis:
+The assertions live in [`tests/reference/`](../../tests/reference), one file
+per analysis. They used to sit inside this folder, which meant every temporary
+copy of this study carried a copy of them:
 
 | | |
 |---|---|
-| `tests/test_rqa.py` | recurrence, determinism, the achieved rate, a constant signal |
-| `tests/test_crqa.py` | the known lag, 20 samples off the diagonal |
-| `tests/test_crosswavelet.py` | the known phase, the chance level, and the Monte Carlo that produces it |
-| `tests/test_network.py` | what the cross-effector network needs from a payload, and how it breaks |
-| `tests/test_metrics.py` | RR, DET, LAM and L_MAX, for **both** RQA and cross-RQA, against pyrqa |
-| `tests/test_coherence_metrics.py` | cross-wavelet: the scale axis, amplitude invariance, and the signature of the defect this project was rebuilt around |
-| `tests/test_determinism.py` | two runs give identical output; one step does not erase another |
-| `tests/test_wavelet_reference.py` | the transform and all three significance levels, against Torrence & Compo (1998) — see `TORRENCE_COMPO.md` |
-| `tests/test_baseline.py` | every number, pinned against `baseline.json` |
+| `tests/reference/test_rqa.py` | recurrence, determinism, the achieved rate, a constant signal |
+| `tests/reference/test_crqa.py` | the known lag, 20 samples off the diagonal |
+| `tests/reference/test_crosswavelet.py` | the known phase, the chance level, and the Monte Carlo that produces it |
+| `tests/reference/test_network.py` | what the cross-effector network needs from a payload, and how it breaks |
+| `tests/reference/test_metrics.py` | RR, DET, LAM and L_MAX, for **both** RQA and cross-RQA, against pyrqa |
+| `tests/reference/test_coherence_metrics.py` | cross-wavelet: the scale axis, amplitude invariance, and the signature of the defect this project was rebuilt around |
+| `tests/reference/test_determinism.py` | two runs give identical output; one step does not erase another |
+| `tests/reference/test_wavelet_reference.py` | the transform and all three significance levels, against Torrence & Compo (1998) — see `TORRENCE_COMPO.md` |
+| `tests/reference/test_baseline.py` | every number, pinned against `baseline.json` |
 
 ## Running them while changing things
 
 ```sh
 cd dims
-python -m pytest examples/reference -q          # 116 tests, about 20 s
+python -m pytest tests/reference -q             # 120 tests, about 22 s
 ```
 
 Two kinds, and both are needed.
@@ -86,7 +88,7 @@ Checked by sabotage, three ways:
 
 **When the baseline fails, do not regenerate it.** Look at which number moved
 and by how much, decide whether the new value is better, and only then run
-`python tests/make_baseline.py` — saying in the commit why each number moved.
+`python tests/reference/make_baseline.py` — saying in the commit why each number moved.
 Regenerating first is how a regression becomes the new normal.
 
 The cross-wavelet file tests the simulation two ways, and both are needed. That
@@ -114,7 +116,9 @@ green while the independent oracle for DET, LAM and RR does not run at all.
 Pass `-rs` and read the skips. CI installs `pocl-opencl-icd` and fails outright
 if pyrqa is missing.
 
-Requirements this study exists to check: `docs/contracts/analysis-output.md`.
+Requirements this study exists to check:
+[`docs/contracts/analysis-output.md`](../../docs/contracts/analysis-output.md).
+Where every suite lives and why: [`tests/README.md`](../../tests/README.md).
 
 
 ## What these tests have found so far

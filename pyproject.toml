@@ -40,6 +40,10 @@ dependencies = [
 builder = [
   "flask>=3.0",
   "imageio-ffmpeg>=0.4",
+  # The wizard validates what it is about to write against the same schema CI
+  # validates every study against, so it cannot produce a config the core would
+  # reject -- a failure that otherwise surfaces later as an empty tab.
+  "jsonschema>=4.0",
 ]
 # The sanity-check notebooks.
 notebooks = [

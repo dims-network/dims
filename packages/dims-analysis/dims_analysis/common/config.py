@@ -77,3 +77,35 @@ def as_list(config: dict, key: str, what: str) -> list:
 def _example(key: str) -> str:
     pairwise = key.lower() in ("include_crqa", "include_crosswavelet")
     return '[["bodysync", "neuralsync"]]' if pairwise else '["bodysync"]'
+
+
+def tuning(config: dict, step_id: str) -> dict:
+    """The `analysis.<step_id>` block, or an empty one.
+
+    `docs/contracts/step.md` states the rule this exists for: tuning that can
+    only be changed by editing the source is how a fork ends up maintaining its
+    own copy of an analysis. The cross-wavelet step had this; the two recurrence
+    steps did not, so `analysis.rqa.window` -- which the config schema documents
+    -- did nothing at all, and the window was an argparse flag the step adapter
+    never passed.
+    """
+    return ((config or {}).get("analysis") or {}).get(step_id) or {}
+
+
+def tuned_number(config: dict, step_id: str, key: str, default):
+    """One numeric setting from `analysis.<step_id>`, or `default`.
+
+    Raises rather than falling back silently on a value that is not a number:
+    a study that wrote `"window": "20s"` should be told, not quietly analysed
+    at the default and left wondering why its setting had no effect.
+    """
+    value = tuning(config, step_id).get(key)
+    if value is None:
+        return default
+    try:
+        return type(default)(value)
+    except (TypeError, ValueError):
+        raise ConfigError(
+            f'config.json: "analysis.{step_id}.{key}" is {value!r}, which is '
+            f"not a number. Units are seconds (or a fraction, for a rate); "
+            f"write {default!r} to keep the default.")

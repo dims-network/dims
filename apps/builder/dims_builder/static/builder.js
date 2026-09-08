@@ -27,6 +27,8 @@ const state = {
   cw: new Set(),      // selected pair keys "a|b" (cross-wavelet)
   crqa: new Set(),    // selected pair keys "a|b" (cross-RQA)
   elan: false,
+  network: false,
+  opened: false,      // reopened an existing study rather than making one
 };
 
 const ROLES = ["video", "timeseries", "transcript", "elan", "unknown"];
@@ -42,56 +44,168 @@ function gotoStep(n) {
     b.disabled = s > state.maxStep;
   });
   if (n === 3) renderAlign();
-  if (n === 4) renderAnalysisTypes();
+  if (n === 4) { renderAnalysisTypes(); reflectNetwork(); }
   if (n === 5) refreshValidation();
-  if (n === 7) renderDeploy();
+  if (n === 7) { renderDeploy(); renderPrivacyReminder(); }
 }
 
 function unlockStep(n) {
   state.maxStep = Math.max(state.maxStep, n);
 }
 
-// ---- STEP 1: project -------------------------------------------------------
-function srcChoice() {
-  return $('input[name="src"]:checked').value; // "bundled" | "local"
+// ---- STEP 1: the study -----------------------------------------------------
+// There is one scaffold and it is in this repository, so the wizard does not ask
+// where to get it. It used to, and every answer but the default was a way to get
+// it wrong.
+function mode() {
+  return $('input[name="mode"]:checked').value;   // "new" | "open"
 }
-$$('input[name="src"]').forEach((r) =>
+function visibility() {
+  return $('input[name="vis"]:checked').value;    // "private" | "public"
+}
+
+$$('input[name="mode"]').forEach((r) =>
   r.addEventListener("change", () => {
-    const c = srcChoice();
-    $("#src_local").disabled = c !== "local";
+    const opening = mode() === "open";
+    // Visibility is settled when a study is created -- changing it means
+    // rewriting its guards and workflows, which is `dims-case`'s job, not a
+    // radio button's. Everything else stays editable, because editing it is
+    // what reopening is for: the title is the likeliest thing anyone comes
+    // back to change.
+    $("#new-only").hidden = opening;
+    $("#open-visibility").hidden = true;
+    $("#btn-create").textContent = opening ? "Open study \u2192" : "Create study \u2192";
+    $("#dir-hint").textContent = opening
+      ? "The folder of a study the builder made earlier."
+      : "A new or empty folder. The dashboard is created inside it.";
   })
 );
 
 $("#btn-create").addEventListener("click", async () => {
-  const c = srcChoice();
-  // "bundled" → empty string lets the server use the built-in template.
-  const source = c === "local" ? $("#src_local").value.trim()
-               : "";
-  const payload = {
-    output_dir: $("#output_dir").value.trim(),
-    template_source: source,
-    config: {
-      title: $("#title").value,
-      subtitle: $("#subtitle").value,
-      authors: $("#authors").value,
-      contacts: $("#contacts").value,
-      defaultWindowSize: Number($("#defaultWindowSize").value) || 5,
-    },
-  };
-  setMsg(1, "Acquiring template…", "spinner");
+  const dir = $("#output_dir").value.trim();
+  if (!dir) { setMsg(1, "Please give a folder.", "error"); return; }
+
+  if (mode() === "open") {
+    setMsg(1, "Opening\u2026", "spinner");
+    try {
+      const r = await api("/api/open", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ output_dir: dir }),
+      });
+      state.opened = true;
+      state.outputDir = r.output_dir;
+      state.files = r.files || [];
+      applyOpenedConfig(r.config || {}, r.visibility);
+      const vis = $("#open-visibility");
+      vis.hidden = false;
+      vis.innerHTML = `This study is <strong>${r.visibility}</strong>. ` +
+        "To change that, edit <code>visibility</code> in its " +
+        "<code>dims-case.json</code> and run <code>dims-case sync</code> — it " +
+        "rewrites the guards and workflows, which a setting here could not do.";
+      renderFiles();
+      setMsg(1, `Opened ${r.output_dir} \u2014 ${state.files.length} file(s), ` +
+                `built with core ${r.dims_core || "unknown"}.`, "ok");
+      showPrivacyNote(r.visibility, null);
+      // Everything is known, so nothing needs re-deciding to get to the end.
+      unlockStep(7);
+      gotoStep(2);
+    } catch (e) {
+      setMsg(1, e.message, "error");
+    }
+    return;
+  }
+
+  setMsg(1, "Creating\u2026", "spinner");
   try {
     const r = await api("/api/project", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        output_dir: dir,
+        visibility: visibility(),
+        config: {
+          title: $("#title").value,
+          subtitle: $("#subtitle").value,
+          authors: $("#authors").value,
+          contacts: $("#contacts").value,
+          defaultWindowSize: Number($("#defaultWindowSize").value) || 5,
+        },
+      }),
     });
-    setMsg(1, "Project ready at " + r.output_dir, "ok");
+    state.outputDir = r.output_dir;
+    setMsg(1, (r.reused ? "Refreshed " : "Created ") + r.output_dir +
+              ` (core ${r.dims_core}).`, "ok");
+    showPrivacyNote(r.visibility, r.hooks_command);
     unlockStep(2);
     gotoStep(2);
   } catch (e) {
     setMsg(1, e.message, "error");
   }
 });
+
+// The one thing a private study needs a person to do, and the one thing nothing
+// can do for them: git hooks are per-clone, so a fresh clone has none.
+function showPrivacyNote(vis, hooks) {
+  state.visibility = vis;
+  state.hooks = hooks;
+  const box = $("#privacy-note");
+  if (vis !== "private") { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML =
+    "<strong>This study is private.</strong> Its data is kept out of git by " +
+    "hooks, and git only runs them once you say so \u2014 in this folder, and " +
+    "in every clone of it:" +
+    (hooks ? `<pre class="codebox">${hooks}</pre>` : "") +
+    "<small>Until then nothing stops a commit from including a recording.</small>";
+}
+
+// Reading a built study back into the wizard's own controls.
+function applyOpenedConfig(cfg, vis) {
+  const set = (id, v) => { const el = $("#" + id); if (el && v != null) el.value = v; };
+  set("title", cfg.title); set("subtitle", cfg.subtitle);
+  set("authors", cfg.authors); set("contacts", cfg.contacts);
+  set("defaultWindowSize", cfg.defaultWindowSize);
+  $$('input[name="vis"]').forEach((r) => { r.checked = r.value === (vis || "private"); });
+
+  state.rqa = new Set(cfg.include_RQA || []);
+  state.cw = new Set((cfg.include_crosswavelet || []).map((p) => p.join("|")));
+  state.crqa = new Set((cfg.include_cRQA || []).map((p) => p.join("|")));
+  state.elan = !!cfg.include_elan;
+  state.network = !!cfg.include_network;
+  $("#t_rqa").checked = state.rqa.size > 0;
+  $("#t_cw").checked = state.cw.size > 0;
+  $("#t_crqa").checked = state.crqa.size > 0;
+  $("#t_elan").checked = state.elan;
+  $("#t_network").checked = state.network;
+
+  const tuning = cfg.analysis || {};
+  const num = (id, v) => { if (v != null) $("#" + id).value = v; };
+  num("rqa_window", (tuning.rqa || {}).window);
+  num("rqa_step", (tuning.rqa || {}).step);
+  num("rqa_target", (tuning.rqa || {}).targetRecurrence);
+  num("crqa_window", (tuning.crqa || {}).window);
+  num("crqa_step", (tuning.crqa || {}).step);
+  num("crqa_target", (tuning.crqa || {}).targetRecurrence);
+  const cw = tuning.crosswavelet || {};
+  num("cw_mc", cw.mcCount); num("cw_maxt", cw.maxTimePoints);
+  num("cw_maxf", cw.maxFreqPoints);
+  if (Array.isArray(cw.scaleAvgBand)) $("#cw_band").value = cw.scaleAvgBand.join(", ");
+  if (cw.saveFullResolution != null) $("#cw_full").checked = !!cw.saveFullResolution;
+
+  if (Array.isArray(cfg.perspectives) && cfg.perspectives.length) {
+    $("#cameras").open = true;
+    $("#perspectives").value = cfg.perspectives.join(", ");
+    $("#videoSrcTemplate").value = cfg.videoSrcTemplate || "";
+    $("#fallbackVideoSrcTemplate").value = cfg.fallbackVideoSrcTemplate || "";
+  }
+  const net = cfg.include_network;
+  if (net && typeof net === "object") {
+    if (Array.isArray(net.groups) && net.groups.length) {
+      $("#network_groups").value = net.groups
+        .map((g) => [g.label || "", g.match || "", g.color || ""].join(", ")).join("\n");
+    }
+    if (Array.isArray(net.band)) $("#network_band").value = net.band.join(", ");
+  }
+}
 
 // ---- STEP 2: files ---------------------------------------------------------
 const dz = $("#dropzone");
@@ -103,6 +217,34 @@ const dz = $("#dropzone");
 );
 dz.addEventListener("drop", (e) => uploadFiles(e.dataTransfer.files));
 $("#filepick").addEventListener("change", (e) => uploadFiles(e.target.files));
+
+// The example study ships with the builder, so someone can reach a finished
+// dashboard before they have data of their own -- and so "it does not work with
+// the samples" means one specific thing.
+$("#btn-samples").addEventListener("click", async () => {
+  const btn = $("#btn-samples");
+  btn.disabled = true;
+  setMsg(2, "Loading the example study\u2026", "spinner");
+  try {
+    const r = await api("/api/samples", { method: "POST" });
+    const added = r.files || [];
+    added.forEach((f) => state.files.push(f));
+    const sessions = new Set(added.map((f) => f.videoID).filter(Boolean));
+    // Only claim the split when one happened. A message that describes what
+    // usually happens rather than what just did is how someone learns to stop
+    // reading them.
+    const split = added.some((f) => f.role === "timeseries" &&
+      f.dataType && !f.name.toLowerCase().includes(f.dataType.toLowerCase()));
+    setMsg(2, `Loaded ${added.length} file(s) across ${sessions.size} session(s).` +
+              (split ? " A CSV with several measurement columns was split into one file per measure." : ""),
+           "ok");
+    renderFiles();
+  } catch (e) {
+    setMsg(2, e.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 async function uploadFiles(fileList) {
   for (const f of fileList) {
@@ -127,7 +269,7 @@ function renderFiles() {
   wrap.innerHTML = "";
   for (const f of state.files) {
     const row = document.createElement("div");
-    row.className = "filerow";
+    row.className = "filerow" + (f.in_place ? " in-place" : "");
     const roleOpts = ROLES.map((r) => `<option value="${r}" ${r === f.role ? "selected" : ""}>${r}</option>`).join("");
     const showDt = f.role === "timeseries";
     row.innerHTML = `
@@ -146,6 +288,57 @@ function renderFiles() {
   wrap.querySelectorAll(".del").forEach((el) =>
     el.addEventListener("click", () => removeFile(el.dataset.id))
   );
+  renderPerspectives();
+}
+
+// ---- multi-camera ----------------------------------------------------------
+// dims-core builds a camera selector from `perspectives` and resolves each file
+// through `videoSrcTemplate`. Which angles a given session actually has is a
+// separate list, because recordings fail and not every session has every angle.
+function sessionIDs() {
+  const seen = [];
+  state.files.forEach((f) => {
+    if (f.videoID && !seen.includes(f.videoID)) seen.push(f.videoID);
+  });
+  return seen;
+}
+
+function perspectiveNames() {
+  return $("#perspectives").value.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function renderPerspectives() {
+  const box = $("#videoPerspectives");
+  const names = perspectiveNames();
+  const sessions = sessionIDs();
+  if (!names.length || !sessions.length) { box.innerHTML = ""; return; }
+  box.innerHTML = "<p class=\"hint\">Which angles each session actually has. " +
+    "Leave a session with none ticked and it falls back to the first that exists.</p>" +
+    sessions.map((sid) => `
+      <div class="filerow">
+        <div class="fname">${sid}</div>
+        <div class="chips">${names.map((n) => `
+          <label class="chip"><input type="checkbox" data-sid="${sid}" value="${n}" /> ${n}</label>
+        `).join("")}</div>
+      </div>`).join("");
+}
+$("#perspectives").addEventListener("input", renderPerspectives);
+
+function collectPerspectives() {
+  const names = perspectiveNames();
+  if (!names.length) return {};
+  const per = {};
+  $$('#videoPerspectives input[type="checkbox"]').forEach((cb) => {
+    if (!cb.checked) return;
+    (per[cb.dataset.sid] = per[cb.dataset.sid] || []).push(cb.value);
+  });
+  const out = { perspectives: names };
+  if (Object.keys(per).length) out.videoPerspectives = per;
+  const tmpl = $("#videoSrcTemplate").value.trim();
+  const fb = $("#fallbackVideoSrcTemplate").value.trim();
+  if (tmpl) out.videoSrcTemplate = tmpl;
+  if (fb) out.fallbackVideoSrcTemplate = fb;
+  return out;
 }
 
 // ---- STEP 3: align video & data -------------------------------------------
@@ -165,6 +358,14 @@ async function renderAlign() {
   const sessions = data.sessions.filter((s) => s.video || s.series.length);
   if (!sessions.length) {
     list.innerHTML = '<p class="hint">No sessions yet — add files in the previous step.</p>';
+    return;
+  }
+  // Nothing to decide is worth saying. An empty-looking step reads as one that
+  // failed to load, and the reader cannot tell which.
+  const comparable = sessions.filter((s) => s.video && s.series.length);
+  if (!comparable.length) {
+    list.innerHTML = '<div class="note">Nothing to align: no session here has ' +
+      'both a video and measurements to compare it against. Go on to the next step.</div>';
     return;
   }
   list.innerHTML = "";
@@ -449,11 +650,28 @@ async function removeFile(id) {
   renderFiles();
 }
 
-$("#next-2").addEventListener("click", () => {
+$("#next-2").addEventListener("click", async () => {
   if (!state.files.some((f) => f.videoID)) {
     setMsg(2, "Add at least one file with a session ID.", "error");
     return;
   }
+  const cameras = collectPerspectives();
+  if (cameras.perspectives && !cameras.videoSrcTemplate) {
+    setMsg(2, "Angles are named, but nothing says where their video files are. " +
+              "Fill in the path template, or clear the angle names.", "error");
+    return;
+  }
+  await api("/api/config", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    // Sent even when empty, so clearing the angles clears them in the study too.
+    body: JSON.stringify({
+      perspectives: cameras.perspectives || null,
+      videoPerspectives: cameras.videoPerspectives || null,
+      videoSrcTemplate: cameras.videoSrcTemplate || null,
+      fallbackVideoSrcTemplate: cameras.fallbackVideoSrcTemplate || null,
+    }),
+  });
+  setMsg(2, "");
   unlockStep(3);
   gotoStep(3);
 });
@@ -522,7 +740,45 @@ function renderAnalysisTypes() {
   mkTypes($("#rqa_types"), state.rqa, !$("#t_rqa").checked);
   mkPairs($("#cw_types"), state.cw, !$("#t_cw").checked);
   mkPairs($("#crqa_types"), state.crqa, !$("#t_crqa").checked);
+  renderCost();
 }
+
+// What has been asked for, in the units that decide how long step 6 takes.
+// Without this the first sign that a choice was expensive is being forty
+// minutes into a run with nothing to look at.
+function renderCost() {
+  const box = $("#cost");
+  if (!box) return;
+  const sessions = sessionIDs().length;
+  const bits = [];
+  if ($("#t_rqa").checked) bits.push(`${state.rqa.size} recurrence`);
+  if ($("#t_crqa").checked) bits.push(`${pairKeysToList(state.crqa).length} cross-recurrence`);
+  if ($("#t_cw").checked) bits.push(`${pairKeysToList(state.cw).length} cross-wavelet`);
+  if (!bits.length || !sessions) {
+    box.textContent = sessions
+      ? "Nothing switched on yet — the dashboard will show the video, the measurements and any transcript."
+      : "";
+    box.className = "note";
+    return;
+  }
+  const mc = Number($("#cw_mc").value || 0);
+  const cwRuns = $("#t_cw").checked ? pairKeysToList(state.cw).length * sessions : 0;
+  const slow = mc > 0 && cwRuns > 0;
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  box.innerHTML =
+    `Across ${plural(sessions, "session", "sessions")}: ` + bits.join(", ") +
+    ` — ${plural(sessions * bits.reduce((a, b) => a + parseInt(b, 10), 0),
+                 "analysis run", "analysis runs")}. ` +
+    (slow
+      ? "<strong>" + (cwRuns === 1 ? "That run estimates" : `${cwRuns} of them estimate`) +
+        ` a chance level from ${mc} surrogates${cwRuns === 1 ? "" : " each"}</strong> — that is the slow ` +
+        "part, minutes per run on a long recording, and the reason step 6 can " +
+        "take hours. Lower the count, or set it to 0 if you are not using the " +
+        "network."
+      : "None of these estimate a chance level, so step 6 is seconds to minutes.");
+  box.className = "note" + (slow ? " warn" : "");
+}
+["cw_mc"].forEach((id) => $("#" + id).addEventListener("input", renderCost));
 
 // Turn a Set of "a|b" pair keys into a list of [a, b] pairs (only those whose
 // data types still exist).
@@ -545,9 +801,108 @@ function syncAnalysisDefaults() {
   if ($("#t_crqa").checked) { if (state.crqa.size === 0) pairKeys.forEach((k) => state.crqa.add(k)); }
   else state.crqa.clear();
 }
-["t_rqa", "t_cw", "t_crqa", "t_elan"].forEach((id) =>
-  $("#" + id).addEventListener("change", () => { syncAnalysisDefaults(); renderAnalysisTypes(); })
+["t_rqa", "t_cw", "t_crqa", "t_elan", "t_network"].forEach((id) =>
+  $("#" + id).addEventListener("change", () => {
+    syncAnalysisDefaults();
+    renderAnalysisTypes();
+    reflectNetwork();
+  })
 );
+
+// The network draws its edges from cross-wavelet output and reads the chance
+// level, so switching it on has two consequences the wizard states rather than
+// applying silently.
+function reflectNetwork() {
+  const on = $("#t_network").checked;
+  const note = $("#network-note");
+  note.hidden = !on;
+  if (!on) return;
+  if (!$("#t_cw").checked) {
+    $("#t_cw").checked = true;
+    syncAnalysisDefaults();
+    renderAnalysisTypes();
+    note.innerHTML = "<strong>Cross-wavelet was switched on too</strong> \u2014 " +
+      "the network's edges are its coherence, so there is nothing to draw " +
+      "without it. The chance level is on as well (100 surrogates): an " +
+      "unrelated pair scores about 0.25, not 0, so without one no edge can be " +
+      "told from coincidence.";
+  }
+  if (!$("#cw_mc").value || Number($("#cw_mc").value) === 0) {
+    $("#cw_mc").value = 100;
+    $("#cw_mc").dataset.auto = "1";
+  }
+}
+
+// Switching the network off must not leave its surrogate count behind: that is
+// the slow part of the whole pipeline, and paying for it with nothing reading it
+// is the exact state the analysis default exists to avoid.
+$("#t_network").addEventListener("change", () => {
+  if (!$("#t_network").checked && $("#cw_mc").dataset.auto === "1") {
+    $("#cw_mc").value = "";
+    delete $("#cw_mc").dataset.auto;
+  }
+  renderCost();
+});
+$("#cw_mc").addEventListener("input", () => { delete $("#cw_mc").dataset.auto; });
+
+// A number field left blank means "keep the default", which is different from
+// zero and must not be written as one.
+function numOrNull(id) {
+  const raw = $("#" + id).value.trim();
+  if (raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function bandOrNull(id) {
+  const raw = $("#" + id).value.trim();
+  if (!raw) return null;
+  const parts = raw.split(",").map((x) => Number(x.trim()));
+  if (parts.length !== 2 || parts.some((x) => !Number.isFinite(x))) return "bad";
+  return parts.sort((a, b) => a - b);
+}
+
+function collectTuning() {
+  const block = {};
+  const put = (step, key, value) => {
+    if (value === null || value === undefined) return;
+    (block[step] = block[step] || {})[key] = value;
+  };
+  put("rqa", "window", numOrNull("rqa_window"));
+  put("rqa", "step", numOrNull("rqa_step"));
+  put("rqa", "targetRecurrence", numOrNull("rqa_target"));
+  put("crqa", "window", numOrNull("crqa_window"));
+  put("crqa", "step", numOrNull("crqa_step"));
+  put("crqa", "targetRecurrence", numOrNull("crqa_target"));
+  put("crosswavelet", "mcCount", numOrNull("cw_mc"));
+  put("crosswavelet", "maxTimePoints", numOrNull("cw_maxt"));
+  put("crosswavelet", "maxFreqPoints", numOrNull("cw_maxf"));
+  const band = bandOrNull("cw_band");
+  if (band && band !== "bad") put("crosswavelet", "scaleAvgBand", band);
+  if (!$("#cw_full").checked) put("crosswavelet", "saveFullResolution", false);
+  return Object.keys(block).length ? block : null;
+}
+
+// "Label, pattern, colour" per line -- one line is far less to explain than a
+// row of three inputs repeated, and it is what a group actually is.
+function collectNetwork() {
+  if (!$("#t_network").checked) return false;
+  const groups = $("#network_groups").value.split("\n")
+    .map((line) => line.split(",").map((x) => x.trim()))
+    .filter((parts) => parts[0] || parts[1])
+    .map((parts) => {
+      const g = { match: parts[1] || parts[0] };
+      if (parts[0]) g.label = parts[0];
+      if (parts[2]) g.color = parts[2];
+      return g;
+    });
+  const band = bandOrNull("network_band");
+  if (!groups.length && (!band || band === "bad")) return true;
+  const out = {};
+  if (groups.length) out.groups = groups;
+  if (band && band !== "bad") out.band = band;
+  return out;
+}
 
 $("#next-4").addEventListener("click", async () => {
   state.elan = $("#t_elan").checked;
@@ -562,6 +917,18 @@ $("#next-4").addEventListener("click", async () => {
     setMsg(4, "Cross-RQA compares pairs — select at least one pair (or turn it off).", "error");
     return;
   }
+  if ($("#t_network").checked && cw.length < 1) {
+    setMsg(4, "The network draws cross-wavelet coherence as its edges, so it " +
+              "needs at least one cross-wavelet pair.", "error");
+    return;
+  }
+  for (const [id, label] of [["cw_band", "the cross-wavelet averaging band"],
+                             ["network_band", "the network's period band"]]) {
+    if (bandOrNull(id) === "bad") {
+      setMsg(4, `Give ${label} as two numbers, shortest first — for example 0.5, 8.`, "error");
+      return;
+    }
+  }
   await api("/api/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -570,6 +937,8 @@ $("#next-4").addEventListener("click", async () => {
       include_crosswavelet: cw,
       include_cRQA: crqa,
       include_elan: state.elan,
+      include_network: collectNetwork(),
+      analysis: collectTuning(),
     }),
   });
   setMsg(4, "");
@@ -687,11 +1056,46 @@ $("#btn-preview").addEventListener("click", async () => {
   }
 });
 
+// The hooks are the one thing nothing can do for the user, and step 1 has long
+// scrolled away by the time they are about to put the study somewhere.
+function renderPrivacyReminder() {
+  const box = $("#privacy-note-2");
+  if (!box) return;
+  if (state.visibility !== "private") { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML =
+    "<strong>This study is private.</strong> Before you put it in git, in this " +
+    "folder and in every clone:" +
+    `<pre class="codebox">${state.hooks || "git config core.hooksPath .githooks"}</pre>` +
+    "<small>That is what makes the guards run. Until then a commit can include " +
+    "a recording, and removing it afterwards means rewriting history.</small>";
+}
+
 function renderDeploy() {
-  $("#deploy-cmds").textContent =
-`# Your finished dashboard lives in your output folder.
-# Deploy to GitHub Pages:
-cd <your-output-folder>
+  const dir = state.outputDir || "<your study folder>";
+  // A private study must not be handed `git add -A`. That is the one command
+  // the guards exist to intercept, and they only run once the user has pointed
+  // git at them -- which is a thing a person does, in every clone, and might
+  // not have done yet. Telling them to run it anyway would be the wizard
+  // walking its own user into the failure it spent step 1 warning about.
+  $("#deploy-cmds").textContent = state.visibility === "private"
+? `# This study is private: its recordings must not enter git history.
+cd ${dir}
+git init
+git config core.hooksPath .githooks     # do this BEFORE the first commit
+git add -A                              # the hook refuses anything restricted
+git commit -m "DIMS dashboard"
+
+# The dashboard code and config are committed; assets/ stays out, and
+# data.local.json points the study at wherever the recordings really live.
+# To show it to someone, serve it locally:
+python serve.py                         # http://localhost:8000
+
+# Publishing it means publishing the recordings. If that is what you want,
+# say so deliberately: set "visibility": "public" in dims-case.json and list
+# what may be published under "publishable".`
+: `# This study is public: assets are committed with it.
+cd ${dir}
 git init && git add -A && git commit -m "DIMS dashboard"
 git branch -M main
 git remote add origin https://github.com/<you>/<repo>.git

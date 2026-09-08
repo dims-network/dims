@@ -266,7 +266,7 @@ than trust it.
 
 ## Acceptance
 
-- `python -m pytest examples/reference/tests -q -rs` is green, and every skip is
+- `python -m pytest tests/reference -q -rs` is green, and every skip is
   one you meant. It is a **gate**: CI runs it, and the generated
   `core-update.yml` in every study runs it against a candidate release before
   offering the bump, because the analyses are not vendored — a study installs

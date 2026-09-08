@@ -34,37 +34,54 @@ dims-builder
 
 Your browser opens to the wizard. Follow the 7 steps:
 
-1. **Project** — pick an output folder. The DIMS dashboard template is **built into
-   the builder**, so it's used by default — no git, no internet required. (Advanced:
-   you can instead clone the latest from GitHub or point at a local template folder.)
-   Set the title, authors, etc.
-2. **Sessions & files** — drag in your files. The builder figures out what each one
-   is (`.mp4` video, `.csv` time-series, `_transcript.json` transcript, `.eaf` ELAN),
-   groups them under a session/video ID, and checks them as you go.
-3. **Align video & data** — when a session's video and time-series have different
-   lengths the dashboard shows dead space. Per session, a shared-timeline preview shows
-   the video track above each time-series track, and you can either *trim the video* to a
-   window you pick with a dual-handle range slider, or *zero-pad the time-series* with
-   zeros at the start and/or end. Edits are **non-destructive** — your original files are
-   never modified; the trim/pad is applied only to the copies written at build time.
-   (Trimming uses the `ffmpeg` that ships via `imageio-ffmpeg` — no system install needed.)
-4. **Optional analyses** — turn on RQA and/or cross-wavelet and ELAN annotations.
-5. **Build** — files are copied into place and `config.json` is written.
-6. **Precompute** — the builder creates a project-local Python environment and runs
-   the analysis scripts. Progress streams live.
-7. **Preview / Deploy** — opens your dashboard locally and shows copy-paste commands
+1. **Your study** — pick a folder, and say **who may see the data**. Private is
+   the default and turns on the guards in
+   [`data-visibility.md`](../../docs/contracts/data-visibility.md): a pre-commit
+   hook, a pre-push hook and a CI check. There is nothing to choose about the
+   dashboard code — one scaffold ships in this repository and it is the one used.
+   You can also **open a study you made earlier**: everything comes back filled
+   in, so adding a session or changing an analysis is a rebuild rather than a
+   hand-edit of `config.json`.
+2. **Sessions & files** — drag your files in, or press **Load the example
+   study** for two ready-made sessions that ship with the builder. The builder
+   works out what each file is (`.mp4`, `.csv`, `_transcript.json`, `.eaf`),
+   which session it belongs to, and splits a multi-column CSV into one file per
+   measure. If a session was filmed from several angles, name them here and the
+   dashboard gets a camera selector.
+3. **Align video & data** — when a session's video and measurements have
+   different lengths the dashboard shows dead space. Per session, a
+   shared-timeline preview shows the video track above each measurement track,
+   and you can either *trim the video* to a window you pick with a dual-handle
+   slider, or *pad the measurements* with zeros at either end. Edits are
+   **non-destructive** — your originals are never modified; the trim or pad is
+   applied only to the copies written at build time. (Trimming uses the `ffmpeg`
+   that ships via `imageio-ffmpeg` — no system install needed.)
+4. **Tabs & analyses** — switch on recurrence, cross-recurrence, cross-wavelet,
+   the cross-effector network and ELAN annotations, and pick which measures or
+   pairs each runs on. Every analysis has a **Settings** panel for the tuning
+   the study can set — the recurrence window and target rate, the cross-wavelet
+   picture size and its chance-level surrogate count. A line at the foot of the
+   step says how many runs that adds up to and which of them are the slow ones,
+   because the first sign that a choice was expensive should not be being forty
+   minutes into step 6.
+5. **Build** — files are copied into place and `config.json` is written, after
+   being checked against the same schema CI validates every study against.
+6. **Compute** — the builder creates a study-local Python environment and runs
+   the analyses. Progress streams live.
+7. **Open it** — opens your dashboard locally and shows copy-paste commands
    to deploy it to GitHub Pages / Netlify / Vercel.
 
 ## Requirements
 
 - Python 3.9+
-- That's it for the default path — the template ships inside the builder
-  (`template/`), so **git is not required**. (`git` is only needed if you choose the
-  optional "clone the latest from GitHub" template source.)
+- That's it. The dashboard is in this repository, beside the builder, so
+  **git and an internet connection are not required** to build a study. `git` is
+  worth having afterwards, for the privacy guards a private study installs.
 
 ## What the builder produces
 
-A complete copy of the DIMS template with:
+A study, identical to one `dims-case new` makes — same scaffold, same pinned
+core, same guards:
 
 ```
 your-project/
