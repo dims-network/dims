@@ -38,6 +38,7 @@ from dims_analysis.common import limits as _limits
 from dims_analysis.common import payload as _payload
 from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
+from dims_analysis.common import window as _window
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
@@ -224,8 +225,11 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
     raw_s1 = np.interp(common_time, t1, v1)
     raw_s2 = np.interp(common_time, t2, v2)
 
-    s1_norm = (raw_s1 - np.mean(raw_s1)) / (np.std(raw_s1) + 1e-6)
-    s2_norm = (raw_s2 - np.mean(raw_s2)) / (np.std(raw_s2) + 1e-6)
+    # One normalisation, shared with RQA; see common/series.py. This used to
+    # add 1e-6 to the standard deviation where rqa.py did not, which made the
+    # two steps' stored thresholds incomparable.
+    s1_norm = _series.normalise(raw_s1)
+    s2_norm = _series.normalise(raw_s2)
     return s1_norm, s2_norm, common_time
 
 
@@ -322,27 +326,24 @@ def main():
             print(f"  > Global cross-recurrence rate: {global_rr*100:.2f}%")
 
             # Windowed metrics along the line of synchronization (main diagonal).
+            # The placement is common/window.py, shared with rqa.py: this file
+            # used to carry its own copy, in samples, so the reported time axis
+            # moved with the sampling rate and nothing recorded what window was
+            # actually used.
             dt = float(np.mean(np.diff(time_vals)))
-            if dt <= 0:
-                dt = 0.033
             n = len(emb1)
-            win_points = max(2, int(args.window / dt))
-            step_points = max(1, int(args.step / dt))
-            # Short-series adaptation: cap the window to half the series and refine
-            # the step so we always get several windows (otherwise a single trivial
-            # window renders as a blank metric chart). Long series are unaffected.
-            win_points = min(win_points, max(2, n // 2))
-            n_eff = max(1, n - win_points)
-            step_points = max(1, min(step_points, n_eff // 20))
+            window_plan = _window.plan(n, dt, args.window, args.step)
+            if window_plan.warning:
+                print(f"  > WARNING: {window_plan.warning}")
 
-            windowed_metrics = {'time': [], 'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
-            print(f"  > Windowed metrics (window={args.window}s, step={args.step}s)...")
-            for start_idx in range(0, max(1, n - win_points), step_points):
-                end_idx = start_idx + win_points
+            windowed_metrics = {'time': window_plan.centres(time_vals),
+                                'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
+            print(f"  > Windowed metrics ({len(window_plan)} windows of "
+                  f"{window_plan.used[0]:.4g}s, step {window_plan.used[1]:.4g}s)...")
+            for start_idx in window_plan.starts:
+                end_idx = start_idx + window_plan.length
                 w_matrix = rec_matrix[start_idx:end_idx, start_idx:end_idx]
                 rr, det, lam, l_max = calculate_window_metrics(w_matrix, dt)
-                center_time = time_vals[min(start_idx + win_points // 2, n - 1)]
-                windowed_metrics['time'].append(float(center_time))
                 windowed_metrics['RR'].append(rr)
                 windowed_metrics['DET'].append(det)
                 windowed_metrics['LAM'].append(lam)
@@ -362,6 +363,8 @@ def main():
                 'global_recurrence_rate': float(global_rr),
                 'time_range': [float(time_vals[0]), float(time_vals[-1])],
                 'windowed_metrics': windowed_metrics,
+                # Asked-for beside used; see common/window.py.
+                'window': window_plan.report(),
                 'visualization': {
                     'time': time_vis.tolist(),
                     'data_x': ts1_vis.tolist(),

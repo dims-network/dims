@@ -302,3 +302,79 @@ def test_each_entry_records_the_rate_asked_for_and_the_rate_reached(recurrence):
         assert bool(e["recurrence_rate_warning"]) == missed, (
             f"{name}: achieved {e['achieved_recurrence']:.4f} against "
             f"{TARGET_RATE}, warning={e['recurrence_rate_warning']!r}")
+
+
+# --- the analysis window: requested, achieved, and independent of the rate ---
+#
+# The windowed metrics are a time series of DET, LAM, RR and L_MAX, and every
+# one of them depends strongly on how long the window is. So the window is a
+# parameter of the result in exactly the way the recurrence rate is, and the
+# same rule applies: what was asked for and what was used are both recorded.
+
+def test_the_analysis_window_is_recorded(recurrence):
+    """`compute_windowed_metrics` silently overrode both parameters it was
+    given -- `min(win_points, n // 2)` and `min(step_points, n_eff // 20)`.
+
+    Measured on this study: 20 s and 1 s were requested and 10.24 s and 0.5 s
+    were used, with nothing in the payload saying so. Two recordings of
+    different lengths are then analysed at different window lengths and their
+    DET series compared as if they were not -- the same incomparability the
+    recurrence-rate warning already exists for.
+    """
+    study, _ = recurrence
+    for analysis, container in (("rqa", "rqa_data"), ("crqa", "crqa_data")):
+        path = os.path.join(study, "assets", analysis,
+                            f"reference_{analysis}_data.json")
+        with open(path) as fh:
+            payload = json.load(fh)
+        for name, e in payload[container].items():
+            window = e.get("window")
+            assert window, (
+                f"{analysis}/{name} reports {len(e['windowed_metrics']['time'])} "
+                f"windows and says nothing about how long they are")
+            for field in ("length_requested_sec", "length_used_sec",
+                          "step_requested_sec", "step_used_sec", "n_windows"):
+                assert field in window, f"{analysis}/{name}.window has no {field}"
+            assert window["n_windows"] == len(e["windowed_metrics"]["time"])
+
+
+def test_the_window_says_so_when_it_could_not_be_what_was_asked_for(recurrence):
+    """A 20 s window does not fit twice in a 20.48 s recording, so shortening it
+    is right. Doing it silently is not: the number that comes out is not the
+    number that was ordered, and only the payload can say so."""
+    study, _ = recurrence
+    e = entry(study, "rqa", "rqa_data", "sine")
+    window = e["window"]
+    if abs(window["length_used_sec"] - window["length_requested_sec"]) > 1e-9:
+        assert window.get("warning"), (
+            f"the window was shortened from {window['length_requested_sec']} s "
+            f"to {window['length_used_sec']} s with no warning")
+
+
+def test_the_window_axis_does_not_depend_on_the_sampling_rate(recurrence):
+    """`sine` and `sine_2x` are the same 2 s sine over the same 20.48 s, sampled
+    at 50 Hz and 100 Hz. Everything reported in seconds must therefore agree.
+
+    It did not: the step came out 0.5 s against 0.51 s, and the last window
+    centre 15.12 s against 15.32 s, because the adaptation divided a count of
+    *samples* by 20 rather than a span of seconds. A unit error like this stays
+    invisible on real data -- every number remains plausible.
+    """
+    study, _ = recurrence
+    slow = entry(study, "rqa", "rqa_data", "sine")
+    fast = entry(study, "rqa", "rqa_data", "sine_2x")
+
+    # One sample of the *coarser* series is the most either axis may differ by.
+    tol = 0.02
+    for field in ("length_used_sec", "step_used_sec"):
+        assert abs(slow["window"][field] - fast["window"][field]) <= tol, (
+            f"{field}: {slow['window'][field]} at 50 Hz against "
+            f"{fast['window'][field]} at 100 Hz")
+
+    a = np.asarray(slow["windowed_metrics"]["time"])
+    b = np.asarray(fast["windowed_metrics"]["time"])
+    assert len(a) == len(b), (
+        f"{len(a)} windows at 50 Hz against {len(b)} at 100 Hz")
+    assert np.max(np.abs(a - b)) <= tol, (
+        f"window centres differ by up to {np.max(np.abs(a - b)):.4f} s; "
+        f"last is {a[-1]:.4f} against {b[-1]:.4f}")

@@ -21,6 +21,7 @@ from dims_analysis.common import limits as _limits
 from dims_analysis.common import payload as _payload
 from dims_analysis.common import npz as _npz
 from dims_analysis.common import series as _series
+from dims_analysis.common import window as _window
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
@@ -94,8 +95,8 @@ def calculate_recurrence_matrix(time_series, threshold=None,
     - threshold: fixed threshold (if None, will be calculated for target_recurrence)
     - target_recurrence: target recurrence rate (default 5%)
     """
-    # Normalize the time series
-    ts_normalized = (time_series - np.mean(time_series)) / np.std(time_series)
+    # One normalisation, shared with cRQA; see common/series.py.
+    ts_normalized = _series.normalise(time_series)
     
     # Reshape for distance calculation
     ts_reshaped = ts_normalized.reshape(-1, 1)
@@ -127,35 +128,36 @@ def calculate_window_metrics(matrix, dt, min_line=2, exclude_main_diagonal=False
     return _rec.window_metrics(matrix, dt, min_line, self_paired=exclude_main_diagonal)
 
 def compute_windowed_metrics(matrix, time_values, window_sec=20.0, step_sec=1.0):
-    """Slide a square window along the main diagonal of `matrix`, returning
-    {time, RR, DET, LAM, L_MAX} so coupling/structure can be tracked over time."""
+    """Slide a square window along the main diagonal of `matrix`.
+
+    Returns `(metrics, plan)`: `{time, RR, DET, LAM, L_MAX}` and the
+    `WindowPlan` that says where those windows were and how they differ from
+    the ones asked for. See common/window.py -- the placement used to be
+    computed here and again in `crqa.py`, in samples, so it moved with the
+    sampling rate and nothing recorded it.
+    """
     n = matrix.shape[0]
-    dt = float(np.mean(np.diff(time_values))) if len(time_values) > 1 else 0.033
+    dt = float(np.mean(np.diff(time_values))) if len(time_values) > 1 else 0.0
     if dt <= 0:
-        dt = 0.033
-    win_points = max(2, int(window_sec / dt))
-    step_points = max(1, int(step_sec / dt))
-    # Short-series adaptation: if the requested window doesn't fit, a single
-    # trivial window is produced and the metric chart renders blank. Cap the
-    # window to half the series and refine the step so we always get several
-    # windows. Long series keep the requested window/step unchanged.
-    win_points = min(win_points, max(2, n // 2))
-    n_eff = max(1, n - win_points)
-    step_points = max(1, min(step_points, n_eff // 20))
-    out = {'time': [], 'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
-    for start_idx in range(0, max(1, n - win_points), step_points):
-        end_idx = start_idx + win_points
-        w = matrix[start_idx:end_idx, start_idx:end_idx]
-        # Exclude the line of identity (k=0) — in single-series RQA it is
+        raise ValueError(
+            "the time column does not advance, so no window length in seconds "
+            "means anything; a recurrence analysis needs a real time axis.")
+
+    plan = _window.plan(n, dt, window_sec, step_sec)
+    out = {'time': plan.centres(time_values),
+           'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
+    for start in plan.starts:
+        w = matrix[start:start + plan.length, start:start + plan.length]
+        # Exclude the line of identity (k=0) -- in single-series RQA it is
         # trivially recurrent and would otherwise dominate DET / L_MAX.
-        rr, det, lam, l_max = calculate_window_metrics(w, dt, exclude_main_diagonal=True)
-        center = time_values[min(start_idx + win_points // 2, n - 1)]
-        out['time'].append(float(center))
+        rr, det, lam, l_max = calculate_window_metrics(w, dt,
+                                                       exclude_main_diagonal=True)
         out['RR'].append(rr)
         out['DET'].append(det)
         out['LAM'].append(lam)
         out['L_MAX'].append(l_max)
-    return out
+    return out, plan
+
 
 def matrix_to_sparse_format(matrix):
     """
@@ -238,9 +240,11 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
     sparse_matrix = matrix_to_sparse_format(rec_matrix_vis)
 
     # Windowed metrics on the full-resolution matrix (sliding window along the diagonal)
-    windowed_metrics = compute_windowed_metrics(
+    windowed_metrics, window_plan = compute_windowed_metrics(
         rec_matrix_full, time_clean, window_sec=window_sec, step_sec=step_sec
     )
+    if window_plan.warning:
+        print(f"  WARNING: {window_plan.warning}")
 
     # Prepare output data
     target, achieved, rate_warning = _rec.rate_report(TARGET_RECURRENCE, rec_rate)
@@ -258,6 +262,10 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0)
         'recurrence_rate_warning': rate_warning,
         'time_range': [float(time_clean[0]), float(time_clean[-1])],
         'windowed_metrics': windowed_metrics,
+        # DET and LAM are shares of the structure inside one window, so the
+        # window is a parameter of the result exactly as the recurrence rate
+        # is -- and it is recorded the same way, asked-for beside used.
+        'window': window_plan.report(),
         'visualization': {
             'time': time_vis.tolist(),
             'data': data_vis.tolist(),

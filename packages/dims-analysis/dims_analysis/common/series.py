@@ -103,3 +103,32 @@ def load_or_none(path: str, min_points: int = 0, prefix: str = "  ",
     except SeriesError as exc:
         print(f"{prefix}Warning: {exc}")
         return None
+
+
+def normalise(values):
+    """z-score, the one way both recurrence analyses do it.
+
+    They did it two ways: `rqa.py` divided by `np.std(x)`, `crqa.py` by
+    `np.std(x) + 1e-6`. The epsilon was protecting against a zero standard
+    deviation, which `load(min_variance=...)` now refuses before it can get
+    here -- so all it still did was shrink the normalised series by a factor of
+    `sigma / (sigma + 1e-6)`, which is nothing for a signal in ordinary units
+    and 10 % for one whose standard deviation is 1e-5.
+
+    That does not move DET, LAM or RR: the threshold is a *percentile* of the
+    distance matrix, so the whole analysis is scale-free. It moves the stored
+    `threshold`, which is a distance in normalised units -- so RQA's and
+    cRQA's thresholds were not comparable, for no reason anybody would find by
+    reading either file alone.
+
+    A zero standard deviation raises here rather than returning NaNs. Every
+    caller already refuses a constant series upstream; this is the backstop for
+    the one that forgets, because the failure it prevents is silent.
+    """
+    values = np.asarray(values, dtype=float)
+    sigma = float(values.std())
+    if not np.isfinite(sigma) or sigma <= 0:
+        raise SeriesError(
+            "this series does not vary, so it cannot be z-scored; there is "
+            "nothing for a recurrence analysis to measure against it.")
+    return (values - values.mean()) / sigma
