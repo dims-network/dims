@@ -118,6 +118,10 @@ One entry per pair under `crqa_data`, keyed `"{type1}_vs_{type2}"`:
       "series_names": ["sig_a", "sig_b"],
       "threshold": 0.127593,
       "global_recurrence_rate": 0.0700026,
+      "recurrence_rate": 0.0700026,
+      "target_recurrence": 0.07,
+      "achieved_recurrence": 0.0700026,
+      "recurrence_rate_warning": null,
       "time_range": [0.0, 59.8],
       "windowed_metrics": { "time": [], "RR": [], "DET": [], "LAM": [], "L_MAX": [] },
       "window": { "length_requested_sec": 12.0, "length_used_sec": 12.0,
@@ -149,29 +153,33 @@ One entry per pair under `crqa_data`, keyed `"{type1}_vs_{type2}"`:
 | `series_names` | list of 2 | `[rows, columns]`, in that order |
 | `threshold` | float | Euclidean distance in z-score units |
 | `global_recurrence_rate` | float | share of all `n · m` cells |
+| `recurrence_rate` | float | the same number under the name RQA uses |
+| `target_recurrence`, `achieved_recurrence` | float | asked for, and got |
+| `recurrence_rate_warning` | string or `null` | present when those two differ by more than 0.01 |
 | `windowed_metrics` | object | as in RQA; `L_MAX` in seconds |
 | `window` | object | requested beside used |
 | `visualization.data_x`, `.data_y` | list | the reduced signals, z-scored; `data_x` runs down the rows |
 | `visualization.matrix` | `bitmap-b64` | rows = first series, columns = second |
 | `full_stats.signal_x`, `.signal_y` | `f32-b64` | both series on the common grid, z-scored |
 
-### Three differences from the RQA payload
+### Two differences from the RQA payload
 
 Worth knowing before you write code that reads both:
 
-1. **The rate has a different name.** `global_recurrence_rate` here,
-   `recurrence_rate` in RQA.
-2. **Asked-for and achieved are not both recorded.** RQA writes
-   `target_recurrence`, `achieved_recurrence` and `recurrence_rate_warning`;
-   this step writes none of them, so a threshold search that landed on a plateau
-   goes unreported. The target survives only in `provenance.target_recurrence`.
-   That is a gap against contract A6 in
-   [analysis output](../contracts/analysis-output.md), not a deliberate
-   difference — until it is closed, compare `global_recurrence_rate` against
-   `provenance.target_recurrence` yourself.
-3. **`full_stats` carries the window settings and `full_data` does not** — and
+1. **The rate is written under two names.** `global_recurrence_rate` is what
+   the dashboard tab reads; `recurrence_rate` is the same number under the name
+   RQA uses. They are written from one value and cannot disagree.
+2. **`full_stats` carries the window settings and `full_data` does not** — and
    the ones it carries are the values **requested**, not the ones used. When
    they differ, `window.length_used_sec` is the truth.
+
+Until recently there was a third: this step recorded no
+`target_recurrence`, `achieved_recurrence` or `recurrence_rate_warning`, so a
+threshold search that landed on a plateau went unreported and the target
+survived only in `provenance`. That was a gap against contract A6 in
+[analysis output](../contracts/analysis-output.md) rather than a deliberate
+difference, and it is closed — a payload written by an older core will still be
+missing those three fields.
 
 ## Further reading
 

@@ -182,10 +182,10 @@
         "mean_RR": 0.069076,
         "rate_drawn": 0.0700372,
         "rate_full": 0.0700006,
-        "recurrence_rate": null,
+        "recurrence_rate": 0.0700006,
         "recurrent_cells": 8144,
         "reduction_factor": 3,
-        "target_recurrence": null,
+        "target_recurrence": 0.07,
         "threshold": 0.126505,
         "warned": false
       },
@@ -210,10 +210,10 @@
         "mean_RR": 0.070136,
         "rate_drawn": 0.0699254,
         "rate_full": 0.0700016,
-        "recurrence_rate": null,
+        "recurrence_rate": 0.0700016,
         "recurrent_cells": 8131,
         "reduction_factor": 3,
-        "target_recurrence": null,
+        "target_recurrence": 0.07,
         "threshold": 0.0836888,
         "warned": false
       },
@@ -238,10 +238,10 @@
         "mean_RR": 0.07028,
         "rate_drawn": 0.0699512,
         "rate_full": 0.0700006,
-        "recurrence_rate": null,
+        "recurrence_rate": 0.0700006,
         "recurrent_cells": 8134,
         "reduction_factor": 3,
-        "target_recurrence": null,
+        "target_recurrence": 0.07,
         "threshold": 0.088535,
         "warned": false
       }

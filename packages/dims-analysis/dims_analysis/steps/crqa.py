@@ -235,6 +235,16 @@ def process_crqa_for_pair(video_id, type1, type2, input_dir=INPUT_DIR,
         emb1, emb2, target_recurrence=target_recurrence)
     print(f"  > Global cross-recurrence rate: {global_rr*100:.2f}%")
 
+    # Asked-for beside achieved, as contract A6 requires wherever an analysis
+    # aims at something it may not hit. The threshold is a percentile, so a
+    # quantised or partly-still signal lands on a plateau and the target cannot
+    # be reached -- 33.7 % against a 7 % request, in silence. rqa.py has
+    # reported this since A6 was written; this step never called rate_report at
+    # all, so its payload carried a rate with nothing to compare it against.
+    target, achieved, rate_warning = _rec.rate_report(target_recurrence, global_rr)
+    if rate_warning:
+        print(f"  > WARNING: {rate_warning}")
+
     # Windowed metrics along the line of synchronization (main diagonal).
     # The placement is common/window.py, shared with rqa.py: this file
     # used to carry its own copy, in samples, so the reported time axis
@@ -270,7 +280,15 @@ def process_crqa_for_pair(video_id, type1, type2, input_dir=INPUT_DIR,
         'pair_name': pair_key,
         'series_names': [type1, type2],
         'threshold': float(threshold),
+        # Two names for one number. `global_recurrence_rate` is what
+        # packages/dims-tabs/crqa.js reads into its plot titles, so it stays;
+        # `recurrence_rate` is what rqa.py calls it and what the reference
+        # summary has always looked for, finding null.
         'global_recurrence_rate': float(global_rr),
+        'recurrence_rate': float(global_rr),
+        'target_recurrence': target,
+        'achieved_recurrence': achieved,
+        'recurrence_rate_warning': rate_warning,
         'time_range': [float(time_vals[0]), float(time_vals[-1])],
         'windowed_metrics': windowed_metrics,
         # Asked-for beside used; see common/window.py.

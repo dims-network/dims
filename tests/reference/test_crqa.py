@@ -9,7 +9,8 @@ Shared fixtures and helpers: conftest.py.
 """
 import numpy as np
 
-from conftest import LAG_S, LAG_SAMPLES, dense, diagonal_offsets, entry
+from conftest import (LAG_S, LAG_SAMPLES, TARGET_RATE, dense,
+                      diagonal_offsets, entry)
 
 
 # --- K3: a known lag lands where it should -----------------------------------
@@ -35,3 +36,28 @@ def test_K3_cross_recurrence_finds_the_lag_it_was_given(recurrence):
         f"lag should put it near {expected:.0f}. Offsets found: {offsets[:12]}")
 
 
+# --- A6: asked-for beside achieved, which this step used not to record --------
+
+def test_each_pair_records_the_rate_asked_for_and_the_rate_reached(recurrence):
+    """The mirror of the RQA test, and for a long time it could not be written.
+
+    cRQA never called `rate_report`, so its payload carried
+    `global_recurrence_rate` and nothing to read it against: the target survived
+    only in `provenance`, and the reference baseline pinned `recurrence_rate`
+    and `target_recurrence` as null -- fields the gate was watching that had
+    never held a value. Contract A6 says both numbers are recorded wherever an
+    analysis aims at something it may not hit, and a percentile threshold on a
+    quantised or partly-still signal is exactly that.
+    """
+    study, _ = recurrence
+    for name in ("sine_vs_sine", "sine_vs_sine_lagged", "noise_a_vs_noise_b"):
+        e = entry(study, "crqa", "crqa_data", name)
+        assert e["target_recurrence"] == TARGET_RATE
+        # One number under two names: the tab reads the long one, RQA uses the
+        # short one, and they must not be allowed to disagree.
+        assert e["recurrence_rate"] == e["global_recurrence_rate"]
+        assert abs(e["achieved_recurrence"] - e["recurrence_rate"]) < 1e-9
+        missed = abs(e["achieved_recurrence"] - TARGET_RATE) > 0.01
+        assert bool(e["recurrence_rate_warning"]) == missed, (
+            f"{name}: achieved {e['achieved_recurrence']:.4f} against "
+            f"{TARGET_RATE}, warning={e['recurrence_rate_warning']!r}")
