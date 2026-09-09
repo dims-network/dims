@@ -16,6 +16,11 @@ opt/_requirements.builder.txt
 # `git add`, which for a directory that gets copied into every new study is a
 # study missing a folder it was supposed to have.
 /examples/reference/assets/
+# setuptools' wheel scratch. `python -m build` leaves a whole second copy of
+# every package under build/lib -- the builder's static files included -- so a
+# grep finds every hit twice and the second one is stale.
+build/
+
 # Build artefacts. `pip install -e .` -- which the README instructs -- rewrites
 # these on every run, and a permanently dirty tree trains people to ignore
 # `git status`, which is how an accidental `git add -A` sweeps something in.

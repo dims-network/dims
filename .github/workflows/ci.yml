@@ -172,6 +172,15 @@ jobs:
       - name: Tests
         working-directory: apps/builder
         run: python -m pytest tests -q
+      # The wizard's front end. Its one previous defect of this shape -- a config
+      # key silently dropped on a round trip -- was invisible to every Python
+      # test, because it happened entirely in the page.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Front-end tests
+        working-directory: apps/builder/test
+        run: npm install --no-audit --no-fund && node --test
       - name: The wizard builds a complete study
         run: |
           python - <<'PY'

@@ -4,6 +4,43 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.2.0
+
+A study can now say which time series is which node in the cross-effector
+network, instead of encoding it in the measure's name and hoping the tab takes
+it apart correctly. Additive: a study that declares nothing behaves exactly as
+it did.
+
+**`include_network.effectors`.** One entry per node — `series`, `label`,
+`group`, and either a `part` of the figure or an `x`/`y` fraction of the chart.
+Nothing is inferred from a name. Without it the tab reads the group off a
+regular expression, the label off deleting that expression, and the body part
+off a token found somewhere inside what is left; that works for a study whose
+measures are called `teacher_righthandspeed` and leaves one whose measures are
+called `bodysync` with a single undifferentiated column.
+
+**The wizard asks.** Step 4 gains a table — one row per measure, with its group,
+its label and where it goes — and the `layout` control it never had. It also
+stops discarding what it cannot display: choosing the figure layout and then
+reopening the study used to delete `layout` on the next Next, and an effector's
+coordinates would have been the next casualty. There is a headless test suite
+for the wizard's page now, which is what that class of bug needed.
+
+**Two nodes no longer land on one spot.** The figure maps `head` and `nose` to
+the same point, and `hand` and `lefthand` to the same point, so a study with
+both drew one circle over another with a zero-length edge between them.
+
+**The co-activity figure is documented, and was described wrongly.** Every edge
+reports what share of the window both measures were active for. The schema said
+it "is reported and never acted on"; it fades the edge below a quarter of the
+window, and the tab's own comment contradicted the constant two lines below it.
+What is true is that it never changes a coherence value.
+
+**The tab has a page.** `docs/tabs/network.md` — how to read an edge, why
+thickness is relative, why it needs a chance level, the co-activity channel and
+its assumption that near-zero means "not moving", both layouts, and the effector
+mapping.
+
 ## v1.1.0
 
 One change to what an analysis writes, one to how the core is packaged, and a

@@ -91,3 +91,42 @@ def test_every_contract_the_docs_cross_reference_exists():
             if not os.path.exists(full):
                 missing.append(f"{name} -> {target}")
     assert not missing, missing
+
+
+def test_the_figure_layout_vocabulary_is_the_same_in_every_file_that_names_it():
+    """Where the network can put a node is written down four times.
+
+    `figurePositions()` in packages/dims-tabs/network.js draws them, the `part`
+    enum in the config schema accepts them, FIGURE_PARTS in the builder's
+    validate.py warns about them, and the builder's own dropdown offers them.
+    Nothing connects the four, and the failure is quiet in the direction that
+    matters: a part one of them has not heard of is stacked beside the figure by
+    the tab, which reads as a layout the study chose rather than a name it got
+    wrong.
+    """
+    schema = json.load(open(os.path.join(ROOT, "docs/contracts/config.schema.json")))
+    net = schema["properties"]["include_network"]["oneOf"][1]
+    from_schema = set(net["properties"]["effectors"]["items"]["properties"]["part"]["enum"])
+
+    source = open(os.path.join(ROOT, "packages/dims-tabs/network.js")).read()
+    body = source[source.index("function figurePositions"):source.index("const BODY_PARTS")]
+    from_tab = set(re.findall(r"^\s{12}(\w+):", body, re.M))
+
+    validate = open(os.path.join(ROOT, "apps/builder/dims_builder/validate.py")).read()
+    block = validate[validate.index("FIGURE_PARTS = ("):]
+    from_validate = set(re.findall(r'"(\w+)"', block[:block.index(")")]))
+
+    builder = open(os.path.join(
+        ROOT, "apps/builder/dims_builder/static/builder.js")).read()
+    if "FIGURE_PARTS" in builder:
+        line = builder[builder.index("const FIGURE_PARTS"):]
+        from_builder = set(re.findall(r'"(\w+)"', line[:line.index("]")]))
+        assert from_builder == from_schema, (
+            f"builder.js offers {sorted(from_builder)}, schema accepts "
+            f"{sorted(from_schema)}")
+
+    assert from_tab == from_schema, (
+        f"network.js draws {sorted(from_tab)}, schema accepts {sorted(from_schema)}")
+    assert from_validate == from_schema, (
+        f"validate.py knows {sorted(from_validate)}, schema accepts "
+        f"{sorted(from_schema)}")

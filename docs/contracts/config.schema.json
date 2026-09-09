@@ -237,7 +237,7 @@
       }
     },
     "include_network": {
-      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them. Every edge also reports what share of the window had both measures active, which assumes a measure whose near-zero means \"not moving\" -- a speed or another magnitude. It is reported and never acted on, and is omitted entirely when the raw series are not loaded.",
+      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them. Every edge also reports what share of the window had both measures active, which assumes a measure whose near-zero means \"not moving\" -- a speed or another magnitude. It never changes a coherence value, but it does fade the edge below a quarter of the window, and it is omitted entirely -- reported as nothing, not as stillness -- when the raw series are not loaded.",
       "oneOf": [
         {
           "type": "boolean"
@@ -248,17 +248,14 @@
           "properties": {
             "groups": {
               "type": "array",
-              "description": "How this study's measures divide -- two people, two conditions, two instruments. Each group matches data type names with a regular expression; anything matching none of them is drawn in a trailing 'Other' group rather than dropped.",
+              "description": "How this study's measures divide -- two people, two conditions, two instruments. Each group either matches data type names with a regular expression, or is referenced by label from `effectors`. Anything belonging to no group is drawn in a trailing 'Other' group rather than dropped.",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "match"
-                ],
                 "properties": {
                   "match": {
                     "type": "string",
-                    "description": "Case-insensitive regular expression on the data type name. With layout \"figure\" the part of the name it matches is stripped before the body part is read, so `^teacher` turns `teacher_righthandspeed` into `righthandspeed`."
+                    "description": "Case-insensitive regular expression on the data type name, for a study that has not declared `effectors`. Omit it when the group's members are declared: a group is then referenced by its label, and nothing is inferred from a name. With layout \"figure\" the part of the name it matches is stripped before the body part is read, so `^teacher` turns `teacher_righthandspeed` into `righthandspeed`."
                   },
                   "label": {
                     "type": "string"
@@ -266,6 +263,57 @@
                   "color": {
                     "type": "string",
                     "description": "CSS colour for this group's nodes."
+                  }
+                }
+              }
+            },
+            "effectors": {
+              "type": "array",
+              "description": "Which time series is which node, said outright instead of inferred from its name. Without this the tab reads the group off a regular expression, the label off deleting that expression, and the body part off a token found somewhere inside what is left -- which works for a study that encodes person, part and quantity in one string, `teacher_righthandspeed`, and leaves a study whose measures are called `bodysync` and `neuralsync` with one undifferentiated group. Declaring is opt-in: omit this and the inference is exactly what it was. A series that appears in a pair and is declared by nothing here still gets a node, in 'Other'; a declared series that appears in no cross-wavelet pair still gets a node, with no edges, because that is the study's own question to answer.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "series"
+                ],
+                "properties": {
+                  "series": {
+                    "type": "string",
+                    "description": "The data type this node is, exactly as it appears in `dataTypes` and in assets/timeseries/{videoID}_{dataType}.csv. It stays a real data type rather than becoming a display name because the tab looks the raw series up by this name to report how much of the window both measures were active for; a label here would cost every edge that line, silently."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "What to draw under the node. Defaults to `series`."
+                  },
+                  "group": {
+                    "type": "string",
+                    "description": "The `label` of one of the groups above. A group no entry in `groups` defines is a typo rather than an instruction to invent a column, so the node is drawn in 'Other' where it is visible."
+                  },
+                  "part": {
+                    "type": "string",
+                    "enum": [
+                      "head",
+                      "nose",
+                      "lefthand",
+                      "righthand",
+                      "hand",
+                      "torso",
+                      "hip",
+                      "foot"
+                    ],
+                    "description": "Where on the figure this node sits. Read only by layout \"figure\"; in \"columns\" it is ignored. A node with no part is stacked beside the figure rather than dropped."
+                  },
+                  "x": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Horizontal position as a fraction of the chart, 0 at the left and 1 at the right, overriding `part`. A fraction rather than a coordinate because the chart's own dimensions are private constants of network.js that have been retuned before; a config in raw units would drift the day one of them moves. Omit it in layout \"figure\" to keep the node on its own figure's centre line -- an explicit x is absolute and does not follow a figure when a third group is added."
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Vertical position as a fraction of the chart, 0 at the top and 1 at the bottom, overriding `part`."
                   }
                 }
               }

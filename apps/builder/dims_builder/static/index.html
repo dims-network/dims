@@ -204,13 +204,26 @@
           chance level (100 surrogates), because without it no edge can be told
           from coincidence — an unrelated pair scores about 0.25, not 0.</div>
         <details class="advanced">
-          <summary>Grouping (optional)</summary>
+          <summary>Groups and placement (optional)</summary>
           <p class="hint">If your measures divide into groups — two people, two
-            conditions — name them and say how to recognise them. One line each:
-            <code>Label, pattern, colour</code>. The pattern matches the start of
-            a measure's name.</p>
+            conditions — name them here. One line each:
+            <code>Label, pattern, colour</code>. The pattern is optional: leave
+            it out and say below which measure goes in which group. Given, it is
+            a regular expression matched against the measure's name.</p>
           <textarea id="network_groups" rows="3"
                     placeholder="Teacher, ^teacher, #e84393&#10;Student, ^student, #00b894"></textarea>
+
+          <p class="hint">Then say which time series is which node. Leave a row
+            blank to let the pattern above decide, as it did before this table
+            existed.</p>
+          <table class="effectors"><tbody id="network_effectors"></tbody></table>
+
+          <label>Layout
+            <select id="network_layout">
+              <option value="columns">Columns — one per group</option>
+              <option value="figure">Figure — a body per group</option>
+            </select>
+          </label>
           <label>Period band (s) <input id="network_band" type="text" placeholder="e.g. 0.5, 8" /></label>
         </details>
       </div>

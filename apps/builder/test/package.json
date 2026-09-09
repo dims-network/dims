@@ -1,0 +1,7 @@
+{
+  "name": "dims-builder-test",
+  "private": true,
+  "description": "Tests for the wizard's front end. The wizard itself has no build step and no runtime dependencies; jsdom is here so a round trip through the page can be asserted without a browser.",
+  "scripts": { "test": "node --test" },
+  "devDependencies": { "jsdom": "^25.0.0" }
+}

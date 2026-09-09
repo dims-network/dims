@@ -116,6 +116,8 @@ full schema is [`config.schema.json`](contracts/config.schema.json).
   // The cross-effector network draws its edges from the cross-wavelet output
   // above, and switching it on also switches on the Monte Carlo coherence
   // null -- without which no edge can be told from chance.
+  // `true` infers the nodes from the measure names; an object says
+  // outright which series is which node -- see docs/tabs/network.md
   "include_network": true
 }
 ```

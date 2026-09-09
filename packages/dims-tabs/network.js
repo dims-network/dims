@@ -82,11 +82,30 @@
     }
 
     // A study says how its measures group -- two people, two conditions, two
-    // instruments -- with a regular expression each. Anything matching none of
-    // them lands in a trailing group, visibly, rather than being dropped.
+    // instruments. There are two ways to say it, and `effectors` wins where it
+    // is given.
+    //
+    // The older way infers everything from the measure's name: a regular
+    // expression per group, the display label is the name with that expression
+    // deleted, and the body part is a token found somewhere inside what is left.
+    // That works for a study that encodes person, part and quantity in one
+    // string -- `teacher_righthandspeed` -- and says nothing about a study whose
+    // measures are called `bodysync` and `neuralsync`, where every measure falls
+    // into one undifferentiated group.
+    //
+    // The newer way is a declaration: `effectors: [{series, group, label, part,
+    // x, y}]`. Nothing is parsed out of a name. It is opt-in because the
+    // inference is what every existing study relies on.
     function grouping(config, measures) {
         const spec = (config && config.include_network) || {};
         const defined = Array.isArray(spec.groups) ? spec.groups : [];
+        const declared = Array.isArray(spec.effectors) ? spec.effectors : [];
+        return declared.length
+            ? declaredGrouping(defined, declared, measures)
+            : matchedGrouping(defined, measures);
+    }
+
+    function matchedGrouping(defined, measures) {
         const groups = defined.map((g, i) => ({
             label: g.label || `Group ${i + 1}`,
             color: g.color || null,
@@ -100,6 +119,53 @@
             const hit = groups.find(g => g.match && g.match.test(name));
             (hit || rest).members.push(name);
         });
+        if (rest.members.length) groups.push(rest);
+        return groups.filter(g => g.members.length);
+    }
+
+    // Nodes the study named, in the order it named them, plus anything the
+    // pairs mention that it did not.
+    //
+    // Two cases are deliberately visible rather than quiet. A declared effector
+    // whose series appears in no pair is still drawn, as a node with no edges:
+    // it says "you asked for this and cross-wavelet does not cover it", which is
+    // the question a reader would otherwise have to ask the config. And a
+    // measure that turns up in a pair but no effector declares lands in the
+    // trailing group, exactly as an unmatched name does above -- losing a
+    // measure because a list was incomplete would be the worst of both schemes.
+    function declaredGrouping(defined, declared, measures) {
+        const groups = defined.map((g, i) => ({
+            label: g.label || `Group ${i + 1}`,
+            color: g.color || null,
+            match: null,                    // declared members, not matched ones
+            members: [],
+            declared: {},
+        }));
+        const byLabel = new Map(groups.map(g => [g.label, g]));
+        const rest = { label: 'Other', color: null, match: null,
+                       members: [], declared: {} };
+
+        const placed = new Set();
+        declared.forEach(entry => {
+            const name = entry && entry.series;
+            if (!name || placed.has(name)) return;   // a duplicate is one node
+            placed.add(name);
+            // A group nobody defined is a typo, not an instruction to invent a
+            // column: the node still appears, in `Other`, where it is obvious.
+            const group = byLabel.get(entry.group) || rest;
+            group.members.push(name);
+            group.declared[name] = {
+                label: entry.label || name,
+                part: entry.part || null,
+                x: Number.isFinite(entry.x) ? entry.x : null,
+                y: Number.isFinite(entry.y) ? entry.y : null,
+            };
+        });
+
+        measures.forEach(name => {
+            if (!placed.has(name)) rest.members.push(name);
+        });
+
         if (rest.members.length) groups.push(rest);
         return groups.filter(g => g.members.length);
     }
@@ -255,6 +321,19 @@
         return style === "figure" ? figureLayout(groups) : columnLayout(groups);
     }
 
+    // What a declared effector said about this node, or nothing.
+    function declarationFor(group, name) {
+        return (group.declared && group.declared[name]) || null;
+    }
+
+    // `x` and `y` are fractions of the chart, not units of it. VIEW_W and
+    // VIEW_H are private constants of this file that have been tuned in place,
+    // and a config written in raw units would drift the day one of them moves,
+    // silently, in a study nobody is editing. A fraction is defined against
+    // "the chart", which is stable.
+    function fractionX(v) { return v === null ? null : v * VIEW_W; }
+    function fractionY(v) { return v === null ? null : v * VIEW_H; }
+
     function columnLayout(groups) {
         // One column per group, members spread down it. Simple on purpose: a
         // force layout moves nodes between frames, and this picture is read by
@@ -268,9 +347,16 @@
                 const span = VIEW_H - 180;
                 const y = count === 1 ? VIEW_H / 2
                     : 110 + span * mi / (count - 1);
-                positions[name] = { x: cx, y, group, label: nodeLabel(name, group) };
+                const d = declarationFor(group, name);
+                positions[name] = {
+                    x: (d && fractionX(d.x)) ?? cx,
+                    y: (d && fractionY(d.y)) ?? y,
+                    group,
+                    label: (d && d.label) || nodeLabel(name, group),
+                };
             });
         });
+        separate(positions);
         return positions;
     }
 
@@ -287,16 +373,45 @@
             group.cx = cx;
             let strays = 0;
             group.members.forEach((name) => {
-                const label = nodeLabel(name, group);
-                const part = bodyPart(label) || bodyPart(name);
+                const d = declarationFor(group, name);
+                const label = (d && d.label) || nodeLabel(name, group);
+                // A declared part is a statement; a sniffed one is a guess.
+                const part = d ? d.part : (bodyPart(label) || bodyPart(name));
                 const at = part && spots[part];
-                positions[name] = at
+                const base = at
                     ? { x: at.x, y: at.y, group, label, part }
                     : { x: cx + 150, y: 110 + (strays++) * 70, group, label,
                         part: null };
+                // Explicit coordinates win over the slot. `x` omitted keeps the
+                // node on its own figure's centre line, which is the only way to
+                // say "on this person, lower down" -- an explicit x is absolute
+                // and does not follow a figure when a third group is added.
+                if (d && d.x !== null) base.x = fractionX(d.x);
+                if (d && d.y !== null) base.y = fractionY(d.y);
+                positions[name] = base;
             });
         });
+        separate(positions);
         return positions;
+    }
+
+    // Two measures on one spot draw one circle over another, with a
+    // zero-length edge between them that cannot be clicked. `figurePositions`
+    // makes this reachable without anyone asking for it -- `head` and `nose`
+    // are the same point, and so are `hand` and `lefthand` -- so a study with
+    // both loses a node to a coincidence it never declared.
+    //
+    // Nudged apart horizontally, least-recently-placed to the right, which
+    // keeps them on the body part they belong to and visibly distinct.
+    function separate(positions) {
+        const seen = new Map();
+        Object.keys(positions).forEach(name => {
+            const p = positions[name];
+            const key = `${Math.round(p.x)},${Math.round(p.y)}`;
+            const n = seen.get(key) || 0;
+            if (n) p.x += n * (NODE_R * 1.4);
+            seen.set(key, n + 1);
+        });
     }
 
     function el(name, attrs) {
@@ -391,8 +506,13 @@
     // value.
     //
     // **This assumes a measure whose near-zero means "not moving"** -- a speed,
-    // or another magnitude. On a position channel the number would be
-    // meaningless, which is why it is only ever reported and never acted on.
+    // or another magnitude. On a position channel the number is meaningless,
+    // which is why it never touches a coherence value.
+    //
+    // It is not, however, "only ever reported": LOW_MOVEMENT below fades an edge
+    // computed mostly from stillness, so the figure does change the picture. The
+    // comment here used to claim otherwise, two lines above the constant that
+    // contradicts it, and the config schema repeated the claim.
 
     //: A measure counts as active above this share of its own 95th percentile.
     //: The 95th rather than the maximum, so one tracking glitch does not set the
