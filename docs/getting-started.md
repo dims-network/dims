@@ -149,6 +149,10 @@ resolution it was computed at. **Continue your own analysis from `_full.json`**
 where it exists; a recurrence payload carries its own full-resolution signal, so
 there is nothing beside it to prefer.
 
+What each analysis actually computes — the parameters, the algorithm, every
+field it writes, and what it deliberately does not do — is in
+[Analyses](analyses/index.md).
+
 ## 5. Look at it
 
 ```sh

@@ -193,6 +193,11 @@ numbers and a warning when they are far apart.
   33.7 %. DET and LAM depend strongly on the rate, so two recordings analysed at
   materially different rates are not comparable, and that is a fact about the
   data rather than an error: it is reported, not raised.
+
+  **`crqa` does not do this yet.** It writes `global_recurrence_rate` and
+  nothing to compare it against; the target survives only in
+  `provenance.target_recurrence`. A reader wanting the check has to make it
+  themselves — see [cross-recurrence](../analyses/crqa.md).
 - **The window**, as A5 describes.
 - **`mcCount`**, so a study computed partly at 100 surrogates and partly at 300
   cannot be silently inconsistent.

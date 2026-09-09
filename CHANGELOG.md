@@ -4,6 +4,32 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.0.2
+
+Documentation only. No analysis or payload change: a study takes this by
+re-vendoring, with no rebuild.
+
+- The three analyses are documented. `docs/analyses/` covers cross-wavelet and
+  coherence, RQA and cross-RQA — the algorithm, every parameter and its real
+  default, every output field with its shape and units, and what each one does
+  not do. The figures are produced by running the analyses over synthetic
+  signals, not drawn.
+- Stated for the first time: the recurrence steps apply **no time-delay
+  embedding**, threshold on a recurrence rate rather than a radius, use no
+  Theiler window, fix the minimum line length at 2, report `L_MAX` in seconds,
+  and compute none of L, ENTR or TT.
+- `docs/coherence.md` is now a section of the cross-wavelet page, beside the
+  transform it comes from and the three other significance levels it is easy to
+  confuse it with.
+- The coherence page said 300 Monte Carlo surrogates was the default. It is 100
+  when `include_network` is set and 0 otherwise; 300 is the number to publish
+  with.
+- Two gaps named rather than papered over: `crqa` records no achieved
+  recurrence rate to compare with its target (contract A6), and
+  `include_cRQA` silently ignores the flat list of data types that
+  `include_crosswavelet` accepts.
+- The step contract's example named a class that does not exist.
+
 ## v1.0.1
 
 Documentation and wording only. No analysis or payload change: a study takes
