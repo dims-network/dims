@@ -13,6 +13,13 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# The wizard is an optional extra, and this is the only suite that needs it.
+# Without the guard, `pytest` at the repository root is a collection error
+# rather than a skip for anyone who installed `.[dev]` -- which does not carry
+# flask -- and the one CI job that installs it is the only place anybody would
+# find out. Same idiom as tests/test_contracts.py for jsonschema.
+pytest.importorskip("flask", reason="the builder's extra: pip install '.[builder]'")
+
 from dims_builder import server  # noqa: E402
 
 

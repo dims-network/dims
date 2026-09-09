@@ -53,6 +53,10 @@ notebooks = [
 dev = [
   "pytest>=7",
   "jsonschema>=4",
+  # The builder's suite is part of `pytest` at the repository root, so the
+  # command a contributor actually runs has to be able to import it. It is
+  # still guarded, so a dev install without it skips rather than errors.
+  "flask>=3.0",
 ]
 
 [project.urls]
@@ -71,6 +75,32 @@ dims-builder = "dims_builder.__main__:main"
 rqa = "dims_analysis.steps.rqa:Step"
 crqa = "dims_analysis.steps.crqa:Step"
 crosswavelet = "dims_analysis.steps.crosswavelet:Step"
+
+# `pytest` with no arguments is the command a contributor actually runs, so it
+# has to mean something. Without `testpaths` it collected by walking the tree,
+# which worked only because nothing collectable happened to sit anywhere else
+# -- and it would have walked into a study's vendor/ or the wizard's staging
+# directory the moment one appeared. The five roots are the ones tests/README.md
+# names; a sixth belongs here the day it exists.
+[tool.pytest.ini_options]
+testpaths = [
+  "tests",
+  "packages/dims-analysis/tests",
+  "packages/dims-case/tests",
+  "packages/dims-notebooks/tests",
+  "apps/builder/tests",
+]
+norecursedirs = [
+  ".git", "*.egg-info", "build", "dist", "node_modules",
+  "vendor",            # a study's vendored core is a copy, not a source
+  "_staging",          # the wizard's upload scratch: 53 MB of duplicate media
+  "assets",            # generated study data
+]
+markers = [
+  "slow: needs the reference study built, or pyrqa, or a Monte Carlo run",
+]
+# An unregistered marker is a typo that silently disables a test.
+addopts = "--strict-markers"
 
 [tool.setuptools.packages.find]
 where = ["packages/dims-analysis", "packages/dims-case", "apps/builder"]
