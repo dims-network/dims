@@ -43,6 +43,19 @@ class StepContext:
         d = assets.resolve(step.output_dir, self.project_dir)
         return d if os.path.isabs(d) else self.path(d)
 
+    def input_dir(self, relative: str) -> str:
+        """Where a step reads from, absolute. The counterpart of output_dir_for.
+
+        Same two rules: `data.local.json` may send `assets/...` outside the
+        repository, and anything still relative is relative to the *project*,
+        not to the working directory. Steps used to get the second rule by
+        chdir-ing into the project before running, which is process-global and
+        made them unusable from a threaded caller -- and it is what let one
+        project's resolved input path leak into the next.
+        """
+        d = assets.resolve(relative, self.project_dir)
+        return d if os.path.isabs(d) else self.path(d)
+
     def output_path(self, step: "Step", video_id: str) -> str:
         d = self.output_dir_for(step)
         os.makedirs(d, exist_ok=True)
@@ -71,21 +84,26 @@ class StepContext:
         return snap
 
     # -- results -------------------------------------------------------------
-    def write_result(self, step: "Step", video_id: str, payload: dict) -> str:
+    def write_result(self, step: "Step", video_id: str, payload: dict) -> dict:
         """Write the browser payload, merging with anything already there.
 
         Merging rather than clobbering is deliberate: one fork had to maintain
         its own copy of a whole step purely because the shared version
         overwrote the output that a second, complementary analysis had written.
+
+        Returns the {"kept": ..., "replaced": ...} report, so the caller can say
+        what happened -- a silent keep leaves stale results in a file that looks
+        freshly written. Use `step_io.report_merge` to print it.
+
+        It writes compactly, as the steps' own `main()` does. It did not, and
+        that mattered the moment anything called it: two entry points into one
+        analysis must not produce two different files, and indent=2 is a quarter
+        of a payload nobody reads by eye.
         """
         p = self.output_path(step, video_id)
         body = {"video_id": video_id}
         body.update(payload)
-        # One implementation, shared with the steps' own main(). This method
-        # existed and merged correctly while no shipped step called it, so the
-        # behaviour lived in a docstring and a test rather than in the product.
-        results.write_payload(p, body, compact=False)
-        return p
+        return results.write_payload(p, body)
 
     def params(self, step: "Step", defaults: dict) -> dict:
         """Per-step tuning from config.json, falling back to the step's defaults.

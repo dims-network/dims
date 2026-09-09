@@ -215,3 +215,83 @@ def test_a_study_with_a_consumer_computes_the_null_by_default(tmp_path):
     proc = _run("crosswavelet", project)
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "coherence null: 100 surrogates" in proc.stdout, proc.stdout[-2000:]
+
+
+def _one_series_study(root, n_points, period):
+    """The smallest study that produces an RQA payload, at a chosen shape.
+
+    Length and period, not amplitude: the series is z-scored before the
+    distance matrix is built, so a study analysed against another study's data
+    at twice the amplitude would report an identical threshold and the test
+    would pass while the bug was present.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "assets" / "timeseries").mkdir(parents=True)
+    t = np.arange(n_points) / 20.0
+    values = np.sin(2 * np.pi * t / period)
+    with open(root / "assets" / "timeseries" / "v_sig.csv", "w") as fh:
+        fh.write("Time,sig\n")
+        for a, b in zip(t, values):
+            fh.write(f"{a:.6f},{b:.6f}\n")
+    config = {"videoIDs": ["v"], "include_RQA": ["sig"],
+              "analysis": {"rqa": {"window": 4.0, "step": 0.5}}}
+    with open(root / "config.json", "w") as fh:
+        json.dump(config, fh)
+    return config
+
+
+def test_two_projects_in_one_process_each_read_their_own_data(tmp_path):
+    """The global input directory is gone, and this is what it used to cost.
+
+    `main()` resolved INPUT_DIR into a module global, and `assets.resolve`
+    returns an already-absolute path unchanged -- so the second study analysed
+    in one process read the first study's time series and wrote them into the
+    second study's output, in silence. Nothing shipped that ran two projects in
+    one process, which is exactly why it survived: it becomes reachable the
+    moment anything drives the runner in a loop.
+
+    Both studies are analysed through Step.run() in this interpreter, and each
+    payload has to describe its own data.
+    """
+    from dims_analysis.base import StepContext
+    from dims_analysis.steps.rqa import Step
+
+    seen = {}
+    for name, n_points, period in (("a", 400, 2.0), ("b", 700, 3.5)):
+        project = tmp_path / name
+        config = _one_series_study(project, n_points, period)
+        # An absolute output directory, which is what a private study produces
+        # and what used to poison the module global for the next study.
+        ctx = StepContext(str(project), config,
+                          output_dir=str(project / "out"))
+        Step().run(config, ctx)
+        payload = json.loads((project / "out" / "v_rqa_data.json").read_text())
+        entry = payload["rqa_data"]["sig"]
+        seen[name] = (entry["full_data"]["n_points"], entry["threshold"])
+
+    # Each study must describe its own series. Before this, the second run
+    # resolved its input directory from a module global the first run had
+    # already rewritten to an absolute path, and reported 400 points here.
+    assert seen["a"][0] == 400
+    assert seen["b"][0] == 700
+    assert seen["a"][1] != seen["b"][1]
+
+
+def test_neither_recurrence_step_reassigns_a_module_global():
+    """`global` is what made the leak above possible; there is none left.
+
+    Kept as a structural assertion rather than only a behavioural one, because
+    the behavioural test can only catch the leak on the paths it happens to
+    exercise.
+    """
+    import ast
+    import inspect
+    from dims_analysis.steps import rqa, crqa
+    for module in (rqa, crqa):
+        # Parsed, not grepped: a docstring that says the word "global" at the
+        # start of a line is prose, and the first version of this test failed
+        # on one of them.
+        tree = ast.parse(inspect.getsource(module))
+        offending = sorted({name for node in ast.walk(tree)
+                            if isinstance(node, ast.Global) for name in node.names})
+        assert not offending, f"{module.__name__} reassigns {offending}"

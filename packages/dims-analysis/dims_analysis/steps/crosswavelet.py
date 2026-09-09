@@ -35,6 +35,7 @@ from dims_analysis.common import coherence as _coh
 from dims_analysis.common import config as _config
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
+from dims_analysis.common import step_io as _step_io
 from dims_analysis.common import tc98 as _tc98
 import argparse
 from scipy import signal
@@ -1311,13 +1312,7 @@ def main():
                 grid = next(iter(full_blocks.values()))
                 print(f"Full resolution ({len(grid['period'])} periods x "
                       f"{len(grid['time'])} times) -> {full_path}")
-            for key, names in kept.get('kept', {}).items():
-                print(f"  kept {len(names)} existing {key} entr"
-                      f"{'y' if len(names) == 1 else 'ies'} from another "
-                      f"analysis: {', '.join(names)}")
-            for key, names in kept.get('replaced', {}).items():
-                print(f"  replaced {len(names)} existing {key} entr"
-                      f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
+            _step_io.report_merge(kept)
             
             # Print summary
             if VERBOSE:

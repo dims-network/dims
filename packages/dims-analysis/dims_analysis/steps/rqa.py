@@ -28,11 +28,11 @@ from dims_analysis.common import limits as _limits
 from dims_analysis.common import payload as _payload
 from dims_analysis.common import arrays as _arrays
 from dims_analysis.common import series as _series
+from dims_analysis.common import step_io as _step_io
 from dims_analysis.common import window as _window
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
-import argparse
 
 # Where the time series are read from. A private study keeps its data outside
 # the repository, at the path data.local.json names, so main() rewrites this
@@ -185,12 +185,17 @@ def downsample_for_visualization(time_series, time_values, recurrence_matrix,
 
     return data_ds, time_ds, matrix_ds, factor
 
-def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0,
+def process_rqa_for_datatype(video_id, data_type, input_dir=INPUT_DIR,
+                             window_sec=20.0, step_sec=1.0,
                              target_recurrence=TARGET_RECURRENCE):
+    """Process RQA for a specific data type.
+
+    `input_dir` is a parameter, not the module global it used to read. The
+    global was rewritten in place by main(), and `assets.resolve` returns an
+    already-absolute path unchanged -- so a second project analysed in the same
+    process would have read the first project's data.
     """
-    Process RQA for a specific data type.
-    """
-    csv_path = os.path.join(INPUT_DIR, f"{video_id}_{data_type}.csv")
+    csv_path = os.path.join(input_dir, f"{video_id}_{data_type}.csv")
 
     print(f"\nProcessing {video_id} - {data_type}")
 
@@ -293,110 +298,79 @@ def process_rqa_for_datatype(video_id, data_type, window_sec=20.0, step_sec=1.0,
     return result
 
 
-def main():
-    global INPUT_DIR
-    parser = argparse.ArgumentParser(description='Generate RQA data for DIMS Dashboard')
-    parser.add_argument('--config', default='config.json', help='Path to config.json')
-    parser.add_argument('--output-dir', default='assets/rqa', help='Output directory for RQA data')
-    parser.add_argument('--window', type=float, default=None,
-                        help='Windowed-metric window size in seconds '
-                             '(default: analysis.rqa.window, else 20)')
-    parser.add_argument('--step', type=float, default=None,
-                        help='Windowed-metric step in seconds '
-                             '(default: analysis.rqa.step, else 1)')
-    args = parser.parse_args()
-    
-    # Load config
-    with open(args.config, 'r') as f:
-        config = json.load(f)
+def analyse(config, *, input_dir, write, window_sec=20.0, step_sec=1.0,
+            target_recurrence=TARGET_RECURRENCE):
+    """Every enabled data type of every video, written through `write`.
 
-    # Tuning belongs in the study's config, not in this file and not only on a
-    # command line the step adapter never uses. A flag still wins where one is
-    # given, so a one-off run can override without editing the study.
-    window_sec = args.window if args.window is not None else \
-        _config.tuned_number(config, TUNING_KEY, 'window', 20.0)
-    step_sec = args.step if args.step is not None else \
-        _config.tuned_number(config, TUNING_KEY, 'step', 1.0)
-    target_recurrence = _config.tuned_number(
-        config, TUNING_KEY, 'targetRecurrence', TARGET_RECURRENCE)
-    
-    # Check if RQA is requested
-    if not _config.enabled(config, 'include_RQA'):
-        print("No RQA requested in config (include_RQA not found or empty)")
-        return
-    
-    # Create output directory
-    _note = _assets.describe()
-    if _note:
-        print(_note)
-    INPUT_DIR = _assets.resolve(INPUT_DIR)
-    args.output_dir = _assets.resolve(args.output_dir)
-    os.makedirs(args.output_dir, exist_ok=True)
-    
-    # Process each video
+    Everything this needs is an argument. `main()` builds them from a command
+    line and `Step.run()` builds them from its StepContext; neither calls the
+    other, and no module global is reassigned along the way.
+    """
+    data_types = list(dict.fromkeys(
+        _config.as_list(config, 'include_RQA', 'data types')))
+
     for video_id in config['videoIDs']:
         print(f"\n{'='*50}")
         print(f"Processing video: {video_id}")
         print(f"{'='*50}")
-        
-        # Get data types to process for RQA (remove duplicates)
-        rqa_data_types = list(dict.fromkeys(
-            _config.as_list(config, 'include_RQA', 'data types')))
-        
-        # Process each data type
+
         rqa_results = {}
-        for data_type in rqa_data_types:
+        for data_type in data_types:
             result = process_rqa_for_datatype(
-                video_id, data_type, window_sec=window_sec, step_sec=step_sec,
+                video_id, data_type, input_dir=input_dir,
+                window_sec=window_sec, step_sec=step_sec,
                 target_recurrence=target_recurrence)
             if result:
                 rqa_results[data_type] = result
-        
-        # Save combined data
-        if rqa_results:
-            output_path = os.path.join(args.output_dir, f"{video_id}_rqa_data.json")
-            # Merge, do not clobber: this file is keyed by video, so a
-            # study-owned analysis (ORTHO's categorical RQA over its gaze
-            # channels) writes its results into the same rqa_data dict.
-            kept = _results.write_payload(output_path, round_payload({
-                'video_id': video_id,
-                'payload_version': _arrays.PAYLOAD_VERSION,
-                'rqa_data': rqa_results,
-                'provenance': _provenance(target_recurrence),
-                'precision': precision_note(),
-            }))
-            print(f"\nSaved RQA data to {output_path}")
-            for key, names in kept.get('kept', {}).items():
-                print(f"  kept {len(names)} existing {key} entr"
-                      f"{'y' if len(names) == 1 else 'ies'} from another "
-                      f"analysis: {', '.join(names)}")
-            for key, names in kept.get('replaced', {}).items():
-                print(f"  replaced {len(names)} existing {key} entr"
-                      f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
-            
-            # Print summary
-            print("\nSummary:")
-            for data_type, result in rqa_results.items():
-                print(f"  {data_type}:")
-                print(f"    - Recurrence rate: {result['recurrence_rate']*100:.2f}%")
-                print(f"    - Matrix size: {result['visualization']['matrix_size']}x{result['visualization']['matrix_size']}")
-                print(f"    - Bitmap: {result['visualization']['matrix']['rows']}"
-                      f"x{result['visualization']['matrix']['cols']}")
-    
+
+        if not rqa_results:
+            continue
+
+        # Merge, do not clobber: this file is keyed by video, so a study-owned
+        # analysis (ORTHO's categorical RQA over its gaze channels) writes its
+        # results into the same rqa_data dict.
+        _step_io.report_merge(write(video_id, round_payload({
+            'payload_version': _arrays.PAYLOAD_VERSION,
+            'rqa_data': rqa_results,
+            'provenance': _provenance(target_recurrence),
+            'precision': precision_note(),
+        })))
+
+        print("\nSummary:")
+        for data_type, result in rqa_results.items():
+            print(f"  {data_type}:")
+            print(f"    - Recurrence rate: {result['recurrence_rate']*100:.2f}%")
+            print(f"    - Matrix size: {result['visualization']['matrix_size']}"
+                  f"x{result['visualization']['matrix_size']}")
+            print(f"    - Bitmap: {result['visualization']['matrix']['rows']}"
+                  f"x{result['visualization']['matrix']['cols']}")
+
     print("\nRQA processing complete!")
 
-if __name__ == "__main__":
-    main()
+
+def main(argv=None):
+    args = _step_io.parse_args(
+        'rqa', 'Generate RQA data for DIMS Dashboard', 'assets/rqa', argv)
+
+    with open(args.config, 'r') as f:
+        config = json.load(f)
+
+    if not _config.enabled(config, 'include_RQA'):
+        print("No RQA requested in config (include_RQA not found or empty)")
+        return
+
+    window_sec, step_sec, target_recurrence = _step_io.tuning(
+        config, TUNING_KEY, args.window, args.step, TARGET_RECURRENCE)
+    input_dir, output_dir = _step_io.resolve_io(INPUT_DIR, args.output_dir)
+
+    analyse(config, input_dir=input_dir,
+            write=_step_io.payload_writer(output_dir, Step.output_name, "RQA data"),
+            window_sec=window_sec, step_sec=step_sec,
+            target_recurrence=target_recurrence)
 
 
-# ---------------------------------------------------------------------------
-# Step contract adapter
-#
-# INTERIM. This wraps the script's existing main() by setting sys.argv, so the
-# step is discoverable and runnable through `dims-analysis` today without
-# rewriting the analysis itself. Replacing it means giving run() the real
-# parameters and dropping main() -- tracked as a follow-up issue.
-# ---------------------------------------------------------------------------
+
+
 from dims_analysis.base import Step as _Step
 
 
@@ -407,16 +381,34 @@ class Step(_Step):
     output_name = "{video_id}_rqa_data.json"
     description = "Recurrence quantification analysis of single time series"
 
+    #: What `analysis.rqa` in the study's config overrides, key by key.
+    defaults = {"window": 20.0, "step": 1.0,
+                "targetRecurrence": TARGET_RECURRENCE}
+
     def run(self, config, ctx):
-        import os as _os
-        import sys as _sys
-        cwd = _os.getcwd()
-        argv = _sys.argv[:]
-        try:
-            _os.chdir(ctx.project_dir)
-            _sys.argv = ["rqa", "--config", "config.json",
-                         "--output-dir", ctx.output_path(self, "_").rsplit(_os.sep, 1)[0]]
-            main()
-        finally:
-            _sys.argv = argv
-            _os.chdir(cwd)
+        """No sys.argv, no chdir, no globals -- the parameters are parameters.
+
+        The adapter this replaces set sys.argv and chdir-ed into the project so
+        that main() could rebuild by hand what ctx already knew. It was
+        described as interim; what made it a defect rather than a shortcut is
+        that main() resolved its input directory into a module global, and
+        assets.resolve returns an absolute path unchanged, so the second project
+        analysed in one process read the first project's data.
+        """
+        params = ctx.params(self, self.defaults)
+        analyse(
+            config,
+            input_dir=ctx.input_dir(INPUT_DIR),
+            write=lambda video_id, payload: ctx.write_result(
+                self, video_id, payload),
+            window_sec=float(params["window"]),
+            step_sec=float(params["step"]),
+            target_recurrence=float(params["targetRecurrence"]),
+        )
+
+
+# The entry point goes last, after the Step class main() names. It used to sit
+# in the middle of the module, so `python -m dims_analysis.steps.rqa` ran the
+# whole analysis and only then defined Step.
+if __name__ == "__main__":
+    main()

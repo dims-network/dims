@@ -37,11 +37,11 @@ from dims_analysis.common import limits as _limits
 from dims_analysis.common import payload as _payload
 from dims_analysis.common import arrays as _arrays
 from dims_analysis.common import series as _series
+from dims_analysis.common import step_io as _step_io
 from dims_analysis.common import window as _window
 from dims_analysis.common import recurrence as _rec
 from dims_analysis.common import reduce as _reduce
 from dims_analysis.common import results as _results
-import argparse
 
 # Where the time series are read from. A private study keeps its data outside
 # the repository, at the path data.local.json names, so main() rewrites this
@@ -134,16 +134,17 @@ def _load_series(path):
     return _series.load(path)
 
 
-def load_and_align_data(video_id, type1, type2, input_dir=None):
+def load_and_align_data(video_id, type1, type2, input_dir=INPUT_DIR):
     """Load two CSVs and align them onto a common uniform time grid via linear
     interpolation (the two series rarely share identical timestamps), then
     z-normalize. Returns (s1_norm, s2_norm, common_time).
 
-    input_dir defaults to the module-level INPUT_DIR, which main() has already
-    resolved through data.local.json — a default argument would capture the
-    unresolved value at import time.
+    `input_dir` is passed in. It used to default to None and fall back to the
+    module global, with a docstring explaining that a default argument would
+    capture the unresolved value at import time -- a correct diagnosis of the
+    wrong problem. The global was the problem; the fallback was its second
+    symptom, and both are gone.
     """
-    input_dir = input_dir or INPUT_DIR
     path1 = os.path.join(input_dir, f"{video_id}_{type1}.csv")
     path2 = os.path.join(input_dir, f"{video_id}_{type2}.csv")
 
@@ -212,47 +213,130 @@ def load_and_align_data(video_id, type1, type2, input_dir=None):
 # MAIN
 # ============================================================================
 
-def main():
-    global INPUT_DIR
-    parser = argparse.ArgumentParser(description='Generate cross-RQA data for the DIMS Dashboard')
-    parser.add_argument('--config', default='config.json', help='Path to config.json')
-    parser.add_argument('--output-dir', default='assets/crqa', help='Output directory')
-    parser.add_argument('--window', type=float, default=None,
-                        help='Sliding window size in seconds '
-                             '(default: analysis.crqa.window, else 20)')
-    parser.add_argument('--step', type=float, default=None,
-                        help='Window step in seconds '
-                             '(default: analysis.crqa.step, else 1)')
-    args = parser.parse_args()
+def process_crqa_for_pair(video_id, type1, type2, input_dir=INPUT_DIR,
+                          window_sec=20.0, step_sec=1.0,
+                          target_recurrence=TARGET_RECURRENCE):
+    """One pair of one video, as `(pair_key, entry)`, or None if unusable.
 
-    try:
-        with open(args.config, 'r') as f:
-            config = json.load(f)
-    except FileNotFoundError:
-        print(f"Error: Config file '{args.config}' not found.")
-        return
+    This was ninety lines inline inside a 172-line main(), where rqa.py had long
+    since factored the equivalent into process_rqa_for_datatype. Two files doing
+    one job in two shapes is how they drift apart.
+    """
+    ts1, ts2, time_vals = load_and_align_data(video_id, type1, type2, input_dir)
+    if ts1 is None:
+        return None
 
-    # Tuning from the study's config, shared with rqa.py; see common/config.
-    # A command-line flag still wins, for a one-off run.
-    window_sec = args.window if args.window is not None else \
-        _config.tuned_number(config, TUNING_KEY, 'window', 20.0)
-    step_sec = args.step if args.step is not None else \
-        _config.tuned_number(config, TUNING_KEY, 'step', 1.0)
-    target_recurrence = _config.tuned_number(
-        config, TUNING_KEY, 'targetRecurrence', TARGET_RECURRENCE)
+    # Analyse the raw 1-D signals (column vectors for cdist).
+    emb1, emb2 = ts1.reshape(-1, 1), ts2.reshape(-1, 1)
+    ts1_1d, ts2_1d = ts1, ts2
 
-    if not _config.enabled(config, 'include_cRQA'):
-        print("No cRQA requested in config (include_cRQA not found or empty)")
-        return
+    # Full-resolution cross-recurrence matrix (used for metrics).
+    rec_matrix, threshold, global_rr = calculate_cross_recurrence_matrix(
+        emb1, emb2, target_recurrence=target_recurrence)
+    print(f"  > Global cross-recurrence rate: {global_rr*100:.2f}%")
 
-    raw_pairs = _config.as_list(config, 'include_cRQA', 'pairs of data types')
-    valid_pairs = []
-    for item in raw_pairs:
+    # Windowed metrics along the line of synchronization (main diagonal).
+    # The placement is common/window.py, shared with rqa.py: this file
+    # used to carry its own copy, in samples, so the reported time axis
+    # moved with the sampling rate and nothing recorded what window was
+    # actually used.
+    dt = float(np.mean(np.diff(time_vals)))
+    n = len(emb1)
+    window_plan = _window.plan(n, dt, window_sec, step_sec)
+    if window_plan.warning:
+        print(f"  > WARNING: {window_plan.warning}")
+
+    windowed_metrics = {'time': window_plan.centres(time_vals),
+                        'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
+    print(f"  > Windowed metrics ({len(window_plan)} windows of "
+          f"{window_plan.used[0]:.4g}s, step {window_plan.used[1]:.4g}s)...")
+    for start_idx in window_plan.starts:
+        end_idx = start_idx + window_plan.length
+        w_matrix = rec_matrix[start_idx:end_idx, start_idx:end_idx]
+        rr, det, lam, l_max = _rec.window_metrics(w_matrix, dt, self_paired=False)
+        windowed_metrics['RR'].append(rr)
+        windowed_metrics['DET'].append(det)
+        windowed_metrics['LAM'].append(lam)
+        windowed_metrics['L_MAX'].append(l_max)
+
+    # Full recurrence plot for visualization, downsampled to <=500x500.
+    ts1_vis, ts2_vis, time_vis, matrix_vis, reduction_factor = downsample_for_visualization(
+        ts1_1d, ts2_1d, time_vals, rec_matrix
+    )
+    bitmap = matrix_to_bitmap(matrix_vis)
+
+    pair_key = f"{type1}_vs_{type2}"
+    entry = {
+        'pair_name': pair_key,
+        'series_names': [type1, type2],
+        'threshold': float(threshold),
+        'global_recurrence_rate': float(global_rr),
+        'time_range': [float(time_vals[0]), float(time_vals[-1])],
+        'windowed_metrics': windowed_metrics,
+        # Asked-for beside used; see common/window.py.
+        'window': window_plan.report(),
+        'visualization': {
+            'time': time_vis.tolist(),
+            'data_x': ts1_vis.tolist(),
+            'data_y': ts2_vis.tolist(),
+            'matrix_size': len(time_vis),
+            'matrix': bitmap,          # bitmap-b64, the full plot reduced
+            # What this plot is a reduction OF.
+            'reduction': {
+                'factor': int(reduction_factor),
+                'series': 'block-mean',
+                'matrix': 'density-preserving',
+                'n_points_full': int(n),
+                # What was actually drawn; see the note in rqa.py.
+                'rate_full': _reduce.rate_of(rec_matrix),
+                'rate_drawn': _reduce.rate_of(matrix_vis),
+            },
+        },
+        # The analysis at full resolution, in the same file as the
+        # picture: both prepared signals on the common grid, from which
+        # the matrix is one `cdist` away given the threshold above.
+        'full_stats': {
+            'n_points': int(n),
+            'window_size_sec': window_sec,
+            'step_size_sec': step_sec,
+            'time': _arrays.pack_f32(time_vals),
+            'signal_x': _arrays.pack_f32(ts1_1d),
+            'signal_y': _arrays.pack_f32(ts2_1d),
+        },
+    }
+    print(f"  > {pair_key}: matrix {len(time_vis)}x{len(time_vis)}, "
+          f"{len(windowed_metrics['time'])} windows")
+    return pair_key, entry
+
+
+def valid_pairs(config):
+    """The `[type1, type2]` entries of include_cRQA, with the rest reported.
+
+    Unlike include_crosswavelet, a flat list of data types is NOT expanded to
+    all pairs here -- the schema shares one definition between the two keys, so
+    it will not catch that for you, and this says so rather than writing
+    nothing in silence.
+    """
+    out = []
+    for item in _config.as_list(config, 'include_cRQA', 'pairs of data types'):
         if isinstance(item, list) and len(item) == 2:
-            valid_pairs.append(item)
+            out.append(item)
         else:
-            print(f"Warning: Skipping invalid include_cRQA entry: {item}. Expected [type1, type2].")
-    if not valid_pairs:
+            print(f"Warning: Skipping invalid include_cRQA entry: {item}. "
+                  f"Expected [type1, type2].")
+    return out
+
+
+def analyse(config, *, input_dir, write, window_sec=20.0, step_sec=1.0,
+            target_recurrence=TARGET_RECURRENCE):
+    """Every valid pair of every video, written through `write`.
+
+    Everything this needs is an argument. main() builds them from a command line
+    and Step.run() builds them from its StepContext; neither calls the other,
+    and no module global is reassigned along the way.
+    """
+    pairs = valid_pairs(config)
+    if not pairs:
         print("Error: No valid pairs found in include_cRQA.")
         return
 
@@ -261,143 +345,63 @@ def main():
         print("Error: 'videoIDs' list is empty in config.")
         return
 
-    _note = _assets.describe()
-    if _note:
-        print(_note)
-    INPUT_DIR = _assets.resolve(INPUT_DIR)
-    args.output_dir = _assets.resolve(args.output_dir)
-    os.makedirs(args.output_dir, exist_ok=True)
-
     for vid in video_ids:
         print(f"\n{'='*60}")
         print(f"Processing video: {vid}")
         print(f"{'='*60}")
 
         video_results = {}
-        for type1, type2 in valid_pairs:
+        for type1, type2 in pairs:
             print(f"\nComparing: {type1} <-> {type2}")
+            produced = process_crqa_for_pair(
+                vid, type1, type2, input_dir=input_dir, window_sec=window_sec,
+                step_sec=step_sec, target_recurrence=target_recurrence)
+            if produced:
+                pair_key, entry = produced
+                video_results[pair_key] = entry
 
-            ts1, ts2, time_vals = load_and_align_data(vid, type1, type2)
-            if ts1 is None:
-                continue
-
-            # Analyse the raw 1-D signals (column vectors for cdist).
-            emb1, emb2 = ts1.reshape(-1, 1), ts2.reshape(-1, 1)
-            ts1_1d, ts2_1d = ts1, ts2
-
-            # Full-resolution cross-recurrence matrix (used for metrics).
-            rec_matrix, threshold, global_rr = calculate_cross_recurrence_matrix(
-                emb1, emb2, target_recurrence=target_recurrence)
-            print(f"  > Global cross-recurrence rate: {global_rr*100:.2f}%")
-
-            # Windowed metrics along the line of synchronization (main diagonal).
-            # The placement is common/window.py, shared with rqa.py: this file
-            # used to carry its own copy, in samples, so the reported time axis
-            # moved with the sampling rate and nothing recorded what window was
-            # actually used.
-            dt = float(np.mean(np.diff(time_vals)))
-            n = len(emb1)
-            window_plan = _window.plan(n, dt, window_sec, step_sec)
-            if window_plan.warning:
-                print(f"  > WARNING: {window_plan.warning}")
-
-            windowed_metrics = {'time': window_plan.centres(time_vals),
-                                'RR': [], 'DET': [], 'LAM': [], 'L_MAX': []}
-            print(f"  > Windowed metrics ({len(window_plan)} windows of "
-                  f"{window_plan.used[0]:.4g}s, step {window_plan.used[1]:.4g}s)...")
-            for start_idx in window_plan.starts:
-                end_idx = start_idx + window_plan.length
-                w_matrix = rec_matrix[start_idx:end_idx, start_idx:end_idx]
-                rr, det, lam, l_max = _rec.window_metrics(w_matrix, dt, self_paired=False)
-                windowed_metrics['RR'].append(rr)
-                windowed_metrics['DET'].append(det)
-                windowed_metrics['LAM'].append(lam)
-                windowed_metrics['L_MAX'].append(l_max)
-
-            # Full recurrence plot for visualization, downsampled to <=500x500.
-            ts1_vis, ts2_vis, time_vis, matrix_vis, reduction_factor = downsample_for_visualization(
-                ts1_1d, ts2_1d, time_vals, rec_matrix
-            )
-            bitmap = matrix_to_bitmap(matrix_vis)
-
-            pair_key = f"{type1}_vs_{type2}"
-            video_results[pair_key] = {
-                'pair_name': pair_key,
-                'series_names': [type1, type2],
-                'threshold': float(threshold),
-                'global_recurrence_rate': float(global_rr),
-                'time_range': [float(time_vals[0]), float(time_vals[-1])],
-                'windowed_metrics': windowed_metrics,
-                # Asked-for beside used; see common/window.py.
-                'window': window_plan.report(),
-                'visualization': {
-                    'time': time_vis.tolist(),
-                    'data_x': ts1_vis.tolist(),
-                    'data_y': ts2_vis.tolist(),
-                    'matrix_size': len(time_vis),
-                    'matrix': bitmap,          # bitmap-b64, the full plot reduced
-                    # What this plot is a reduction OF.
-                    'reduction': {
-                        'factor': int(reduction_factor),
-                        'series': 'block-mean',
-                        'matrix': 'density-preserving',
-                        'n_points_full': int(n),
-                        # What was actually drawn; see the note in rqa.py.
-                        'rate_full': _reduce.rate_of(rec_matrix),
-                        'rate_drawn': _reduce.rate_of(matrix_vis),
-                    },
-                },
-                # The analysis at full resolution, in the same file as the
-                # picture: both prepared signals on the common grid, from which
-                # the matrix is one `cdist` away given the threshold above.
-                'full_stats': {
-                    'n_points': int(n),
-                    'window_size_sec': window_sec,
-                    'step_size_sec': step_sec,
-                    'time': _arrays.pack_f32(time_vals),
-                    'signal_x': _arrays.pack_f32(ts1_1d),
-                    'signal_y': _arrays.pack_f32(ts2_1d),
-                },
-            }
-            print(f"  > {pair_key}: matrix {len(time_vis)}x{len(time_vis)}, "
-                  f"{len(windowed_metrics['time'])} windows")
-
-        if video_results:
-            output_path = os.path.join(args.output_dir, f"{vid}_crqa_data.json")
-            kept = _results.write_payload(output_path, round_payload(
-                {'video_id': vid,
-                 'payload_version': _arrays.PAYLOAD_VERSION,
-                 'crqa_data': video_results,
-                 'provenance': _payload.provenance(
-                     target_recurrence=target_recurrence,
-                     max_points_drawn=MAX_POINTS),
-                 'precision': precision_note()}))
-            print(f"\nSaved cRQA data to {output_path}")
-            for key, names in kept.get('kept', {}).items():
-                print(f"  kept {len(names)} existing {key} entr"
-                      f"{'y' if len(names) == 1 else 'ies'} from another "
-                      f"analysis: {', '.join(names)}")
-            for key, names in kept.get('replaced', {}).items():
-                print(f"  replaced {len(names)} existing {key} entr"
-                      f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
-        else:
+        if not video_results:
             print(f"\n[INFO] No cRQA results generated for video {vid}")
+            continue
+
+        _step_io.report_merge(write(vid, round_payload({
+            'payload_version': _arrays.PAYLOAD_VERSION,
+            'crqa_data': video_results,
+            'provenance': _payload.provenance(
+                target_recurrence=target_recurrence,
+                max_points_drawn=MAX_POINTS),
+            'precision': precision_note(),
+        })))
 
     print("\ncRQA processing complete!")
 
 
-if __name__ == "__main__":
-    main()
+def main(argv=None):
+    args = _step_io.parse_args(
+        'crqa', 'Generate cross-RQA data for the DIMS Dashboard',
+        'assets/crqa', argv)
+
+    try:
+        with open(args.config, 'r') as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: Config file '{args.config}' not found.")
+        return
+
+    if not _config.enabled(config, 'include_cRQA'):
+        print("No cRQA requested in config (include_cRQA not found or empty)")
+        return
+
+    window_sec, step_sec, target_recurrence = _step_io.tuning(
+        config, TUNING_KEY, args.window, args.step, TARGET_RECURRENCE)
+    input_dir, output_dir = _step_io.resolve_io(INPUT_DIR, args.output_dir)
+
+    analyse(config, input_dir=input_dir,
+            write=_step_io.payload_writer(output_dir, Step.output_name, "cRQA data"),
+            window_sec=window_sec, step_sec=step_sec,
+            target_recurrence=target_recurrence)
 
 
-# ---------------------------------------------------------------------------
-# Step contract adapter
-#
-# INTERIM. This wraps the script's existing main() by setting sys.argv, so the
-# step is discoverable and runnable through `dims-analysis` today without
-# rewriting the analysis itself. Replacing it means giving run() the real
-# parameters and dropping main() -- tracked as a follow-up issue.
-# ---------------------------------------------------------------------------
 from dims_analysis.base import Step as _Step
 
 
@@ -406,18 +410,27 @@ class Step(_Step):
     config_key = "include_cRQA"
     output_dir = "assets/crqa"
     output_name = "{video_id}_crqa_data.json"
-    description = "Cross-recurrence quantification between pairs of series"
+    description = "Cross-recurrence quantification between pairs of time series"
+
+    #: What `analysis.crqa` in the study's config overrides, key by key.
+    defaults = {"window": 20.0, "step": 1.0,
+                "targetRecurrence": TARGET_RECURRENCE}
 
     def run(self, config, ctx):
-        import os as _os
-        import sys as _sys
-        cwd = _os.getcwd()
-        argv = _sys.argv[:]
-        try:
-            _os.chdir(ctx.project_dir)
-            _sys.argv = ["crqa", "--config", "config.json",
-                         "--output-dir", ctx.output_path(self, "_").rsplit(_os.sep, 1)[0]]
-            main()
-        finally:
-            _sys.argv = argv
-            _os.chdir(cwd)
+        """No sys.argv, no chdir, no globals -- see steps/rqa.py for the whole
+        story, including the cross-project read this shape removes."""
+        params = ctx.params(self, self.defaults)
+        analyse(
+            config,
+            input_dir=ctx.input_dir(INPUT_DIR),
+            write=lambda video_id, payload: ctx.write_result(
+                self, video_id, payload),
+            window_sec=float(params["window"]),
+            step_sec=float(params["step"]),
+            target_recurrence=float(params["targetRecurrence"]),
+        )
+
+
+# The entry point goes last, after the Step class main() names.
+if __name__ == "__main__":
+    main()
