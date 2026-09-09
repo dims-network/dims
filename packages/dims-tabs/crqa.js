@@ -18,7 +18,6 @@
 
             try {
                 const dataPath = `assets/crqa/${videoID}_crqa_data.json`;
-                console.log('Loading cross-RQA data from:', dataPath);
 
                 const crqaData = await this.loadJSON(dataPath);
 
@@ -54,7 +53,7 @@
                 return;
             }
 
-            container.innerHTML = '<h2 style="color: white; margin-bottom: 20px;">Cross-Recurrence Quantification Analysis</h2>';
+            container.innerHTML = '<h2 style="margin-bottom: 20px;">Cross-Recurrence Quantification Analysis</h2>';
 
             const plotConfigs = [];
             Object.entries(this.crqaData.crqa_data).forEach(([pairKey, pairData], index) => {
@@ -73,7 +72,9 @@
 
                 const rpDiv = document.createElement('div');
                 rpDiv.id = `crqa-plot-${index}`;
-                rpDiv.style.backgroundColor = window.DIMS.theme().paper;
+                // .plot-pane, not an inline background: an inline one is written
+                // once and keeps the colour of whichever theme was active then.
+                rpDiv.classList.add('plot-pane');
                 rpDiv.style.padding = '10px';
                 rpDiv.style.borderRadius = '5px';
                 block.appendChild(rpDiv);

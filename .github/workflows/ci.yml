@@ -10,7 +10,10 @@ jobs:
     uses: dims-network/.github/.github/workflows/reusable-dashboard-ci.yml@main
     with:
       python_paths: "packages/dims-analysis packages/dims-case packages/dims-case-scaffold apps/builder tools"
-      js_glob: "packages/dims-core/*.js packages/dims-tabs/*.js"
+      # Every JavaScript file that ships, not only the two that started here.
+      # builder.js is 1100 lines and was not syntax-checked at all, and the
+      # docs figures are the only code on the published site.
+      js_glob: "packages/dims-core/*.js packages/dims-tabs/*.js apps/builder/dims_builder/static/*.js docs/analyses/demo/*.js"
       # The scaffold's config.json is not a study's: it names no recordings
       # until someone fills it in. The `contracts` job below validates it as
       # what it is, which this generic check cannot.

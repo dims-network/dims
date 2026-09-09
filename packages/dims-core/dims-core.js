@@ -181,8 +181,10 @@ window.DIMS = window.DIMS || {
         Object.assign(this._appProto, methods);
     },
 
-    // Tabs must style themselves with CSS custom properties. This is exposed
-    // only for the plot libraries, which need concrete colour values.
+    // Tabs style the DOM with CSS custom properties, which follow a theme
+    // switch. This is exposed for the plot libraries, which need a concrete
+    // colour value rather than a CSS reference; it is read at call time, so a
+    // layout rebuilt on re-render gets the current theme.
     theme() { return THEME; }
 };
 
@@ -194,10 +196,7 @@ class DIMSApp {
         this.currentVideoID = null;
         this.lastClickedPoint = null;
         this.timeSlider = null;
-        this.rqaData = null;
-        this.crossWaveletData = null;
-        this.crqaData = null;
-        this.elanData = null;
+        this._resetTabCaches();
         this.elanSelectedTiers = null;
         this.currentTab = null;
         this.currentPerspective = '';
@@ -669,33 +668,46 @@ class DIMSApp {
 
     // Redraw everything with the active theme. Clears per-tab caches so each
     // tab is freshly drawn (reading the new THEME) when shown.
-    rerenderAll() {
-        const vid = this.currentVideoID;
-        if (!vid) return;
-        const tab = this.currentTab;
+    /* Every built-in tab's cached payload, dropped together.
+
+       This list was written out in three places -- the constructor,
+       rerenderAll and the video switch -- so the fourth tab would have needed
+       a fourth copy.
+
+       elanSelectedTiers is deliberately NOT in it. It is a choice the viewer
+       made, not data fetched from a payload, and the difference shows up in
+       rerenderAll: re-rendering for a theme change must not throw away which
+       tiers someone asked to see. Switching video does clear it, because the
+       tiers belong to the recording. That asymmetry was already the behaviour;
+       it just was not written down anywhere, which is why unifying the three
+       copies naively turns it into a regression. */
+    _resetTabCaches() {
         this.rqaData = null;
         this.crossWaveletData = null;
         this.crqaData = null;
         this.elanData = null;
+    }
+
+    rerenderAll() {
+        const vid = this.currentVideoID;
+        if (!vid) return;
+        const tab = this.currentTab;
+        this._resetTabCaches();
         Promise.resolve(this.loadVideoData(vid)).then(() => this.switchTab(tab));
     }
 
     async loadJSON(url) {
         try {
-            console.log(`Attempting to load JSON from: ${url}`);
             const response = await fetch(url);
-            console.log(`Fetch response for ${url}:`, response.status, response.statusText);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const text = await response.text();
-            console.log(`Raw response length for ${url}:`, text.length);
             
             try {
                 const data = JSON.parse(text);
-                console.log(`Successfully parsed JSON from: ${url}`, data);
                 return data;
             } catch (parseError) {
                 console.error(`JSON parse error for ${url}:`, parseError);
@@ -758,7 +770,6 @@ class DIMSApp {
         
         if (wrapDetected) {
             // Return only the first segment before the wrap
-            console.log(`Removing wrapped data after index ${wrapIndex}`);
             return sortedData.slice(0, wrapIndex);
         }
         
@@ -785,13 +796,6 @@ class DIMSApp {
                 const rawData = timeseriesResults[index].data;
                 const cleanedData = this.cleanTimeseriesData(rawData);
                 
-                console.log(`Dataset ${dataType}:`, {
-                    rawRows: rawData.length,
-                    cleanedRows: cleanedData.length,
-                    columns: Object.keys(cleanedData[0] || {}),
-                    timeRange: cleanedData.length > 0 ? [cleanedData[0].Time, cleanedData[cleanedData.length - 1].Time] : []
-                });
-                
                 datasets.push({
                     name: dataType,
                     data: cleanedData
@@ -799,7 +803,6 @@ class DIMSApp {
             }
         });
         
-        console.log('Loaded datasets:', datasets);
         
         return {
             timeseries: datasets,
@@ -948,7 +951,7 @@ class DIMSApp {
                 );
             } catch (e) {
                 fullVideoContainer.innerHTML = `
-                    <h3 style="color:white;">Full Video</h3>
+                    <h3>Full Video</h3>
                     <video src="${videoSrc}" controls style="width:100%;" preload="metadata"></video>
                 `;
             }
@@ -999,10 +1002,8 @@ class DIMSApp {
             this.currentData = data.timeseries;
             this.currentTranscript = data.transcript;
             this.currentVideoID = videoID;
-            this.rqaData = null;
-            this.crossWaveletData = null;
-            this.crqaData = null;
-            this.elanData = null;
+            this._resetTabCaches();
+            // The tiers belong to the recording, so a new one starts over.
             this.elanSelectedTiers = null;
             
             if (this.currentData && this.currentData.length > 0) {
@@ -1054,7 +1055,6 @@ class DIMSApp {
     }
 
     showStatus(message) {
-        console.log('Status:', message);
         const statusEl = document.getElementById('status');
         if (statusEl) {
             statusEl.textContent = message;
@@ -1088,16 +1088,6 @@ window.DIMS._appProto = DIMSApp.prototype;
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing DIMS app...');
-    
-    // Check dependencies
-    console.log('=== DEPENDENCY CHECK ===');
-    console.log('React loaded:', !!window.React);
-    console.log('ReactDOM loaded:', !!window.ReactDOM);
-    console.log('Plotly loaded:', !!window.Plotly);
-    console.log('Papa (PapaParse) loaded:', !!window.Papa);
-    console.log('TimeRangeVideo component loaded:', !!window.TimeRangeVideo);
-    
     // Check if required elements exist
     const requiredElements = ['status', 'videoSelect', 'windowSize', 'plotContainer', 'fullVideoContainer', 'segmentVideoContainer'];
     const missingElements = requiredElements.filter(id => !document.getElementById(id));
