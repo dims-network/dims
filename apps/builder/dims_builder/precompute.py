@@ -20,22 +20,27 @@ import os
 import subprocess
 import sys
 
-# A study's own opt/requirements.txt, cleaned. One entry is dropped: `json`,
-# which is stdlib and not pip-installable, and which the template this app was
-# written against used to ship.
+# A study's own opt/requirements.txt, cleaned. Two entries in the old template's
+# list cannot be installed by anyone, and a study made from it carries them
+# forever unless they are repaired here:
 #
-# There was a second repair, replacing `scipy==1.26.4` -- no such release; 1.26.4
-# is a numpy version -- with an unpinned `scipy`. That template is gone (this
-# module's own docstring says the bundled scaffold has no opt/ at all), and what
-# the rule did instead was strip the version from *any* scipy pin, so a study
-# that legitimately pinned scipy==1.11.4 had it quietly removed. Repairing a
-# file nobody wrote any more, by un-pinning one somebody did, is worse than not
-# repairing at all.
+#   json            stdlib, not a pip package. Listing it made the whole file
+#                   fail to install, taking the study's own analyses with it.
+#   scipy==1.26.4   no such release. 1.26.4 is a *numpy* version, so the pin can
+#                   never resolve and pip stops at it.
+#
+# Matched exactly, and that is the whole point. The rule used to be "any scipy
+# requirement becomes an unpinned scipy", which repaired the broken pin and
+# silently un-pinned a study that had deliberately written scipy==1.11.4. I then
+# deleted the repair outright, on the reasoning that the template was gone and
+# nobody would still be carrying its pin -- and the next study built from a
+# sample carried it, and pip stopped. Exact strings repair what is provably
+# broken and leave every real pin alone.
 #
 # `numpy` is imported by the scripts but may be absent from a study's list; it
 # arrives transitively via pandas/scipy, and is added explicitly to be safe.
 _BOGUS_REQS = {"json"}
-_PIN_OVERRIDES = {}
+_IMPOSSIBLE_PINS = {"scipy==1.26.4": "scipy"}
 _EXTRA_REQS = ["numpy"]
 
 
@@ -85,7 +90,7 @@ def _filtered_requirements(project: str):
             base = name.split("==")[0].split(">=")[0].strip().lower()
             if base in _BOGUS_REQS:
                 continue
-            lines.append(_PIN_OVERRIDES.get(base, name))
+            lines.append(_IMPOSSIBLE_PINS.get(name.lower(), name))
     for extra in _EXTRA_REQS:
         if extra not in {l.split("==")[0].split(">=")[0].strip().lower() for l in lines}:
             lines.append(extra)
@@ -188,9 +193,23 @@ def run_precompute(project: str, config: dict = None,
         return
 
     yield "=== Setting up Python environment ===\n"
-    yield from create_venv(project)
-
     failures = []
+
+    # The setup's exit codes were streamed to the browser and read by nobody
+    # here, so a study whose own requirements would not install still ended on
+    # "Precompute complete" -- while the page, which does scan the stream, said
+    # it finished with errors. Two answers to one question, in one log.
+    setup_failed = False
+    for line in create_venv(project):
+        if line.startswith("__EXIT__:"):
+            try:
+                setup_failed = setup_failed or int(line.split(":", 1)[1].strip() or 0) != 0
+            except ValueError:
+                setup_failed = True
+        yield line
+    if setup_failed:
+        failures.append("environment setup")
+        yield "__FAILED__:environment\n"
 
     if shared_wanted:
         yield "\n=== Running the analyses this config enables ===\n"
@@ -210,6 +229,15 @@ def run_precompute(project: str, config: dict = None,
                 yield "\nStopping: the analyses failed. Running the rest would leave\n"
                 yield "output that is partly missing but looks complete.\n"
                 own = []
+
+    # A study's own steps are the ones that need opt/requirements.txt, so a
+    # setup that failed is a reason to skip them and not a reason to skip the
+    # shared analyses, which come from the core install. If that failed too they
+    # will say so themselves, which is more use than a guess here.
+    if setup_failed and own:
+        yield "\nSkipping this study's own analyses: their requirements did not\n"
+        yield "install, so they would run against a half-built environment.\n"
+        own = []
 
     for step_id, script, out_dir, _key in own:
         yield f"\n=== Running {step_id} (this study's own) ===\n"
