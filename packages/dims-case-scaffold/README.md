@@ -27,7 +27,7 @@ or empty does not show up at all.
 | RQA | `include_RQA` lists data types | a recurrence plot per signal, with recurrence rate, determinism and laminarity tracked over time |
 | Cross-RQA | `include_cRQA` lists pairs | the same, between two different signals — structure off the main diagonal is a lagged coupling |
 | Cross-Wavelet | `include_crosswavelet` lists pairs | coherence by time and timescale, with a chance level from a Monte Carlo null |
-| Network | `include_network` is set | which signals are coupled with which, as one picture that moves with the playhead |
+| Network | `include_network` is set | which signals are coupled with which, as one picture that moves with the playhead. Say which signal is which node with `effectors`; see [the tab's page](https://dims-network.github.io/docs/tabs-network.html) |
 | ELAN | `include_elan` is true | annotation tiers from an `.eaf` file, aligned to the video |
 
 Across all of them: pick a point on the timeline and every tab narrows to a
@@ -81,8 +81,12 @@ in CI. The keys you will set first:
   "include_crosswavelet": [["bodysync", "neuralsync"]],
   "include_network": {                         // groups the nodes; without them
     "groups": [                                // every signal lands in one column
-      { "label": "Person A", "match": "^a_", "color": "#e84393" },
-      { "label": "Person B", "match": "^b_", "color": "#00b894" }
+      { "label": "Person A", "color": "#e84393" },
+      { "label": "Person B", "color": "#00b894" }
+    ],
+    "effectors": [                             // which signal is which node
+      { "series": "a_hand", "group": "Person A", "part": "righthand" },
+      { "series": "b_hand", "group": "Person B", "part": "righthand" }
     ],
     "band": [0.0, 12.0]                        // period band, in seconds
   },

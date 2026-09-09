@@ -28,8 +28,21 @@ const state = {
   crqa: new Set(),    // selected pair keys "a|b" (cross-RQA)
   elan: false,
   network: false,
+  // Keyed by data type: what the effector table says about each measure, and
+  // separately whatever a hand-written config put there that the table has no
+  // column for. Split so the second is carried through untouched.
+  effectors: {},        // {dataType: {group?, label?, part?}}
+  effectorExtras: {},   // {dataType: {x?, y?}}
   opened: false,      // reopened an existing study rather than making one
 };
+
+// Data types and group labels come from a researcher's filenames and typing,
+// and go straight into innerHTML below.
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[c]);
+}
 
 const ROLES = ["video", "timeseries", "transcript", "elan", "unknown"];
 
@@ -44,7 +57,7 @@ function gotoStep(n) {
     b.disabled = s > state.maxStep;
   });
   if (n === 3) renderAlign();
-  if (n === 4) { renderAnalysisTypes(); reflectNetwork(); }
+  if (n === 4) { renderAnalysisTypes(); renderEffectors(); reflectNetwork(); }
   if (n === 5) refreshValidation();
   if (n === 7) { renderDeploy(); renderPrivacyReminder(); }
 }
@@ -204,6 +217,23 @@ function applyOpenedConfig(cfg, vis) {
         .map((g) => [g.label || "", g.match || "", g.color || ""].join(", ")).join("\n");
     }
     if (Array.isArray(net.band)) $("#network_band").value = net.band.join(", ");
+    // Read back, not silently discarded. A study that chose the figure layout
+    // and then reopened the wizard used to lose it on the next Next.
+    if (net.layout && $("#network_layout")) $("#network_layout").value = net.layout;
+    state.effectors = {};
+    state.effectorExtras = {};
+    (Array.isArray(net.effectors) ? net.effectors : []).forEach((eff) => {
+      if (!eff || !eff.series) return;
+      const row = {};
+      if (eff.group) row.group = eff.group;
+      if (eff.label) row.label = eff.label;
+      if (eff.part) row.part = eff.part;
+      state.effectors[eff.series] = row;
+      const extra = {};
+      if (eff.x !== undefined) extra.x = eff.x;
+      if (eff.y !== undefined) extra.y = eff.y;
+      if (Object.keys(extra).length) state.effectorExtras[eff.series] = extra;
+    });
   }
 }
 
@@ -698,6 +728,65 @@ function allPairs() {
   return out;
 }
 
+//: The figure layout's spots. Mirrored from figurePositions() in
+//: packages/dims-tabs/network.js, the `part` enum in the config schema and
+//: FIGURE_PARTS in validate.py; tests/test_contracts.py asserts the four agree.
+const FIGURE_PARTS = ["head", "nose", "lefthand", "righthand", "hand",
+                      "torso", "hip", "foot"];
+
+// One row per measure: which group it belongs to, what to call it, where it
+// goes. Without this a study says all three by naming its CSV columns
+// `teacher_righthandspeed` and hoping the tab's regex and substring lookup take
+// it apart correctly -- which they cannot do for a measure called `bodysync`.
+//
+// `state.effectorExtras` keeps whatever a hand-written config put on an entry
+// that this table has no column for -- x and y, today. Rebuilding the object
+// from the controls alone is exactly how `layout` came to be dropped on every
+// round trip, and coordinates would be the next casualty.
+function renderEffectors() {
+  const host = $("#network_effectors");
+  if (!host) return;
+  const types = allDataTypes();
+  const groups = groupLabels();
+  if (!types.length) {
+    host.innerHTML = '<tr><td class="hint">Add some time series first.</td></tr>';
+    return;
+  }
+  host.innerHTML = types.map((dt) => {
+    const cur = state.effectors[dt] || {};
+    const opts = ['<option value=""></option>'].concat(
+      groups.map((g) => `<option value="${esc(g)}"${cur.group === g ? " selected" : ""}>${esc(g)}</option>`)
+    ).join("");
+    const parts = ['<option value="">—</option>'].concat(
+      FIGURE_PARTS.map((pt) => `<option value="${pt}"${cur.part === pt ? " selected" : ""}>${pt}</option>`)
+    ).join("");
+    return `<tr>
+      <th scope="row">${esc(dt)}</th>
+      <td><select data-eff="group" data-dt="${esc(dt)}">${opts}</select></td>
+      <td><input data-eff="label" data-dt="${esc(dt)}" placeholder="${esc(dt)}" value="${esc(cur.label || "")}" /></td>
+      <td><select data-eff="part" data-dt="${esc(dt)}">${parts}</select></td>
+    </tr>`;
+  }).join("");
+}
+
+// The labels a study defined in the textarea above, which are what an effector
+// row's group refers to.
+function groupLabels() {
+  return $("#network_groups").value.split("\n")
+    .map((line) => line.split(",")[0].trim())
+    .filter(Boolean);
+}
+
+$("#network_effectors").addEventListener("change", (e) => {
+  const key = e.target.dataset.eff, dt = e.target.dataset.dt;
+  if (!key || !dt) return;
+  const cur = state.effectors[dt] || {};
+  const value = e.target.value.trim();
+  if (value) cur[key] = value; else delete cur[key];
+  state.effectors[dt] = cur;
+});
+$("#network_groups").addEventListener("input", renderEffectors);
+
 function renderAnalysisTypes() {
   const types = allDataTypes();
   const pairs = allPairs();
@@ -897,10 +986,34 @@ function collectNetwork() {
       return g;
     });
   const band = bandOrNull("network_band");
-  if (!groups.length && (!band || band === "bad")) return true;
+  const layout = $("#network_layout") ? $("#network_layout").value : "";
+
+  // Only the rows that say something. A blank row means "let the pattern
+  // decide", which is what every study did before this table existed.
+  const effectors = allDataTypes().map((dt) => {
+    const cur = state.effectors[dt] || {};
+    const extra = state.effectorExtras[dt] || {};
+    const said = cur.group || cur.label || cur.part
+      || extra.x !== undefined || extra.y !== undefined;
+    if (!said) return null;
+    const out = { series: dt };
+    if (cur.group) out.group = cur.group;
+    if (cur.label) out.label = cur.label;
+    if (cur.part) out.part = cur.part;
+    // Carried through, not rebuilt: the table has no coordinate column, and
+    // dropping what it cannot show is the bug this whole function had.
+    if (extra.x !== undefined) out.x = extra.x;
+    if (extra.y !== undefined) out.y = extra.y;
+    return out;
+  }).filter(Boolean);
+
+  if (!groups.length && !effectors.length && layout !== "figure"
+      && (!band || band === "bad")) return true;
   const out = {};
   if (groups.length) out.groups = groups;
+  if (effectors.length) out.effectors = effectors;
   if (band && band !== "bad") out.band = band;
+  if (layout === "figure") out.layout = layout;
   return out;
 }
 

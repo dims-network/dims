@@ -173,3 +173,48 @@ def test_untouched_optional_keys_are_left_out(tmp_path):
         assert absent not in written, f"{absent} was written without being set"
     # A switch with two meanings keeps both: off is a decision.
     assert written["include_elan"] is False
+
+
+def test_a_declared_network_survives_write_config(tmp_path):
+    """`include_network` is `additionalProperties: false` in the schema, so a
+    new key inside it is refused by write_config until the schema knows it.
+
+    That is the right gate and it is also the one that silently blocks a feature
+    half-shipped: the tab reads `effectors`, the wizard writes them, and without
+    the schema the study never gets written at all.
+    """
+    cfg = {
+        "title": "t",
+        "videoIDs": ["s1"],
+        "dataTypes": {"s1": ["alpha", "beta"]},
+        "include_crosswavelet": [["alpha", "beta"]],
+        "include_network": {
+            "groups": [{"label": "Teacher", "color": "#e84393"}],
+            "effectors": [
+                {"series": "alpha", "group": "Teacher", "label": "Right hand",
+                 "part": "righthand"},
+                {"series": "beta", "group": "Teacher", "x": 0.72, "y": 0.4},
+            ],
+            "layout": "figure",
+        },
+    }
+    out = tmp_path / "study"
+    out.mkdir()
+    project.write_config(str(out), cfg)
+
+    written = json.loads((out / "config.json").read_text())
+    assert written["include_network"] == cfg["include_network"], (
+        "the network config was pruned or reshaped on the way to disk")
+
+
+def test_an_unknown_body_part_is_refused_before_the_study_is_written(tmp_path):
+    """A part the figure cannot draw is stacked beside it, which reads as a
+    layout the study chose rather than a name it got wrong."""
+    cfg = {
+        "title": "t", "videoIDs": ["s1"], "dataTypes": {"s1": ["alpha"]},
+        "include_network": {"effectors": [{"series": "alpha", "part": "elbow"}]},
+    }
+    out = tmp_path / "study"
+    out.mkdir()
+    with pytest.raises(project.ProjectError):
+        project.write_config(str(out), cfg)

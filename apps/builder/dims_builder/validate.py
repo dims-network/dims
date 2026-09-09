@@ -5,6 +5,7 @@ Each file validator returns a list of issue dicts: {"level": "error"|"warning",
 warnings are surfaced but non-blocking.
 """
 import csv
+import re
 import json
 import os
 import xml.etree.ElementTree as ET
@@ -188,5 +189,79 @@ def validate_config(cfg: dict, staged: list) -> list:
 
     _validate_pairs("Cross-wavelet", cfg.get("include_crosswavelet"))
     _validate_pairs("Cross-RQA", cfg.get("include_cRQA"))
+    issues.extend(validate_network(cfg, all_csv_types))
 
+    return issues
+
+
+#: Where the figure layout can put a node. Mirrored from figurePositions() in
+#: packages/dims-tabs/network.js, the `part` enum in
+#: docs/contracts/config.schema.json and FIGURE_PARTS in the builder's
+#: builder.js. tests/test_contracts.py asserts the four agree, because a part
+#: this list has not heard of is stacked beside the figure by the tab -- which
+#: looks like a layout the study chose rather than a name it got wrong.
+FIGURE_PARTS = ("head", "nose", "lefthand", "righthand", "hand",
+                "torso", "hip", "foot")
+
+
+def validate_network(cfg: dict, all_csv_types: set) -> list:
+    """The cross-effector network's own keys, which nothing used to check.
+
+    A network config fails quietly in every direction: a `match` that hits
+    nothing draws one undifferentiated group, a `series` naming a CSV that is
+    not there draws a node with nothing behind it, and a malformed `match` is
+    live regular-expression syntax that throws inside the tab and takes the
+    whole render down. None of it reaches a message today.
+    """
+    issues = []
+    spec = cfg.get("include_network")
+    if not isinstance(spec, dict):
+        return issues                    # absent, or the bare `true` form
+
+    labels = set()
+    for group in spec.get("groups") or []:
+        if not isinstance(group, dict):
+            issues.append(_err("Each network group must be an object with a label."))
+            continue
+        if group.get("label"):
+            labels.add(group["label"])
+        match = group.get("match")
+        if match:
+            try:
+                re.compile(match)
+            except re.error as exc:
+                issues.append(_err(
+                    f"The network group pattern {match!r} is not a valid regular "
+                    f"expression ({exc}). The tab compiles it in the browser, so "
+                    f"this does not draw a partial network -- it draws nothing."))
+
+    seen = set()
+    for entry in spec.get("effectors") or []:
+        if not isinstance(entry, dict):
+            issues.append(_err("Each network effector must be an object with a 'series'."))
+            continue
+        series = entry.get("series")
+        if not series:
+            issues.append(_err("A network effector has no 'series' saying which measure it is."))
+            continue
+        if series in seen:
+            issues.append(_err(
+                f"The network declares '{series}' twice. One measure is one node; "
+                f"the second declaration is ignored."))
+        seen.add(series)
+        if all_csv_types and series not in all_csv_types:
+            issues.append(_err(
+                f"The network places '{series}' but no time-series CSV provides "
+                f"it. The node would be drawn with nothing behind it."))
+        part = entry.get("part")
+        if part and part not in FIGURE_PARTS:
+            issues.append(_warn(
+                f"The network puts '{series}' at '{part}', which the figure "
+                f"layout does not know. It will be stacked beside the figure "
+                f"rather than placed. Known: {', '.join(FIGURE_PARTS)}."))
+        group = entry.get("group")
+        if group and labels and group not in labels:
+            issues.append(_warn(
+                f"The network puts '{series}' in group '{group}', which no group "
+                f"defines. It will be drawn in 'Other'."))
     return issues

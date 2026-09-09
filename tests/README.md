@@ -1,6 +1,6 @@
 # Where the tests are, and why
 
-Six roots, and each of them belongs to something. The question this file
+Seven roots, and each of them belongs to something. The question this file
 answers is "where does my test go", so that the answer is a rule rather than a
 precedent.
 
@@ -10,7 +10,8 @@ precedent.
 | `tests/reference/` | **the analyses, against known answers** | `pytest tests/reference` |
 | `packages/<pkg>/tests/` | one Python package, on its own | `pytest packages/dims-analysis` |
 | `packages/dims-core/test/` | the dashboard host and the built-in tabs, headless | `cd packages/dims-core/test && node --test` |
-| `apps/builder/tests/` | the wizard | `pytest apps/builder` |
+| `apps/builder/tests/` | the wizard's Python | `pytest apps/builder` |
+| `apps/builder/test/` | the wizard's page, headless | `cd apps/builder/test && node --test` |
 
 `pytest` with no arguments runs every Python root; they are listed in
 `[tool.pytest.ini_options]` in the root `pyproject.toml`, so a new root belongs

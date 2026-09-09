@@ -519,3 +519,185 @@ test('the long explanation is behind an (i) and stays how you left it', async ()
   assert.notStrictEqual(w.document.getElementById('networkHelp').style.display, 'none',
     'the explanation shut itself on a redraw');
 });
+
+// --- declaring which series is which node ------------------------------------
+//
+// Without `effectors`, everything about a node is inferred from its name: the
+// group from a regex, the label from deleting that regex, the body part from a
+// token found inside what is left. That works for a study that encodes person,
+// part and quantity in one string and says nothing about one whose measures are
+// called `alpha` and `beta`. These tests cover the declaration that replaces the
+// inference, and — first — that the inference is untouched when nobody declares.
+
+const nodes = (w) => [...w.document.querySelectorAll('circle[data-measure]')];
+const nodeAt = (w, measure) =>
+  w.document.querySelector(`circle[data-measure="${measure}"]`);
+const labels = (w) => [...w.document.querySelectorAll('#networkSvg text')]
+  .map(t => t.textContent);
+
+test('with no effectors declared, the inferred layout is unchanged', async () => {
+  // The load-bearing assertion of the whole feature: every existing study is on
+  // this path, and it must not move.
+  const plain = await open_(await boot());
+  const grouped = await open_(await boot({
+    ...BASE,
+    include_network: { groups: [{ match: '^alpha', label: 'A', color: '#f00' }] },
+  }));
+
+  assert.deepStrictEqual(nodes(plain).map(n => n.dataset.measure), ['alpha', 'beta']);
+  assert.deepStrictEqual(nodes(grouped).map(n => n.dataset.measure), ['alpha', 'beta']);
+
+  // The group heading is still drawn, and the label is still derived by
+  // deleting the group's own regex from the name -- with the documented
+  // fallback when that empties it, which `^alpha` on `alpha` does.
+  assert.ok(labels(grouped).includes('A'), 'the group heading is gone');
+  assert.ok(labels(grouped).includes('alpha'),
+    'stripping that empties a label should fall back to the full name');
+});
+
+test('a declared effector sets its own group, label and place', async () => {
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'Teacher', color: '#f00' }, { label: 'Student' }],
+      effectors: [
+        { series: 'alpha', group: 'Teacher', label: 'Right hand', part: 'righthand' },
+        { series: 'beta', group: 'Student', label: 'Head', part: 'head' },
+      ],
+      layout: 'figure',
+    },
+  }));
+
+  assert.deepStrictEqual(nodes(w).map(n => n.dataset.measure), ['alpha', 'beta']);
+  // The label is what the study said, not the series name and not a subtraction.
+  assert.ok(labels(w).includes('Right hand'), labels(w).join('|'));
+  assert.ok(labels(w).includes('Head'), labels(w).join('|'));
+  // Two groups, two figures, so the two nodes are on different figures.
+  assert.notStrictEqual(nodeAt(w, 'alpha').getAttribute('cx'),
+                        nodeAt(w, 'beta').getAttribute('cx'));
+  // Group colour still reaches the node.
+  assert.strictEqual(nodeAt(w, 'alpha').getAttribute('fill'), '#f00');
+});
+
+test('a declared node needs no recognisable name at all', async () => {
+  // The case that is broken without this: `alpha` matches no group regex and
+  // contains no body part, so inference puts it in one undifferentiated column.
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'One' }, { label: 'Two' }],
+      effectors: [
+        { series: 'alpha', group: 'One', part: 'lefthand' },
+        { series: 'beta', group: 'Two', part: 'foot' },
+      ],
+      layout: 'figure',
+    },
+  }));
+  assert.ok(labels(w).includes('One') && labels(w).includes('Two'),
+    `both groups should be drawn: ${labels(w).join('|')}`);
+  // No label given, so the series name is the label — never blank.
+  assert.ok(labels(w).includes('alpha'), labels(w).join('|'));
+});
+
+test('explicit coordinates are fractions of the chart', async () => {
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'Only' }],
+      effectors: [
+        { series: 'alpha', group: 'Only', x: 0.25, y: 0.5 },
+        { series: 'beta', group: 'Only', x: 0.75, y: 0.5 },
+      ],
+    },
+  }));
+  // VIEW_W is 1000, VIEW_H 560. Fractions, so a config does not break when a
+  // private constant of network.js is retuned.
+  assert.strictEqual(Number(nodeAt(w, 'alpha').getAttribute('cx')), 250);
+  assert.strictEqual(Number(nodeAt(w, 'beta').getAttribute('cx')), 750);
+  assert.strictEqual(Number(nodeAt(w, 'alpha').getAttribute('cy')), 280);
+});
+
+test('a declared effector with no pair is drawn, not dropped', async () => {
+  // "You asked for this and cross-wavelet does not cover it" is a question a
+  // reader would otherwise have to take to the config.
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'Only' }],
+      effectors: [
+        { series: 'alpha', group: 'Only' },
+        { series: 'beta', group: 'Only' },
+        { series: 'gamma', group: 'Only', label: 'Never paired' },
+      ],
+    },
+  }));
+  assert.ok(nodeAt(w, 'gamma'), 'a declared effector vanished');
+  assert.strictEqual(edges(w).length, 1, 'it should have no edge of its own');
+});
+
+test('a measure in a pair that nobody declared still appears', async () => {
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'Declared' }],
+      effectors: [{ series: 'alpha', group: 'Declared' }],
+    },
+  }));
+  assert.ok(nodeAt(w, 'beta'), 'an undeclared measure was lost');
+  assert.ok(labels(w).includes('Other'),
+    `it belongs to the trailing group: ${labels(w).join('|')}`);
+  assert.strictEqual(edges(w).length, 1, 'and its edge survives');
+});
+
+test('an effector naming a group nobody defined lands in Other', async () => {
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'Real' }],
+      effectors: [
+        { series: 'alpha', group: 'Real' },
+        { series: 'beta', group: 'Typo' },
+      ],
+    },
+  }));
+  assert.ok(nodeAt(w, 'beta'), 'a typo should not delete a node');
+  assert.ok(labels(w).includes('Other'), labels(w).join('|'));
+});
+
+test('two nodes on one spot are nudged apart', async () => {
+  // figurePositions maps head and nose to the same point, and hand and lefthand
+  // to the same point, so this is reachable without anyone asking for it: one
+  // circle over another with a zero-length edge between them.
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'One' }],
+      effectors: [
+        { series: 'alpha', group: 'One', part: 'head' },
+        { series: 'beta', group: 'One', part: 'nose' },
+      ],
+      layout: 'figure',
+    },
+  }));
+  const ax = Number(nodeAt(w, 'alpha').getAttribute('cx'));
+  const bx = Number(nodeAt(w, 'beta').getAttribute('cx'));
+  assert.notStrictEqual(ax, bx, 'head and nose are the same spot and coincided');
+});
+
+test('declaring a node does not cost it its co-activity figure', async () => {
+  // The figure is looked up in the loaded time series by exact measure name, so
+  // `series` has to stay a real data type and not become a display label. If it
+  // ever does, every edge silently loses this line.
+  const w = await open_(await boot({
+    ...BASE,
+    include_network: {
+      groups: [{ label: 'Only' }],
+      effectors: [
+        { series: 'alpha', group: 'Only', label: 'Not a filename' },
+        { series: 'beta', group: 'Only', label: 'Nor this' },
+      ],
+    },
+  }));
+  const title = edges(w)[0].querySelector('title').textContent;
+  assert.match(title, /both measures active: \d+% of this window/);
+});

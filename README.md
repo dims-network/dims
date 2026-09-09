@@ -22,7 +22,7 @@ the video and every chart follow.
 | **Recurrence (RQA)** | where one signal returns to states it was in before |
 | **Cross-recurrence** | where two signals repeat *each other*, and after how long |
 | **Cross-wavelet & coherence** | which timescales two signals share, how strongly, and which leads |
-| **Cross-effector network** | one picture of who is coupled with whom, moving with the playhead |
+| **Cross-effector network** | one picture of who is coupled with whom, moving with the playhead — [how to read it](docs/tabs/network.md) |
 | **ELAN** | your own annotations, on the same timeline |
 
 Coherence is measured against a chance level estimated by simulation, not read
