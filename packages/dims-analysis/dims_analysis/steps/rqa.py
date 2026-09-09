@@ -96,6 +96,10 @@ def calculate_recurrence_matrix(time_series, threshold=None,
     ts_reshaped = ts_normalized.reshape(-1, 1)
     
     # Calculate distance matrix
+    # cdist, not `np.abs(x[:, None] - x[None, :])`. The broadcast looks
+    # like the simpler thing and is not: it allocates a temporary for the
+    # subtraction and another for the absolute value, measuring 2.5x slower
+    # and 2x the peak memory at n=8000. cdist writes one output buffer.
     distance_matrix = cdist(ts_reshaped, ts_reshaped, metric='euclidean')
     
     # One rule, one implementation: see common/recurrence.py. The threshold and

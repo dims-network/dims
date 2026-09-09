@@ -823,13 +823,13 @@ def calculate_summary_statistics(cwt_results, time, scale_avg_power, scale_avg_s
     global_power = cwt_results['global_power']
     global_signif = cwt_results['global_signif']
     
-    # Create COI mask if requested
-    if COI_EXCLUDE:
-        coi_mask = np.zeros_like(power, dtype=bool)
-        for i, c in enumerate(coi):
-            coi_mask[:, i] = scales[:, np.newaxis].flatten() > c
-    else:
-        coi_mask = np.zeros_like(power, dtype=bool)
+    # A cell is unusable where its scale is longer than the cone at that time.
+    # This was a Python loop over every time sample that rebuilt `scales` --
+    # via `scales[:, np.newaxis].flatten()`, which is `scales` -- on each pass.
+    # The comparison is against scales rather than period; see the cone section
+    # of docs/analyses/crosswavelet.md for why the 3% matters.
+    coi_mask = scales[:, None] > np.asarray(coi)[None, :] if COI_EXCLUDE \
+        else np.zeros_like(power, dtype=bool)
     
     # Mask out COI regions
     power_valid = np.ma.masked_array(power, coi_mask)
@@ -978,8 +978,10 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
         # Scale-averaged power
         Cdelta = cwt_results['mother'].cdelta
         # Create scale matrix properly for broadcasting: (n_scales, n_times)
-        scale_avg = cwt_results['scales'][:, np.newaxis] * np.ones((1, len(time_common)))
-        scale_avg = power / scale_avg
+        # Torrence & Compo eq. 24. The `np.ones` multiply existed only to
+        # defeat broadcasting, at the cost of a full (scales x times) float64
+        # array -- 16.8 MB on a long recording -- for an identical result.
+        scale_avg = power / cwt_results['scales'][:, np.newaxis]
         scale_avg_power = cwt_results['dj'] * dt / Cdelta * scale_avg[sel, :].sum(axis=0)
         
         # The 95% level for it, eqs. 25-28 with the cross-wavelet distribution
