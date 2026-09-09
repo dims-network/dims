@@ -4,6 +4,35 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.3.0
+
+The cross-effector network is built by drawing it. No output change; a study
+written before this reads and renders exactly as it did.
+
+**The wizard draws the diagram.** Step 4 shows the same figures the dashboard
+draws, at the same proportions. Add a person, click an empty circle to put a
+time series on their head or a hand, click two placed nodes to draw the line
+between them. A line is one cross-wavelet pair, so the cross-wavelet block no
+longer has chips of its own -- picking the same thing in two places is how they
+drift. The table of dropdowns v1.2.0 added is gone; the `effectors` config it
+wrote is unchanged.
+
+**Existing studies open already filled in.** A study that says all of this by
+naming its measures `teacher_righthandspeed` is placed by the same inference the
+tab runs, and the diagram says it guessed. Pressing Next writes the explicit
+form. A test renders both through the tab's own grouping and layout and asserts
+every node keeps its position, its label and its group -- a migration that
+quietly moved one would be worse than none.
+
+**`layout: "figure"` is implied** by placing anything, rather than being a
+select nobody set.
+
+**Also:** a person with neither a label nor a pattern is refused, since nothing
+could ever be placed in it. And the builder's fix from v1.2.0 for
+`scipy==1.26.4` was narrowed to that exact string after a sample study turned up
+still carrying it -- see v1.2.0's note; the wrong end of that trade was chosen
+twice before this.
+
 ## v1.2.0
 
 A study can now say which time series is which node in the cross-effector

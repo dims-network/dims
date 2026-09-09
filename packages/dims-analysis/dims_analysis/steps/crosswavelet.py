@@ -1328,11 +1328,12 @@ def main():
                     print(f"    - AR1 coefficients: α₁={result['alpha1']:.3f}, α₂={result['alpha2']:.3f}")
     
     print("\nCross-wavelet processing complete!")
-    
-    if not VERBOSE:
-        print("\nNote: Run with --verbose flag for detailed output")
-    print("Note: Install required packages with:")
-    print("  pip install pycwt numpy pandas scipy")
+    # Nothing else. This used to end by telling the reader to install the four
+    # packages it had just finished using -- unconditionally, on success -- and
+    # in a wizard log, where a real pip error can sit two lines above, it reads
+    # as the remedy for that error. The other note here was guarded by
+    # `not VERBOSE`, which nothing can make false: VERBOSE starts True and
+    # --verbose can only set it True again.
 
 if __name__ == "__main__":
     main()

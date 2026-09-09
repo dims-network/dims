@@ -4,6 +4,6 @@ Steps are discovered through the ``dims.steps`` entry point group, so a step in
 a separate package joins the pipeline without any change here. See
 ``docs/contracts/step.md``.
 """
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 from dims_analysis.base import Step, StepContext  # noqa: F401

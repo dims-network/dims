@@ -168,3 +168,74 @@ def test_a_study_keeps_the_versions_it_pinned(tmp_path):
     assert "pandas>=2.0" in written
     assert "json" not in written, "stdlib is not pip-installable"
     assert "numpy" in written, "added explicitly, not relied on transitively"
+
+
+def test_the_old_template_s_impossible_pin_is_repaired(tmp_path):
+    """`scipy==1.26.4` is not a release -- 1.26.4 is a numpy version.
+
+    Every study made from the template that shipped it carries it, and pip stops
+    dead at a pin that cannot resolve, so the study's own analyses never install.
+    This has been got wrong in both directions: first by rewriting *any* scipy
+    requirement, which un-pinned studies that meant theirs, and then by dropping
+    the repair on the reasoning that nobody would still carry the broken one.
+    The next study built from a sample carried it. Both cases are asserted here
+    so the next change has to keep both true.
+    """
+    opt = tmp_path / "opt"
+    opt.mkdir()
+    (opt / "requirements.txt").write_text(
+        "json\nscipy==1.26.4\nmatplotlib\npandas\npycwt\n")
+
+    written = open(precompute._filtered_requirements(str(tmp_path))).read().split()
+
+    assert "scipy" in written, "the impossible pin should become a usable one"
+    assert "scipy==1.26.4" not in written
+    assert "json" not in written
+    assert written.count("scipy") == 1, "repaired, not duplicated"
+
+
+def test_a_failed_environment_setup_is_reported_as_a_failure(tmp_path, monkeypatch):
+    """The log used to end on "Precompute complete" after a failed install.
+
+    create_venv streamed pip's exit codes to the browser and nothing here read
+    them, so a study whose own requirements would not install still finished
+    green -- while the page, which does scan the stream, said it finished with
+    errors. Two answers to one question, in one log, and the reassuring one was
+    the server's.
+    """
+    project = tmp_path / "study"
+    (project / "opt").mkdir(parents=True)
+    (project / "config.json").write_text(json.dumps({"videoIDs": [], "dataTypes": {}}))
+
+    def failing_setup(_project):
+        yield "$ pip install -r opt/requirements.txt\n"
+        yield "ERROR: No matching distribution found for scipy==1.26.4\n"
+        yield "__EXIT__:1\n"
+
+    monkeypatch.setattr(precompute, "create_venv", failing_setup)
+    # The shared analyses come from the core install, not from this file, so
+    # they still run; their own failure is a separate report.
+    monkeypatch.setattr(precompute, "_stream",
+                        lambda *a, **k: iter(["ran\n", "__EXIT__:0\n"]))
+    out = "".join(precompute.run_precompute(
+        str(project), config={"include_RQA": ["a"]}))
+
+    assert "__FAILED__:environment" in out
+    assert "Precompute FAILED" in out, out[-300:]
+    assert "Precompute complete" not in out
+
+
+def test_a_clean_setup_still_finishes_complete(tmp_path, monkeypatch):
+    project = tmp_path / "study"
+    project.mkdir()
+    (project / "config.json").write_text(json.dumps({"videoIDs": [], "dataTypes": {}}))
+
+    monkeypatch.setattr(precompute, "create_venv",
+                        lambda _p: iter(["$ pip install\n", "__EXIT__:0\n"]))
+    monkeypatch.setattr(precompute, "_stream",
+                        lambda *a, **k: iter(["ran\n", "__EXIT__:0\n"]))
+    out = "".join(precompute.run_precompute(
+        str(project), config={"include_RQA": ["a"]}))
+
+    assert "Precompute complete" in out
+    assert "__FAILED__" not in out

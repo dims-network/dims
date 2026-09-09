@@ -225,6 +225,12 @@ def validate_network(cfg: dict, all_csv_types: set) -> list:
             continue
         if group.get("label"):
             labels.add(group["label"])
+        elif not group.get("match"):
+            # An effector names its group by label, so a group with neither a
+            # label nor a pattern can never collect anything.
+            issues.append(_err(
+                "A network group has no label and no pattern, so nothing can be "
+                "placed in it."))
         match = group.get("match")
         if match:
             try:

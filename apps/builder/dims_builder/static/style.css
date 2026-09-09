@@ -219,3 +219,61 @@ textarea {
   content: "in the study"; display: block; font-weight: 400; font-size: 11px;
   color: var(--muted); text-transform: none;
 }
+
+/* ---- the network diagram --------------------------------------------------
+   The wizard's only drawing. It is deliberately the same picture the dashboard
+   draws, at the same proportions, so what you arrange here is recognisable
+   there rather than being a separate abstraction to learn. */
+#network-builder { margin: 12px 0 4px; }
+
+.people-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.people-strip #people { display: flex; flex-wrap: wrap; gap: 8px; }
+.person {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 3px 6px 3px 4px;
+}
+.person input[type="color"] {
+  width: 22px; height: 22px; padding: 0; border: none; background: none; cursor: pointer;
+}
+.person input[type="text"] {
+  width: 9ch; background: transparent; border: none; color: var(--fg);
+  font-size: 13px; padding: 2px 0;
+}
+.person input[type="text"]:focus { outline: 1px solid var(--accent); border-radius: 4px; }
+.person button {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 0 2px;
+}
+.person button:hover { color: var(--err); }
+
+.diagram-wrap { position: relative; margin: 8px 0; }
+#network-diagram {
+  width: 100%; height: auto; display: block;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+}
+#network-diagram .spot { cursor: pointer; }
+#network-diagram .spot circle { transition: stroke .12s, fill .12s; }
+#network-diagram .spot:hover circle { stroke: var(--accent); }
+#network-diagram .spot.armed circle { stroke: var(--accent); stroke-width: 5; }
+#network-diagram .spot-clear { opacity: 0; transition: opacity .12s; }
+#network-diagram .spot:hover .spot-clear { opacity: 1; }
+#network-diagram .spot-clear:hover text { fill: var(--err); }
+
+/* The picker that opens on an empty spot. Positioned against .diagram-wrap, so
+   it follows the node rather than the page. */
+.spot-menu {
+  position: absolute; z-index: 5; min-width: 160px; max-height: 240px; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45); padding: 4px;
+}
+.spot-menu-head {
+  color: var(--muted); font-size: 12px; padding: 6px 8px 4px;
+}
+.spot-menu button {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  color: var(--fg); font-size: 13px; padding: 6px 8px; border-radius: 5px; cursor: pointer;
+}
+.spot-menu button:hover { background: var(--panel-2); }
+
+.unplaced { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
