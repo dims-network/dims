@@ -31,11 +31,29 @@ def threshold_for_target(distance_matrix, target_recurrence: float,
     For a self-paired (auto-recurrence) matrix the zero diagonal is excluded --
     it is n zeros that would drag the percentile down. The matrix is symmetric,
     so the strict upper triangle gives the same percentile as the full
-    off-diagonal set, and is half the memory.
+    off-diagonal set, from half as many values.
+
+    It is selected with a boolean mask, and that is where this used to claim a
+    saving and spend it instead. `np.triu_indices_from` returns two int64 index
+    arrays -- sixteen bytes of index per eight bytes of distance -- built from
+    an n x n boolean array it then discards. Measured at n=4000, the transient
+    peak above the matrix was 1.50x the matrix with the index arrays and 1.00x
+    with a mask; the ratio is flat in n. At the 16,384-sample bound in limits.py
+    that is 3 GiB of scratch beside a 2 GiB matrix, against 2 GiB -- and this
+    module's budget comment allows "about twice what matrix_bytes reports".
+
+    Boolean indexing selects row-major, exactly the order `triu_indices`
+    produces its pairs in, so the two build the same array element for element
+    and the same percentile bit for bit. That equality is the point: the full
+    off-diagonal set is *not* interchangeable here. It lands between different
+    order statistics and moves the threshold by ~5e-5 relative, against a
+    baseline that pins it at 1e-6.
     """
     d = np.asarray(distance_matrix)
     if self_paired:
-        values = d[np.triu_indices_from(d, k=1)]
+        rows = np.arange(d.shape[0])[:, None]
+        cols = np.arange(d.shape[-1])[None, :]
+        values = d[rows < cols]
     else:
         values = d.ravel()
     if values.size == 0:

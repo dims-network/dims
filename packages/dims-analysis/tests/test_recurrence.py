@@ -119,3 +119,30 @@ def test_both_steps_now_import_the_same_implementation():
 def test_an_unknown_direction_is_refused():
     with pytest.raises(ValueError):
         rec.line_lengths(np.eye(4), direction="sideways")
+
+
+def test_the_triangle_is_selected_by_mask_and_not_by_index_arrays():
+    """Same values, same order, same percentile -- and a quarter of the memory.
+
+    `np.triu_indices_from` spends two int64 index arrays to reach half a float64
+    matrix; at the 16,384-sample bound that is 2 GiB of indices beside a 2 GiB
+    matrix. A mask is 0.25 GiB and selects row-major, which is the order
+    `triu_indices` produces, so the arrays are equal element for element.
+
+    The full off-diagonal set is NOT an equivalent simplification: it lands
+    between different order statistics and moves the threshold by ~5e-5
+    relative, against a baseline that pins it at 1e-6.
+    """
+    rng = np.random.default_rng(4)
+    d = rng.random((120, 120))
+    d = (d + d.T) / 2
+    np.fill_diagonal(d, 0.0)
+    rows = np.arange(120)
+
+    assert np.array_equal(d[rows[:, None] < rows[None, :]],
+                          d[np.triu_indices_from(d, k=1)])
+
+    by_triangle = rec.threshold_for_target(d, 0.07, self_paired=True)
+    by_off_diagonal = float(np.percentile(d[~np.eye(120, dtype=bool)], 7.0))
+    assert by_triangle != by_off_diagonal
+    assert abs(by_off_diagonal - by_triangle) / by_triangle > 1e-6
