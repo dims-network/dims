@@ -102,9 +102,20 @@ markers = [
 # An unregistered marker is a typo that silently disables a test.
 addopts = "--strict-markers"
 
+# One distribution builds everything. packages/dims-analysis carried its own
+# pyproject.toml declaring the same version, the same dependencies, the same
+# `dims-analysis` console script and the same three `dims.steps` entry points --
+# so installing both registered every step twice and gave two distributions a
+# claim on one command name. The whole core moves together anyway; that is what
+# a study pins.
+#
+# dims_checks is in this list now. It declares a __version__ and has an extra of
+# its own, but was in no `where`, so nothing could install it and CI had to cd
+# into its directory to make the imports resolve.
 [tool.setuptools.packages.find]
-where = ["packages/dims-analysis", "packages/dims-case", "apps/builder"]
-include = ["dims_analysis*", "dims_case*", "dims_builder*"]
+where = ["packages/dims-analysis", "packages/dims-case", "packages/dims-notebooks",
+         "apps/builder"]
+include = ["dims_analysis*", "dims_case*", "dims_checks*", "dims_builder*"]
 
 [tool.setuptools.package-data]
 dims_builder = ["static/*", "static/**/*"]

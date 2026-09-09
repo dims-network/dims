@@ -29,7 +29,10 @@ PY="$VENV/bin/python"
 
 echo "Installing builder dependencies (first run only)..."
 "$PY" -m pip install --upgrade pip >/dev/null
-"$PY" -m pip install -r requirements.txt
+# The `builder` extra, not a second requirements list: the one that used to
+# live here had drifted to no version floors at all. This also puts
+# dims_builder, dims_case and dims_analysis on the path properly.
+"$PY" -m pip install -e "../..[builder]"
 
 echo "Starting DIMS Dashboard Builder..."
 "$PY" -m dims_builder
