@@ -157,6 +157,102 @@ def _runs(line, min_len: int) -> list:
     return list(lens[lens >= min_len])
 
 
+def _on_line_sum(b, diagonal: bool, self_paired: bool = False) -> int:
+    """`sum(run lengths >= 2)` along one direction, without listing the runs.
+
+    `window_metrics` consumes `line_lengths` only through `np.sum` and
+    `np.max`, and building the histogram to throw it away is the dominant cost
+    of the recurrence analyses: at a 1000-sample window the two calls are 48 ms
+    of Python looping over 2n-1 diagonals and n columns, against 0.57 s for the
+    whole `cdist` the windows are cut from.
+
+    The identity that removes the loop: every recurrent cell belongs to exactly
+    one run, so the runs of length >= 2 hold every recurrent cell except the
+    isolated ones -- those with no recurrent neighbour on either side along the
+    line. Counting *those* is two shifted comparisons of the matrix with itself:
+
+        adjacent = cells whose predecessor along the line is also recurrent
+        interior = cells recurrent on both sides
+
+    A cell has at least one neighbour iff it is in the predecessor set or the
+    successor set; both have `adjacent` members and they intersect in
+    `interior`, so
+
+        sum(runs >= 2) = total - isolated = 2 * adjacent - interior
+
+    The two guards in `line_lengths` drop nothing, which is why this agrees with
+    it exactly rather than nearly: a run inside a line of length L is at most L
+    long, so a line shorter than `min_len` can hold no qualifying run, and a run
+    of length L needs L recurrent cells, so a column summing to less than
+    `min_len` can hold none either. Both are speed guards.
+
+    This is the `min_len == 2` case only. Above it the excluded runs are no
+    longer just the isolated cells -- at min_len 3 they are the length-1 and
+    length-2 runs, which an isolated-cell count cannot separate -- so
+    `window_metrics` falls back to `line_lengths` there.
+    """
+    n, m = b.shape
+    if diagonal:
+        adjacent = int(np.count_nonzero(b[1:, 1:] & b[:-1, :-1])) \
+            if n > 1 and m > 1 else 0
+        interior = int(np.count_nonzero(b[1:-1, 1:-1] & b[:-2, :-2] & b[2:, 2:])) \
+            if n > 2 and m > 2 else 0
+        if self_paired:
+            # The line of identity is not scanned. Subtracting its own counts is
+            # exact rather than approximate: a cell's neighbours along a diagonal
+            # lie on that same diagonal, so each diagonal contributes to
+            # `adjacent` and `interior` independently of every other. That is
+            # also why no copy of the matrix is needed to blank it out.
+            k = np.diagonal(b)
+            if k.size > 1:
+                adjacent -= int(np.count_nonzero(k[1:] & k[:-1]))
+            if k.size > 2:
+                interior -= int(np.count_nonzero(k[1:-1] & k[:-2] & k[2:]))
+    else:
+        adjacent = int(np.count_nonzero(b[1:] & b[:-1])) if n > 1 else 0
+        interior = int(np.count_nonzero(b[1:-1] & b[:-2] & b[2:])) if n > 2 else 0
+    return 2 * adjacent - interior
+
+
+def _longest_diagonal_run(b, self_paired: bool, min_len: int = 2) -> int:
+    """The longest diagonal run, in one pass with O(columns) working memory.
+
+    DET and LAM need only sums, but L_MAX needs a real maximum, so this is the
+    one quantity that still has to look at run lengths. It carries the standard
+    recurrence -- the run ending at (i, j) is one longer than the run ending at
+    (i-1, j-1), or zero -- a row at a time, so the state is two int32 vectors of
+    `m` and nothing grows with `n`.
+
+    The alternative considered was skewing the matrix so diagonals become
+    columns and taking one fully vectorised run-length pass. It is exact, but it
+    costs about three copies of an n x (n + m) array -- 1.6 GB at the
+    16,384-sample bound in limits.py, beside a distance matrix that is already
+    2 GB -- and it measured slower at every window size tried, being bound by
+    allocation rather than arithmetic. This is here so nobody re-proposes it.
+
+    `self_paired` blanks the line of identity by zeroing the counter at (i, i),
+    which both excludes that cell and restarts the run below it -- exactly what
+    "this diagonal is not scanned" means. The `min_len` floor is `line_lengths`'
+    filter: a longest run of one is not a line, and it reports zero.
+    """
+    n, m = b.shape
+    ending = np.zeros(m, dtype=np.int32)
+    carried = np.empty(m, dtype=np.int32)
+    longest = 0
+    for i in range(n):
+        carried[1:] = ending[:m - 1]
+        carried[1:] += 1
+        carried[0] = 1
+        carried *= b[i]                  # zero wherever the cell is not recurrent
+        if self_paired and i < m:
+            carried[i] = 0
+        row_longest = int(carried.max())
+        if row_longest > longest:
+            longest = row_longest
+        ending, carried = carried, ending
+    return longest if longest >= min_len else 0
+
+
 def window_metrics(matrix, dt: float, min_line: int = 2,
                    self_paired: bool = False) -> tuple:
     """(RR, DET, LAM, L_MAX) over one window, each with its own denominator.

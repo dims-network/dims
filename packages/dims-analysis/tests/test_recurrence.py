@@ -146,3 +146,90 @@ def test_the_triangle_is_selected_by_mask_and_not_by_index_arrays():
     by_off_diagonal = float(np.percentile(d[~np.eye(120, dtype=bool)], 7.0))
     assert by_triangle != by_off_diagonal
     assert abs(by_off_diagonal - by_triangle) / by_triangle > 1e-6
+
+
+# --------------------------------------------------------------------------
+# The fast path in window_metrics, against line_lengths as the reference.
+#
+# line_lengths stays as the reference implementation: it is what the docs send
+# a reader to for the ENTR and mean-L histograms this package does not compute,
+# and it is what these tests compare against. The shortcut has to be a
+# shortcut, not a second opinion -- baseline.json pins mean_DET, mean_LAM and
+# mean_RR at 1e-6, and a numerator that is right on average is a regression
+# that reaches a dashboard caption.
+# --------------------------------------------------------------------------
+
+def _degenerate_and_random_matrices():
+    """Every shape and density that has ever broken a run-length scan.
+
+    n=1 and n=2 (no interior to compare), all-zeros (no runs at all), all-ones
+    (one run per line, full length), a single point (isolated in both
+    directions), the identity (nothing but the line that self_paired removes),
+    one long off-diagonal (what a lagged coupling looks like), and non-square,
+    which is the cross-recurrence case and the one an auto-recurrence
+    assumption silently gets wrong.
+    """
+    rng = np.random.default_rng(20240607)
+    for rows in (1, 2, 3, 4, 5, 8, 13):
+        for cols in (1, 2, 3, 4, 5, 8, 13):
+            for density in (0.0, 0.03, 0.2, 0.5, 0.85, 1.0):
+                yield (rng.random((rows, cols)) < density).astype(np.uint8)
+    for n in (1, 2, 3, 7, 50, 101):
+        zeros = np.zeros((n, n), dtype=np.uint8)
+        yield zeros
+        yield np.ones((n, n), dtype=np.uint8)
+        identity = zeros.copy()
+        np.fill_diagonal(identity, 1)
+        yield identity
+        point = zeros.copy()
+        point[n // 2, n // 2] = 1
+        yield point
+        line = zeros.copy()
+        for i in range(n - 1):
+            line[i, i + 1] = 1
+        yield line
+        yield (rng.random((n, 3 * n)) < 0.25).astype(np.uint8)
+        yield (rng.random((3 * n, n)) < 0.25).astype(np.uint8)
+
+
+def test_the_fast_path_and_line_lengths_agree_exactly():
+    """Exact equality, not approximate, on every degenerate shape there is."""
+    checked = 0
+    for m in _degenerate_and_random_matrices():
+        square = m.shape[0] == m.shape[1]
+        for self_paired in ((False, True) if square else (False,)):
+            b = np.ascontiguousarray(m, dtype=bool)
+            diag = rec.line_lengths(m, "diagonal", 2, self_paired)
+            vert = rec.line_lengths(m, "vertical", 2)
+
+            assert rec._on_line_sum(b, True, self_paired) == float(np.sum(diag)), (
+                f"DET numerator, shape {m.shape}, self_paired={self_paired}")
+            assert rec._on_line_sum(b, False) == float(np.sum(vert)), (
+                f"LAM numerator, shape {m.shape}, self_paired={self_paired}")
+            assert rec._longest_diagonal_run(b, self_paired) == (
+                int(np.max(diag)) if diag.size else 0), (
+                f"L_MAX, shape {m.shape}, self_paired={self_paired}")
+            checked += 1
+    assert checked > 400, f"the generator stopped producing cases: {checked}"
+
+
+def test_a_longest_run_of_one_is_not_a_line():
+    """`line_lengths` filters to >= 2, so a lone recurrent cell reports zero.
+
+    Without the floor the fast path returns 1 here and L_MAX becomes one
+    sampling interval of nothing.
+    """
+    lone = np.zeros((5, 5), dtype=bool)
+    lone[1, 3] = True
+    assert rec._longest_diagonal_run(lone, self_paired=False) == 0
+    assert rec.line_lengths(lone, "diagonal", 2).size == 0
+
+
+def test_the_self_paired_exclusion_needs_no_copy_of_the_matrix():
+    """Blanking the line of identity is a subtraction, and it is exact."""
+    m = _auto(40)
+    b = np.ascontiguousarray(m, dtype=bool)
+    before = b.copy()
+    rec._on_line_sum(b, True, self_paired=True)
+    rec._longest_diagonal_run(b, self_paired=True)
+    assert np.array_equal(b, before), "the matrix was mutated"
