@@ -52,7 +52,7 @@ OPTIONAL_KEYS = {
 # straight at the scaffold. There is nothing to synchronise because there is
 # nothing to copy.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))))          # apps/builder/app/project.py -> repo root
+    os.path.abspath(__file__)))))  # apps/builder/dims_builder/project.py -> repo root
 BUNDLED_TEMPLATE = os.path.join(_REPO_ROOT, "packages", "dims-case-scaffold")
 
 # What makes a directory a study. "opt" used to be here, back when every project

@@ -1,4 +1,4 @@
-"""Validators that mirror what the template's js/app.js actually requires.
+"""Validators that mirror what the dashboard actually requires of a study.
 
 Each file validator returns a list of issue dicts: {"level": "error"|"warning",
 "message": str}. An empty list means the file is valid. Errors block the build;
@@ -21,7 +21,7 @@ def _warn(msg):
 def validate_csv(path: str) -> list:
     """Time-series CSV: must have a `Time` column + at least one measurement column.
 
-    Mirrors js/app.js (~1339-1405): PapaParse with headers, requires `Time` plus
+    Mirrors the host's CSV reader: PapaParse with headers, requires `Time` plus
     one or more numeric measurement columns.
     """
     issues = []
@@ -51,7 +51,7 @@ def validate_csv(path: str) -> list:
 def validate_transcript(path: str) -> list:
     """Transcript JSON: { "segments": [ {start, end, speaker, text}, ... ] }.
 
-    Mirrors js/app.js (~1407-1424).
+    Mirrors the host's transcript reader.
     """
     issues = []
     try:
@@ -88,7 +88,7 @@ def validate_transcript(path: str) -> list:
 def validate_eaf(path: str) -> list:
     """ELAN .eaf: XML with TIME_SLOT (TIME_VALUE) + TIER>ALIGNABLE_ANNOTATION.
 
-    Mirrors js/app.js (~1753-1794).
+    Mirrors the ELAN tab's reader.
     """
     issues = []
     try:

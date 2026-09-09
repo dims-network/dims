@@ -15,8 +15,9 @@ from-zero path a study takes, and so the repository does not carry a megabyte
 of CSV that a formula describes exactly.
 
 What each signal is for, and the expectation it supports, is in
-`docs/contracts/analysis-output.md`. The assertions are in `tests/`, one file
-per analysis, beside this generator.
+`docs/contracts/analysis-output.md`. The assertions are in `tests/reference/`,
+one file per analysis -- they moved there so that building a temporary study
+from this directory no longer copied the test suite into it.
 """
 from __future__ import annotations
 

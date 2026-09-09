@@ -178,7 +178,7 @@ import json, os, subprocess, sys
 # contract, which omitted it -- disables the guard silently, which is the one
 # failure a privacy guard may never have. The server-side check already has
 # this fallback; the hook did not.
-DEFAULT_RESTRICTED = ['assets/videos', 'assets/timeseries', 'assets/transcripts', 'assets/elan', 'assets/motion_tracking']
+DEFAULT_RESTRICTED = __DEFAULT_RESTRICTED__
 
 def run(*args):
     out = subprocess.run(["git", *args], capture_output=True, text=True)
@@ -214,6 +214,14 @@ if bad:
     sys.exit(1)
 PY
 '''
+
+
+# The one place the restricted list is written is RESTRICTED, above. It used to
+# be written twice -- once there, and once as a literal inside _HOOK, 130 lines
+# apart -- while the comment beside it said "the rule exists once rather than in
+# two places that can disagree". Adding a directory meant editing both, in a
+# privacy guard, and nothing checked that they matched.
+_HOOK = _HOOK.replace("__DEFAULT_RESTRICTED__", repr(RESTRICTED))
 
 
 PRE_COMMIT = (_HOOK

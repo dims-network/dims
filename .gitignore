@@ -8,7 +8,14 @@ node_modules/
 
 # builder-generated artifact (cleaned requirements written into a project's opt/)
 opt/_requirements.builder.txt
-assets/
+
+# The reference study's generated assets: 15 MB rebuilt by make_reference_study.py
+# on demand. Anchored, because unanchored this matched every assets/ in the tree
+# -- including the scaffold's, whose .gitkeep files survive only by predating the
+# rule. A new asset directory there was invisible to `git status` and to
+# `git add`, which for a directory that gets copied into every new study is a
+# study missing a folder it was supposed to have.
+/examples/reference/assets/
 # Build artefacts. `pip install -e .` -- which the README instructs -- rewrites
 # these on every run, and a permanently dirty tree trains people to ignore
 # `git status`, which is how an accidental `git add -A` sweeps something in.

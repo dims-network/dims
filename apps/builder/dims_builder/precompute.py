@@ -20,15 +20,22 @@ import os
 import subprocess
 import sys
 
-# The template's opt/requirements.txt has two known defects we repair when
-# generating the install list (we never touch the template itself):
-#   * a stray `json` line — json is stdlib, not pip-installable.
-#   * `scipy==1.26.4` — no such scipy release exists (1.26.4 is a *numpy*
-#     version; it's a typo upstream), so the pin can never resolve.
-# `numpy` is imported by the scripts but absent from the template's list; it
-# arrives transitively via pandas/scipy, but we add it explicitly to be safe.
+# A study's own opt/requirements.txt, cleaned. One entry is dropped: `json`,
+# which is stdlib and not pip-installable, and which the template this app was
+# written against used to ship.
+#
+# There was a second repair, replacing `scipy==1.26.4` -- no such release; 1.26.4
+# is a numpy version -- with an unpinned `scipy`. That template is gone (this
+# module's own docstring says the bundled scaffold has no opt/ at all), and what
+# the rule did instead was strip the version from *any* scipy pin, so a study
+# that legitimately pinned scipy==1.11.4 had it quietly removed. Repairing a
+# file nobody wrote any more, by un-pinning one somebody did, is worse than not
+# repairing at all.
+#
+# `numpy` is imported by the scripts but may be absent from a study's list; it
+# arrives transitively via pandas/scipy, and is added explicitly to be safe.
 _BOGUS_REQS = {"json"}
-_PIN_OVERRIDES = {"scipy": "scipy"}  # drop the impossible exact pin
+_PIN_OVERRIDES = {}
 _EXTRA_REQS = ["numpy"]
 
 
@@ -153,23 +160,20 @@ def _enabled(config: dict, key: str) -> bool:
     return any(k.lower() == wanted and bool(v) for k, v in (config or {}).items())
 
 
-def run_precompute(project: str, do_rqa=None, do_crosswavelet=None, do_crqa=None,
-                   config: dict = None, stop_on_failure: bool = True):
+def run_precompute(project: str, config: dict = None,
+                   stop_on_failure: bool = True):
     """Run every analysis this project's config enables.
 
-    Yields log lines, as before. The booleans are still accepted so an older
-    caller keeps working, but passing `config` is what lets the project decide
-    rather than this function knowing three analyses by name.
+    Yields log lines. The project's config decides, rather than this function
+    knowing three analyses by name -- which is what the three `do_rqa`-style
+    booleans that used to sit here did. They were "still accepted so an older
+    caller keeps working"; there was no older caller, in an app that is not
+    published and not importable from outside this repository.
 
     A failure is announced as __FAILED__:<step> and, by default, stops the run.
     Continuing produced output that was partly stale and looked complete.
     """
-    if config is None:
-        config = {}
-        for key, flag in (("include_RQA", do_rqa), ("include_crosswavelet", do_crosswavelet),
-                          ("include_cRQA", do_crqa)):
-            if flag:
-                config[key] = True
+    config = config or {}
 
     own = [s for s in discover_steps(project) if _enabled(config, s[3])]
     shared_wanted = any(k.lower().startswith("include_") and bool(v)
