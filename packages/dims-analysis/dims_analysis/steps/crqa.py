@@ -25,7 +25,6 @@ docs/contracts/analysis-output.md.
 """
 
 import numpy as np
-import pandas as pd
 from scipy.spatial.distance import cdist
 import json
 import os
@@ -54,35 +53,13 @@ INPUT_DIR = 'assets/timeseries'
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
 # the base64 arrays, which are not rounded at all.
-try:
-    from dims_analysis.common.payload import round_payload, precision_note
-except ImportError:  # standalone script inside a case repo, without the package
-    import math as _math
-
-    PAYLOAD_SIGNIFICANT_FIGURES = 6
-
-    def round_payload(o, figures=PAYLOAD_SIGNIFICANT_FIGURES):
-        if isinstance(o, dict):
-            return {k: round_payload(v, figures) for k, v in o.items()}
-        if isinstance(o, (list, tuple)):
-            return [round_payload(v, figures) for v in o]
-        # Integers pass through: counts and array dimensions, where "7.0" is
-        # both wrong and larger than "7".
-        if o is None or isinstance(o, bool) or isinstance(o, int):
-            return o
-        if not isinstance(o, float):
-            return o
-        if not _math.isfinite(o):
-            return None
-        if o == 0:
-            return o
-        return float(f"%.{figures}g" % o)
-
-    def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
-        return {"significant_figures": figures,
-                "note": ("Small fields are rounded to this many significant "
-                         "figures. Large arrays are base64 float32 or bitmaps "
-                         "and are not rounded.")}
+#
+# This used to be a try/except ImportError with a second copy of round_payload
+# in the fallback, "for a standalone script inside a case repo, without the
+# package". The package is imported unconditionally thirty lines above, so the
+# fallback could never run -- and its precision_note carried a different note
+# string, so if it ever had, it would have written a different payload.
+from dims_analysis.common.payload import round_payload, precision_note
 
 
 
@@ -147,14 +124,6 @@ def downsample_for_visualization(ts1, ts2, time_values, recurrence_matrix, max_p
         factor,
     )
 
-
-def get_line_lengths(matrix, direction='diagonal', min_len=2):
-    """Delegates to the shared implementation; see common/recurrence.py."""
-    return _rec.line_lengths(matrix, direction, min_len, self_paired=False)
-
-def calculate_window_metrics(matrix, dt, min_line=2):
-    """Delegates to the shared implementation; see common/recurrence.py."""
-    return _rec.window_metrics(matrix, dt, min_line, self_paired=False)
 
 def _load_series(path):
     """Delegates to the shared reader; see common/series.py."""
@@ -335,7 +304,7 @@ def main():
             for start_idx in window_plan.starts:
                 end_idx = start_idx + window_plan.length
                 w_matrix = rec_matrix[start_idx:end_idx, start_idx:end_idx]
-                rr, det, lam, l_max = calculate_window_metrics(w_matrix, dt)
+                rr, det, lam, l_max = _rec.window_metrics(w_matrix, dt, self_paired=False)
                 windowed_metrics['RR'].append(rr)
                 windowed_metrics['DET'].append(det)
                 windowed_metrics['LAM'].append(lam)

@@ -16,7 +16,6 @@ docs/contracts/analysis-output.md.
 """
 
 import numpy as np
-import pandas as pd
 from scipy.spatial.distance import cdist
 import json
 import os
@@ -44,7 +43,6 @@ import argparse
 INPUT_DIR = 'assets/timeseries'
 
 # Fewer points than this cannot support a recurrence estimate worth drawing.
-MIN_DATA_POINTS = 10
 
 #: The recurrence rate the threshold search aims for.
 TARGET_RECURRENCE = 0.07
@@ -55,35 +53,13 @@ MAX_POINTS_DRAWN = 500
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The large arrays travel as base64
 # float32 and bitmaps and are not rounded at all.
-try:
-    from dims_analysis.common.payload import round_payload, precision_note
-except ImportError:  # standalone script inside a case repo, without the package
-    import math as _math
-
-    PAYLOAD_SIGNIFICANT_FIGURES = 6
-
-    def round_payload(o, figures=PAYLOAD_SIGNIFICANT_FIGURES):
-        if isinstance(o, dict):
-            return {k: round_payload(v, figures) for k, v in o.items()}
-        if isinstance(o, (list, tuple)):
-            return [round_payload(v, figures) for v in o]
-        # Integers pass through: counts and array dimensions, where "7.0" is
-        # both wrong and larger than "7".
-        if o is None or isinstance(o, bool) or isinstance(o, int):
-            return o
-        if not isinstance(o, float):
-            return o
-        if not _math.isfinite(o):
-            return None
-        if o == 0:
-            return o
-        return float(f"%.{figures}g" % o)
-
-    def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
-        return {"significant_figures": figures,
-                "note": ("Small fields are rounded to this many significant "
-                         "figures. Large arrays are base64 float32 or bitmaps "
-                         "and are not rounded.")}
+#
+# This used to be a try/except ImportError with a second copy of round_payload
+# in the fallback, "for a standalone script inside a case repo, without the
+# package". The package is imported unconditionally thirty lines above, so the
+# fallback could never run -- and its precision_note carried a different note
+# string, so if it ever had, it would have written a different payload.
+from dims_analysis.common.payload import round_payload, precision_note
 
 
 
@@ -137,14 +113,6 @@ def calculate_recurrence_matrix(time_series, threshold=None,
 
     return recurrence_matrix, threshold, actual_recurrence
 
-def get_line_lengths(matrix, direction='diagonal', min_len=2, exclude_main_diagonal=False):
-    """Delegates to the shared implementation; see common/recurrence.py."""
-    return _rec.line_lengths(matrix, direction, min_len, self_paired=exclude_main_diagonal)
-
-def calculate_window_metrics(matrix, dt, min_line=2, exclude_main_diagonal=False):
-    """Delegates to the shared implementation; see common/recurrence.py."""
-    return _rec.window_metrics(matrix, dt, min_line, self_paired=exclude_main_diagonal)
-
 def compute_windowed_metrics(matrix, time_values, window_sec=20.0, step_sec=1.0):
     """Slide a square window along the main diagonal of `matrix`.
 
@@ -168,8 +136,7 @@ def compute_windowed_metrics(matrix, time_values, window_sec=20.0, step_sec=1.0)
         w = matrix[start:start + plan.length, start:start + plan.length]
         # Exclude the line of identity (k=0) -- in single-series RQA it is
         # trivially recurrent and would otherwise dominate DET / L_MAX.
-        rr, det, lam, l_max = calculate_window_metrics(w, dt,
-                                                       exclude_main_diagonal=True)
+        rr, det, lam, l_max = _rec.window_metrics(w, dt, self_paired=True)
         out['RR'].append(rr)
         out['DET'].append(det)
         out['LAM'].append(lam)

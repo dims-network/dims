@@ -43,35 +43,13 @@ import warnings
 # Browser payloads are rounded to significant figures; see the module docstring
 # for why decimal places would be wrong here. The full-resolution analysis is
 # the base64 arrays, which are not rounded at all.
-try:
-    from dims_analysis.common.payload import round_payload, precision_note
-except ImportError:  # standalone script inside a case repo, without the package
-    import math as _math
-
-    PAYLOAD_SIGNIFICANT_FIGURES = 6
-
-    def round_payload(o, figures=PAYLOAD_SIGNIFICANT_FIGURES):
-        if isinstance(o, dict):
-            return {k: round_payload(v, figures) for k, v in o.items()}
-        if isinstance(o, (list, tuple)):
-            return [round_payload(v, figures) for v in o]
-        # Integers pass through: a sparse recurrence matrix is tens of
-        # thousands of [row, col] index pairs, and "7.0" is both wrong and
-        # larger than "7".
-        if o is None or isinstance(o, bool) or isinstance(o, int):
-            return o
-        if not isinstance(o, float):
-            return o
-        if not _math.isfinite(o):
-            return None
-        if o == 0:
-            return o
-        return float(f"%.{figures}g" % o)
-
-    def precision_note(figures=PAYLOAD_SIGNIFICANT_FIGURES):
-        return {"significant_figures": figures,
-                "note": ("This file is the browser payload and is rounded. The "
-                         "large arrays are base64 float32.")}
+#
+# This used to be a try/except ImportError with a second copy of round_payload
+# in the fallback, "for a standalone script inside a case repo, without the
+# package". The package is imported unconditionally thirty lines above, so the
+# fallback could never run -- and its precision_note carried a different note
+# string, so if it ever had, it would have written a different payload.
+from dims_analysis.common.payload import round_payload, precision_note
 
 
 warnings.filterwarnings('ignore')
@@ -85,8 +63,6 @@ MOTHER_WAVELET = 'morlet'  # Options: 'morlet', 'paul', 'dog', 'mexican_hat'
 OMEGA0 = 6                  # Parameter for Morlet wavelet (typically 6)
 DJ = 1/12                   # Frequency resolution (1/12 = 12 sub-octaves per octave)
 S0_FACTOR = 2               # Smallest scale as multiple of dt (s0 = S0_FACTOR * dt)
-J_AUTO = True               # Auto-calculate number of scales based on data length
-J_MANUAL = 7                # Manual number of octaves (used if J_AUTO = False)
 
 # ---------- Data Processing Parameters ----------
 DETREND_DATA = True         # Whether to detrend the data (polynomial fit removal)
@@ -96,8 +72,6 @@ INTERPOLATION_METHOD = 'linear'  # Method for interpolating to common time base
 
 # ---------- Significance Testing Parameters ----------
 SIGNIFICANCE_LEVEL = 0.95   # Confidence level for significance testing (0.95 = 95%)
-USE_AR1_NOISE = True        # Use AR1 noise model for significance (vs white noise)
-MONTE_CARLO_ITERATIONS = 0  # Number of Monte Carlo iterations (0 = use theoretical)
 
 # Significance for the *coherence* itself, which is a different question from
 # the cross-wavelet power significance. `signif_xwt` answers "is there more
@@ -189,22 +163,15 @@ def _tuning(config):
 
 
 # ---------- Scale-Averaged Band Parameters ----------
-SCALE_AVG_BAND_AUTO = True  # Auto-calculate scale-averaging band
-SCALE_AVG_MIN_PERIOD = 2.0  # Minimum period for scale-averaging (in time units)
 SCALE_AVG_MAX_PERIOD = 8.0  # Maximum period for scale-averaging (in time units)
 # Note: If auto, uses 2*dt to min(8*dt, max_period/2)
 
-# ---------- Coherence Calculation Parameters ----------
-# DEPRECATED / UNUSED since the coherence rewrite (see compute_cross_wavelet_standard).
-# Smoothing is now delegated to pycwt's validated operator for the chosen mother
-# wavelet, which supplies its own time and scale kernels; these four knobs
-# belonged to the hand-rolled smoother that produced the power-tracking
-# coherence. They are kept only so that an existing config or script that
-# references them does not break, and they have no effect.
-COHERENCE_SMOOTH_TIME = True    # DEPRECATED, no effect
-COHERENCE_SMOOTH_SCALE = True   # DEPRECATED, no effect
-COHERENCE_TIME_FACTOR = 1.0     # DEPRECATED, no effect
-COHERENCE_SCALE_WIDTH = 0.6     # DEPRECATED, no effect
+# Coherence smoothing has no knobs here. It is delegated to pycwt's validated
+# operator for the chosen mother wavelet, which supplies its own time and scale
+# kernels; the four that used to sit here belonged to the hand-rolled smoother
+# that produced the power-tracking coherence, and were kept "so that an existing
+# config or script that references them does not break". Nothing referenced
+# them, and a knob that is documented to have no effect is worse than no knob.
 
 # ---------- Visualization/Storage Parameters ----------
 # Defaults. A study overrides them through analysis.crosswavelet.maxTimePoints
@@ -223,8 +190,6 @@ MAX_FREQ_POINTS_VIZ = 100    # Maximum frequency points for visualization
 # recording. Same schema, same field names, different time axis.
 
 # ---------- Analysis Coverage Parameters ----------
-COMPUTE_ALL_PAIRS = True        # Compute all possible pairs (not just specified)
-SYMMETRIC_PAIRS = False          # Compute both A vs B and B vs A (usually redundant)
 
 # ---------- Quality Control Parameters ----------
 HIGH_COHERENCE_THRESHOLD = 0.8  # Threshold for "high coherence" statistics
@@ -236,13 +201,11 @@ TAPER_ALPHA = 0.05               # Tukey window parameter (0-1, smaller = less t
 # ---------- File Path Parameters ----------
 INPUT_DIR = 'assets/timeseries'     # Directory containing input CSV files
 OUTPUT_DIR = 'assets/crosswavelet'  # Default output directory
-_EFFECTIVE_OUTPUT_DIR = OUTPUT_DIR  # set from --output-dir in main()
 FILE_PATTERN = '{video_id}_{data_type}.csv'  # Input file naming pattern
 
 # ---------- Debugging/Logging Parameters ----------
 VERBOSE = True              # Print detailed progress information
 DEBUG_MODE = False          # Save intermediate results for debugging
-PLOT_INPUTS = False         # Plot input time series before processing
 SAVE_METADATA = True        # Save analysis metadata in output
 
 # ==============================================================================
@@ -504,7 +467,6 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
 #: derives Z from eq. 30 instead of reading it from here -- the averaged tests
 #: need values at nu the paper does not tabulate -- and `common/tc98.py` says
 #: why. This stays as the published anchor the derivation is tested against.
-Z2_95 = _tc98.Z2_95_PUBLISHED
 
 #: Re-exported so a reader of this step, and the reference tests, find the
 #: significance maths where it is used as well as where it is defined.
@@ -561,10 +523,9 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
         s0 = S0_FACTOR * dt  # Starting scale
     
     if J is None:
-        if J_AUTO:
-            J = np.log2(N * dt / s0) / dj  # Auto-calculate number of scales
-        else:
-            J = J_MANUAL / dj  # Use manual setting
+        # Enough octaves to reach the length of the record. The manual
+        # alternative was a constant nothing ever set.
+        J = np.log2(N * dt / s0) / dj
     
     # Cap the longest period, if the study asked for one. For a Morlet wavelet
     # period ~= scale and scales follow s = s0 * 2^(j*dj), so this is the largest
@@ -590,11 +551,8 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
         mother_wavelet = wavelet.Morlet(omega0)
     
     # Calculate lag-1 autocorrelation for AR1 noise model
-    if USE_AR1_NOISE:
-        alpha1 = _ar1_alpha(data1)
-        alpha2 = _ar1_alpha(data2)
-    else:
-        alpha1 = alpha2 = 0.0  # White noise
+    alpha1 = _ar1_alpha(data1)
+    alpha2 = _ar1_alpha(data2)
     
     if DEBUG_MODE and VERBOSE:
         print(f"  AR1 coefficients: α1={alpha1:.3f}, α2={alpha2:.3f}")
@@ -614,9 +572,6 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     # Calculate cross-wavelet power
     power = np.abs(XWT)
     
-    # Calculate phase difference
-    phase = np.angle(XWT)
-
     # Convert frequencies to periods
     period = 1 / freqs
 
@@ -973,18 +928,12 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
     time_common = np.linspace(t_start, t_end, n_samples)
     
     # Interpolate both series to common time base
-    if INTERPOLATION_METHOD == 'linear':
-        data1_interp = np.interp(time_common, time1, data1)
-        data2_interp = np.interp(time_common, time2, data2)
-    elif INTERPOLATION_METHOD == 'cubic':
-        from scipy.interpolate import interp1d
-        f1 = interp1d(time1, data1, kind='cubic', fill_value='extrapolate')
-        f2 = interp1d(time2, data2, kind='cubic', fill_value='extrapolate')
-        data1_interp = f1(time_common)
-        data2_interp = f2(time_common)
-    else:
-        data1_interp = np.interp(time_common, time1, data1)
-        data2_interp = np.interp(time_common, time2, data2)
+    # Linear, and only linear. The cubic arm was unreachable -- the constant
+    # that selected it is never reassigned -- and the `else` was a verbatim
+    # copy of this one. INTERPOLATION_METHOD survives because the payload
+    # records it in `metadata`; it is a statement about the file, not a switch.
+    data1_interp = np.interp(time_common, time1, data1)
+    data2_interp = np.interp(time_common, time2, data2)
     
     if VERBOSE:
         print(f"  Common time base: {len(time_common)} points, dt={dt:.4f}")
@@ -1017,12 +966,11 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
         # Given in seconds, so it means the same thing whatever dt is.
         avg_period_min = float(band[0])
         avg_period_max = min(float(band[1]), period[-1])
-    elif SCALE_AVG_BAND_AUTO:
+    else:
+        # The band a study did not choose: the shortest resolvable period up to
+        # eight samples, or half the longest period, whichever is smaller.
         avg_period_min = S0_FACTOR * dt
         avg_period_max = min(SCALE_AVG_MAX_PERIOD * dt, period[-1] / 2)
-    else:
-        avg_period_min = SCALE_AVG_MIN_PERIOD * dt
-        avg_period_max = min(SCALE_AVG_MAX_PERIOD * dt, period[-1])
     
     sel = find((period >= avg_period_min) & (period <= avg_period_max))
     
@@ -1116,7 +1064,7 @@ def process_cross_wavelet_pair(video_id, data_type1, data_type2, config):
 #: What a worker process has to be told, because `spawn` -- the default on
 #: macOS and Windows -- re-imports this module rather than forking it, so the
 #: values `main()` set are back at their defaults in the child.
-_WORKER_STATE = ("VERBOSE", "DEBUG_MODE", "INPUT_DIR", "_EFFECTIVE_OUTPUT_DIR")
+_WORKER_STATE = ("VERBOSE", "DEBUG_MODE", "INPUT_DIR")
 
 
 def _worker_state() -> dict:
@@ -1197,7 +1145,7 @@ def main():
     args = parser.parse_args()
     
     # Override global settings if command-line args provided
-    global VERBOSE, DEBUG_MODE, _EFFECTIVE_OUTPUT_DIR, INPUT_DIR
+    global VERBOSE, DEBUG_MODE, INPUT_DIR
     # A private study's data lives outside the repository, at the path
     # data.local.json names. Without this, running a step from the case
     # directory finds nothing and blames the input files.
@@ -1206,7 +1154,6 @@ def main():
         print(_note)
     INPUT_DIR = _assets.resolve(INPUT_DIR)
     args.output_dir = _assets.resolve(args.output_dir)
-    _EFFECTIVE_OUTPUT_DIR = args.output_dir
     if args.verbose:
         VERBOSE = True
     if args.debug:
@@ -1292,8 +1239,6 @@ def main():
         pairs_to_compute = []
         for data_type1, data_type2 in base_pairs:
             pairs_to_compute.append((data_type1, data_type2))
-            if SYMMETRIC_PAIRS:
-                pairs_to_compute.append((data_type2, data_type1))
         
         if VERBOSE:
             print(f"Computing {len(pairs_to_compute)} pair(s)")

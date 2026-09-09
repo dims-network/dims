@@ -99,10 +99,21 @@ def test_the_symmetric_shortcut_gives_the_same_answer():
 
 
 def test_both_steps_now_import_the_same_implementation():
+    """Neither step keeps a private copy of the recurrence quantities.
+
+    They used to, with two incompatible signatures in adjacent files. The fix
+    left behind one-line wrappers that only forwarded, and this test asserted
+    on their *docstrings* -- so it passed as long as the delegation existed,
+    whether or not anything used it. The wrappers are gone and the steps call
+    the shared module by name, which is the thing actually worth asserting.
+    """
     from dims_analysis.steps import rqa, crqa
     assert rqa._rec is crqa._rec is rec
-    assert rqa.get_line_lengths.__doc__.startswith("Delegates")
-    assert crqa.calculate_window_metrics.__doc__.startswith("Delegates")
+    for step in (rqa, crqa):
+        for gone in ("get_line_lengths", "calculate_window_metrics"):
+            assert not hasattr(step, gone), (
+                f"{step.__name__}.{gone} is a wrapper that forwards and nothing "
+                f"else; call common/recurrence.py directly")
 
 
 def test_an_unknown_direction_is_refused():
