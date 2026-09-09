@@ -87,6 +87,7 @@ testpaths = [
   "tests",
   "packages/dims-analysis/tests",
   "packages/dims-case/tests",
+  "packages/dims-case-scaffold/tests",
   "packages/dims-notebooks/tests",
   "apps/builder/tests",
 ]
