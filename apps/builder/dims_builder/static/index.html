@@ -174,8 +174,10 @@
 
       <div class="analysis">
         <label class="toggle"><input type="checkbox" id="t_cw" /> <strong>Cross-wavelet &amp; coherence</strong></label>
-        <p class="hint">Which timescales two signals share, and who leads. Pick the pairs.</p>
-        <div id="cw_types" class="chips"></div>
+        <p class="hint">Which timescales two signals share, and who leads. The
+          pairs are the lines you draw on the diagram below — one cross-wavelet
+          analysis per line.</p>
+        <div id="cw_summary" class="hint"></div>
         <details class="advanced">
           <summary>Settings</summary>
           <div class="grid">
@@ -198,36 +200,34 @@
       <div class="analysis">
         <label class="toggle"><input type="checkbox" id="t_network" /> <strong>Cross-effector network</strong></label>
         <p class="hint">One picture of who is coupled with whom, following the
-          playhead: measures are nodes, coherence between them are edges. Needs
-          cross-wavelet on, for the pairs you want as edges.</p>
+          playhead. Put each time series where it was measured, then draw a line
+          between any two you want compared.</p>
         <div class="note" id="network-note">Switching this on also switches on the
           chance level (100 surrogates), because without it no edge can be told
           from coincidence — an unrelated pair scores about 0.25, not 0.</div>
+
+        <div id="network-builder">
+          <div class="people-strip">
+            <div id="people"></div>
+            <button type="button" id="add-person" class="chip">+ Add a person</button>
+          </div>
+          <p class="hint" id="diagram-hint"></p>
+          <div class="diagram-wrap">
+            <svg id="network-diagram" viewBox="0 0 1000 560"
+                 preserveAspectRatio="xMidYMid meet" role="group"
+                 aria-label="Where each time series was measured"></svg>
+            <div id="spot-menu" class="spot-menu" hidden></div>
+          </div>
+          <div id="unplaced" class="unplaced"></div>
+        </div>
+
         <details class="advanced">
-          <summary>Groups and placement (optional)</summary>
-          <p class="hint">If your measures divide into groups — two people, two
-            conditions — name them here. One line each:
-            <code>Label, pattern, colour</code>. The pattern is optional: leave
-            it out and say below which measure goes in which group. Given, it is
-            a regular expression matched against the measure's name.</p>
-          <textarea id="network_groups" rows="3"
-                    placeholder="Teacher, ^teacher, #e84393&#10;Student, ^student, #00b894"></textarea>
-
-          <p class="hint">Then say which time series is which node. Leave a row
-            blank to let the pattern above decide, as it did before this table
-            existed.</p>
-          <table class="effectors"><tbody id="network_effectors"></tbody></table>
-
-          <label>Layout
-            <select id="network_layout">
-              <option value="columns">Columns — one per group</option>
-              <option value="figure">Figure — a body per group</option>
-            </select>
-          </label>
-          <label>Period band (s) <input id="network_band" type="text" placeholder="e.g. 0.5, 8" /></label>
+          <summary>Settings</summary>
+          <label>Period band (s) <input id="network_band" type="text" placeholder="e.g. 0.5, 8" />
+            <small>Two numbers: the shortest and longest period each edge is
+              averaged over. This changes the answer, not just the picture.</small></label>
         </details>
       </div>
-
       <div class="analysis">
         <label class="toggle"><input type="checkbox" id="t_elan" /> <strong>ELAN annotations</strong></label>
         <p class="hint">Show what you coded in ELAN beside the signals. Needs an

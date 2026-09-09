@@ -59,7 +59,9 @@ function boot({ routes = {}, quiet = true } = {}) {
   w.eval(src + `
     ;window.__page = {
       get state() { return state; },
-      collectNetwork, applyOpenedConfig, renderEffectors, groupLabels,
+      collectNetwork, applyOpenedConfig, renderDiagram, redrawDiagramOnly,
+      addPerson, removePerson, place, unplace, toggleEdge, pairKey,
+      placedPositions, unplacedTypes, wireDiagram, pairKeysToList,
     };`);
   return { window: w, page: w.__page, calls };
 }

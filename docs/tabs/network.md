@@ -84,6 +84,32 @@ Two layouts, chosen with `layout`:
 Neither layout is force-directed, deliberately: a force layout moves nodes
 between frames, and this picture is read by comparing one moment with another.
 
+## Building it in the wizard
+
+The no-code builder draws this diagram in step 4 and asks you to fill it in,
+which is the same decision as writing the config below by hand.
+
+- **Add a person** for each figure you want, and name it. That is a `group`.
+- **Click an empty circle** — head, either hand, torso, hip or foot — and pick a
+  time series from the list. That is one `effectors` entry.
+- **Click two placed nodes** to draw a dashed line between them. That is one
+  `include_crosswavelet` pair, which is what the tab turns into an edge; without
+  it two nodes are simply two nodes.
+- The `×` on a node takes it back off, and takes its lines with it.
+
+Choosing the figure layout is not a separate step: placing anything on a body
+means `layout: "figure"`, because a body diagram that configured a column chart
+would be a lie.
+
+**An existing study opens already filled in.** Every study written before
+`effectors` existed says all of this by naming its measures
+`teacher_righthandspeed`, so the wizard runs the same inference the tab runs —
+the group's regular expression for the person, a body-part token in what is left
+of the name for the spot — and shows you the result, saying that it guessed.
+Pressing Next writes it out in the explicit form. The two render identically;
+that is asserted by a test, because a migration that quietly moved a node would
+be worse than no migration.
+
 ## Saying which series is which node
 
 By default the tab infers everything about a node from its name — the group from
@@ -169,7 +195,7 @@ warnings.
 
 | key | what it does |
 |---|---|
-| `groups` | how the measures divide. `label`, an optional `color`, and a `match` regex when you are not declaring effectors |
+| `groups` | how the measures divide. `label`, an optional `color`, and a `match` regex when you are not declaring effectors. The wizard writes no `match` of its own; it carries one through if a study already had it |
 | `band` | period band in seconds, `[low, high]`, to average each edge over. **This changes the answer**, not its presentation — it selects which periods enter both the mean and the significance fraction |
 | `layout` | `columns` or `figure` |
 

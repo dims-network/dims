@@ -28,11 +28,16 @@ const state = {
   crqa: new Set(),    // selected pair keys "a|b" (cross-RQA)
   elan: false,
   network: false,
-  // Keyed by data type: what the effector table says about each measure, and
-  // separately whatever a hand-written config put there that the table has no
-  // column for. Split so the second is carried through untouched.
+  placedByName: false,   // the diagram was filled in by inference, not by hand
+  // The figures on the diagram, in the order they are drawn. `match` is only
+  // ever carried in from a config that had one; the wizard writes no regular
+  // expressions any more.
+  people: [],           // [{id, label, color, match?}]
+  // Keyed by data type: where on the diagram each measure sits, and separately
+  // whatever a hand-written config put there that the diagram cannot show.
   effectors: {},        // {dataType: {group?, label?, part?}}
   effectorExtras: {},   // {dataType: {x?, y?}}
+  armed: null,          // a node clicked once, waiting for the other end
   opened: false,      // reopened an existing study rather than making one
 };
 
@@ -57,7 +62,7 @@ function gotoStep(n) {
     b.disabled = s > state.maxStep;
   });
   if (n === 3) renderAlign();
-  if (n === 4) { renderAnalysisTypes(); renderEffectors(); reflectNetwork(); }
+  if (n === 4) { renderAnalysisTypes(); renderDiagram(); reflectNetwork(); }
   if (n === 5) refreshValidation();
   if (n === 7) { renderDeploy(); renderPrivacyReminder(); }
 }
@@ -211,17 +216,16 @@ function applyOpenedConfig(cfg, vis) {
     $("#fallbackVideoSrcTemplate").value = cfg.fallbackVideoSrcTemplate || "";
   }
   const net = cfg.include_network;
+  state.people = [];
+  state.effectors = {};
+  state.effectorExtras = {};
+  state.placedByName = false;
   if (net && typeof net === "object") {
-    if (Array.isArray(net.groups) && net.groups.length) {
-      $("#network_groups").value = net.groups
-        .map((g) => [g.label || "", g.match || "", g.color || ""].join(", ")).join("\n");
-    }
+    (Array.isArray(net.groups) ? net.groups : []).forEach((g, i) => {
+      addPerson(g.label || "Person " + (i + 1), g.color, g.match);
+    });
     if (Array.isArray(net.band)) $("#network_band").value = net.band.join(", ");
-    // Read back, not silently discarded. A study that chose the figure layout
-    // and then reopened the wizard used to lose it on the next Next.
-    if (net.layout && $("#network_layout")) $("#network_layout").value = net.layout;
-    state.effectors = {};
-    state.effectorExtras = {};
+
     (Array.isArray(net.effectors) ? net.effectors : []).forEach((eff) => {
       if (!eff || !eff.series) return;
       const row = {};
@@ -234,7 +238,43 @@ function applyOpenedConfig(cfg, vis) {
       if (eff.y !== undefined) extra.y = eff.y;
       if (Object.keys(extra).length) state.effectorExtras[eff.series] = extra;
     });
+
+    // Every study that exists predates `effectors` and says all of this by
+    // naming its measures `teacher_righthandspeed`. Rather than opening with an
+    // empty diagram and asking the researcher to place six nodes they already
+    // described, run the same inference the tab runs and show the answer. What
+    // they press Next on is then the explicit form, which is the migration.
+    if (!Object.keys(state.effectors).length && state.people.some((p) => p.match)) {
+      state.placedByName = placeByName(cfg);
+    }
   }
+}
+
+// The tab's own inference, run once at load: the group's regular expression says
+// whose it is, and a body-part token in what is left of the name says where.
+// Kept deliberately close to grouping()/nodeLabel()/bodyPart() in
+// packages/dims-tabs/network.js -- if they disagree, opening a study in the
+// wizard would silently move its nodes.
+const BODY_TOKENS = ["lefthand", "righthand", "hand", "nose", "head",
+                     "torso", "hip", "foot"];
+
+function placeByName(cfg) {
+  const types = new Set();
+  Object.values(cfg.dataTypes || {}).forEach((list) => (list || []).forEach((t) => types.add(t)));
+  (cfg.include_crosswavelet || []).forEach((pair) => (pair || []).forEach((t) => types.add(t)));
+  let placed = 0;
+  types.forEach((name) => {
+    const person = state.people.find((p) => p.match && new RegExp(p.match, "i").test(name));
+    if (!person) return;
+    const rest = name.replace(new RegExp(person.match, "i"), "").replace(/^[_\-\s]+/, "");
+    const token = BODY_TOKENS.find((t) => rest.toLowerCase().indexOf(t) !== -1)
+      || BODY_TOKENS.find((t) => name.toLowerCase().indexOf(t) !== -1);
+    if (!token) return;
+    state.effectors[name] = { group: person.label, part: SPOT_ALIASES[token] || token };
+    if (rest) state.effectors[name].label = rest;
+    placed++;
+  });
+  return placed > 0;
 }
 
 // ---- STEP 2: files ---------------------------------------------------------
@@ -728,68 +768,371 @@ function allPairs() {
   return out;
 }
 
-//: The figure layout's spots. Mirrored from figurePositions() in
-//: packages/dims-tabs/network.js, the `part` enum in the config schema and
-//: FIGURE_PARTS in validate.py; tests/test_contracts.py asserts the four agree.
-const FIGURE_PARTS = ["head", "nose", "lefthand", "righthand", "hand",
-                      "torso", "hip", "foot"];
-
-// One row per measure: which group it belongs to, what to call it, where it
-// goes. Without this a study says all three by naming its CSV columns
-// `teacher_righthandspeed` and hoping the tab's regex and substring lookup take
-// it apart correctly -- which they cannot do for a measure called `bodysync`.
+// ---- the network diagram ---------------------------------------------------
 //
-// `state.effectorExtras` keeps whatever a hand-written config put on an entry
-// that this table has no column for -- x and y, today. Rebuilding the object
-// from the controls alone is exactly how `layout` came to be dropped on every
-// round trip, and coordinates would be the next casualty.
-function renderEffectors() {
-  const host = $("#network_effectors");
+// The wizard used to ask for this as a table of dropdowns, and what a row meant
+// only became visible after the analyses had run and the dashboard was open. It
+// also could not express the thing anyone actually wants to do: put this measure
+// on that person's left hand, and draw a line to that one.
+//
+// So the diagram is the control. Its geometry is lifted from
+// packages/dims-tabs/network.js -- the same viewBox, the same body coordinates,
+// the same node radius -- so what you arrange here is what the dashboard draws.
+const SVG_NS = "http://www.w3.org/2000/svg";
+const VIEW_W = 1000, NODE_R = 26;
+const SHOULDER_Y = 150, HIP_Y = 330, FOOT_Y = 545;
+
+// Six positions, not the tab's eight tokens: `nose` sits on `head` and `hand`
+// on `lefthand`, so two of the names are aliases for one place. The diagram
+// writes the unambiguous one and reads either.
+const SPOTS = [
+  { part: "head", label: "head", dx: 0, y: 85 },
+  { part: "righthand", label: "right hand", dx: -100, y: 300 },
+  { part: "lefthand", label: "left hand", dx: 100, y: 300 },
+  { part: "torso", label: "torso", dx: 0, y: 235 },
+  { part: "hip", label: "hip", dx: 0, y: HIP_Y },
+  { part: "foot", label: "foot", dx: 0, y: FOOT_Y },
+];
+const SPOT_ALIASES = { nose: "head", hand: "lefthand" };
+const PERSON_COLORS = ["#e84393", "#00b894", "#5b8cff", "#d29922", "#a78bfa"];
+
+function svgEl(name, attrs) {
+  const node = document.createElementNS(SVG_NS, name);
+  Object.entries(attrs || {}).forEach(([k, v]) => node.setAttribute(k, v));
+  return node;
+}
+
+const spotOf = (part) => SPOT_ALIASES[part] || part;
+const personCx = (index, total) => (VIEW_W * (index + 1)) / (total + 1);
+
+// Where each placed measure sits, so edges and nodes agree on one answer.
+function placedPositions() {
+  const out = {};
+  const total = state.people.length;
+  state.people.forEach((person, i) => {
+    Object.entries(state.effectors).forEach(([dt, eff]) => {
+      if (eff.group !== person.label || !eff.part) return;
+      const spot = SPOTS.find((sp) => sp.part === spotOf(eff.part));
+      if (spot) out[dt] = { x: personCx(i, total) + spot.dx, y: spot.y, person };
+    });
+  });
+  return out;
+}
+
+function unplacedTypes() {
+  return allDataTypes().filter((dt) => {
+    const eff = state.effectors[dt];
+    return !(eff && eff.group && eff.part);
+  });
+}
+
+// A translucent body under the nodes, so a chart of people looks like one.
+// Copied from the tab's appendFigure(); if that geometry moves, this follows.
+function appendFigure(svg, color, cx) {
+  const g = svgEl("g", {
+    opacity: 0.3, fill: color, stroke: color, "stroke-width": 10,
+    "stroke-linecap": "round", "stroke-linejoin": "round",
+  });
+  const shoulderL = cx - 60, shoulderR = cx + 60;
+  const hipL = cx - 32, hipR = cx + 32;
+  g.appendChild(svgEl("circle", { cx, cy: 85, r: 30, stroke: "none" }));
+  g.appendChild(svgEl("path", {
+    d: `M ${shoulderL} ${SHOULDER_Y} L ${shoulderR} ${SHOULDER_Y} `
+     + `L ${hipR} ${HIP_Y} L ${hipL} ${HIP_Y} Z`, stroke: "none" }));
+  [[shoulderL, SHOULDER_Y, cx + 100, 300],
+   [shoulderR, SHOULDER_Y, cx - 100, 300],
+   [hipL, HIP_Y, cx - 35, FOOT_Y],
+   [hipR, HIP_Y, cx + 35, FOOT_Y]].forEach(([x1, y1, x2, y2]) => {
+    g.appendChild(svgEl("line", { x1, y1, x2, y2, fill: "none" }));
+  });
+  svg.appendChild(g);
+}
+
+// Figures, then edges, then nodes. One function, because the rename path
+// redraws the picture without touching the people strip -- rebuilding that
+// steals focus from the input being typed into -- and the two must not drift.
+function drawInto(svg) {
+  svg.innerHTML = "";
+  const total = state.people.length;
+  const positions = placedPositions();
+
+  state.people.forEach((person, i) => appendFigure(svg, person.color, personCx(i, total)));
+
+  // Edges under the nodes, dashed: on this diagram a line is a request for an
+  // analysis, not a result. The dashboard decides how it is finally drawn.
+  Array.from(state.cw).forEach((key) => {
+    const [a, b] = key.split("|");
+    const pa = positions[a], pb = positions[b];
+    if (!pa || !pb) return;
+    svg.appendChild(svgEl("line", {
+      x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y, class: "diagram-edge",
+      stroke: "#9aa3b2", "stroke-width": 3, "stroke-dasharray": "8 8",
+      "data-edge": key,
+    }));
+  });
+
+  state.people.forEach((person, i) => {
+    const cx = personCx(i, total);
+    SPOTS.forEach((spot) => {
+      const at = { x: cx + spot.dx, y: spot.y };
+      const dt = Object.keys(positions).find((k) =>
+        positions[k].person === person
+        && spotOf(state.effectors[k].part) === spot.part);
+      const g = svgEl("g", {
+        class: "spot" + (dt ? " filled" : "") + (state.armed === dt ? " armed" : ""),
+        "data-spot": spot.part, "data-person": person.id,
+      });
+      if (dt) g.setAttribute("data-dt", dt);
+      g.appendChild(svgEl("circle", {
+        cx: at.x, cy: at.y, r: NODE_R,
+        fill: dt ? person.color : "transparent",
+        stroke: dt ? person.color : "#2b303b",
+        "stroke-width": dt ? 3 : 2,
+        "stroke-dasharray": dt ? "" : "5 5",
+      }));
+      const text = svgEl("text", {
+        x: at.x, y: at.y + NODE_R + 18, "text-anchor": "middle",
+        fill: dt ? "#e6e8ec" : "#9aa3b2", "font-size": 14,
+      });
+      text.textContent = dt ? (state.effectors[dt].label || dt) : spot.label;
+      g.appendChild(text);
+      g.appendChild(svgEl("title", {})).textContent = dt
+        ? dt + " — click to link, × to remove"
+        : "Put a time series on " + person.label + "'s " + spot.label;
+      if (dt) {
+        const clear = svgEl("g", { class: "spot-clear", "data-clear": dt });
+        clear.appendChild(svgEl("circle", {
+          cx: at.x + NODE_R - 4, cy: at.y - NODE_R + 4, r: 10,
+          fill: "#21252e", stroke: "#2b303b", "stroke-width": 1,
+        }));
+        const x = svgEl("text", {
+          x: at.x + NODE_R - 4, y: at.y - NODE_R + 8,
+          "text-anchor": "middle", fill: "#9aa3b2", "font-size": 13,
+        });
+        x.textContent = "×";
+        clear.appendChild(x);
+        g.appendChild(clear);
+      }
+      svg.appendChild(g);
+    });
+  });
+}
+
+function renderDiagram() {
+  const svg = $("#network-diagram");
+  if (!svg) return;
+  renderPeople();
+  redrawDiagramOnly();
+  renderDiagramHint();
+  renderCwSummary();
+  renderCost();
+}
+
+// Renaming redraws on every keystroke, and rebuilding the people strip steals
+// focus from the input being typed into. Only the picture is redrawn.
+function redrawDiagramOnly() {
+  const svg = $("#network-diagram");
+  if (svg) drawInto(svg);
+  renderUnplaced();
+}
+
+function renderPeople() {
+  const host = $("#people");
   if (!host) return;
-  const types = allDataTypes();
-  const groups = groupLabels();
-  if (!types.length) {
-    host.innerHTML = '<tr><td class="hint">Add some time series first.</td></tr>';
-    return;
+  host.innerHTML = state.people.map((p) => `
+    <span class="person" data-person="${esc(p.id)}">
+      <input type="color" data-person-color="${esc(p.id)}" value="${esc(p.color)}" />
+      <input type="text" data-person-label="${esc(p.id)}" value="${esc(p.label)}" />
+      <button type="button" data-person-remove="${esc(p.id)}"
+              title="Remove ${esc(p.label)}">×</button>
+    </span>`).join("");
+}
+
+function renderUnplaced() {
+  const host = $("#unplaced");
+  if (!host) return;
+  const left = unplacedTypes();
+  if (!allDataTypes().length) {
+    host.innerHTML = '<span class="hint">No time series yet — add some in step 2.</span>';
+  } else if (!left.length) {
+    host.innerHTML = '<span class="hint">Every time series is on the diagram.</span>';
+  } else {
+    host.innerHTML = '<span class="hint">Not placed yet:</span> '
+      + left.map((dt) => `<span class="chip disabled">${esc(dt)}</span>`).join(" ");
   }
-  host.innerHTML = types.map((dt) => {
-    const cur = state.effectors[dt] || {};
-    const opts = ['<option value=""></option>'].concat(
-      groups.map((g) => `<option value="${esc(g)}"${cur.group === g ? " selected" : ""}>${esc(g)}</option>`)
-    ).join("");
-    const parts = ['<option value="">—</option>'].concat(
-      FIGURE_PARTS.map((pt) => `<option value="${pt}"${cur.part === pt ? " selected" : ""}>${pt}</option>`)
-    ).join("");
-    return `<tr>
-      <th scope="row">${esc(dt)}</th>
-      <td><select data-eff="group" data-dt="${esc(dt)}">${opts}</select></td>
-      <td><input data-eff="label" data-dt="${esc(dt)}" placeholder="${esc(dt)}" value="${esc(cur.label || "")}" /></td>
-      <td><select data-eff="part" data-dt="${esc(dt)}">${parts}</select></td>
-    </tr>`;
-  }).join("");
 }
 
-// The labels a study defined in the textarea above, which are what an effector
-// row's group refers to.
-function groupLabels() {
-  return $("#network_groups").value.split("\n")
-    .map((line) => line.split(",")[0].trim())
-    .filter(Boolean);
+function renderDiagramHint() {
+  const host = $("#diagram-hint");
+  if (!host) return;
+  if (!state.people.length) {
+    host.textContent = "Add a person to start. Each one gets a figure.";
+  } else if (state.armed) {
+    host.textContent = "Linking from " + state.armed + " — click another node to "
+      + "ask for the cross-wavelet between them, or click it again to cancel.";
+  } else if (state.placedByName) {
+    host.textContent = "These were placed from their names — check them, then "
+      + "click an empty circle to add one, or two placed ones to link them.";
+  } else {
+    host.textContent = "Click an empty circle to put a time series there. "
+      + "Click two placed ones to draw a line between them.";
+  }
 }
 
-$("#network_effectors").addEventListener("change", (e) => {
-  const key = e.target.dataset.eff, dt = e.target.dataset.dt;
-  if (!key || !dt) return;
-  const cur = state.effectors[dt] || {};
-  const value = e.target.value.trim();
-  if (value) cur[key] = value; else delete cur[key];
-  state.effectors[dt] = cur;
-});
-$("#network_groups").addEventListener("input", renderEffectors);
+// The cross-wavelet block no longer has chips of its own: a line on the diagram
+// is one cross-wavelet pair, and picking it in two places is how they drift.
+function renderCwSummary() {
+  const host = $("#cw_summary");
+  if (!host) return;
+  const n = pairKeysToList(state.cw).length;
+  host.textContent = n
+    ? n + " pair" + (n === 1 ? "" : "s") + " drawn on the diagram below."
+    : "No pairs yet — draw a line between two nodes on the diagram below.";
+}
+
+// ---- the diagram's interactions --------------------------------------------
+
+// state.cw keys are order-sensitive: pairKeysToList filters against allPairs(),
+// which emits them in allDataTypes() order, so an edge drawn from B to A is
+// dropped in silence unless it is normalised here.
+function pairKey(a, b) {
+  const order = allDataTypes();
+  return order.indexOf(a) <= order.indexOf(b) ? a + "|" + b : b + "|" + a;
+}
+
+function addPerson(label, color, match) {
+  const id = "p" + (state.people.length + 1) + "-" + Math.random().toString(36).slice(2, 7);
+  const person = {
+    id,
+    label: label || "Person " + (state.people.length + 1),
+    color: color || PERSON_COLORS[state.people.length % PERSON_COLORS.length],
+  };
+  if (match) person.match = match;
+  state.people.push(person);
+  return id;
+}
+
+function removePerson(id) {
+  const person = state.people.find((p) => p.id === id);
+  if (!person) return;
+  state.people = state.people.filter((p) => p.id !== id);
+  // Their measures come off the diagram rather than moving to somebody else.
+  Object.keys(state.effectors).forEach((dt) => {
+    if (state.effectors[dt].group === person.label) unplace(dt);
+  });
+}
+
+function unplace(dt) {
+  delete state.effectors[dt];
+  if (state.armed === dt) state.armed = null;
+  Array.from(state.cw).forEach((key) => {
+    if (key.split("|").indexOf(dt) !== -1) state.cw.delete(key);
+  });
+}
+
+function place(dt, personId, part) {
+  const person = state.people.find((p) => p.id === personId);
+  if (!person) return;
+  // One measure is one node, so placing it somewhere new moves it.
+  state.effectors[dt] = { ...(state.effectors[dt] || {}), group: person.label, part };
+}
+
+function toggleEdge(a, b) {
+  if (a === b) return;
+  const key = pairKey(a, b);
+  if (state.cw.has(key)) state.cw.delete(key); else state.cw.add(key);
+  $("#t_cw").checked = true;      // or include_crosswavelet collapses to []
+}
+
+function closeSpotMenu() {
+  const menu = $("#spot-menu");
+  if (menu) { menu.hidden = true; menu.innerHTML = ""; }
+}
+
+function openSpotMenu(personId, part, at) {
+  const menu = $("#spot-menu");
+  const left = unplacedTypes();
+  const person = state.people.find((p) => p.id === personId);
+  if (!menu || !person) return;
+  const spot = SPOTS.find((sp) => sp.part === part);
+  menu.innerHTML = left.length
+    ? `<div class="spot-menu-head">On ${esc(person.label)}'s ${esc(spot ? spot.label : part)}</div>`
+      + left.map((dt) => `<button type="button" data-pick="${esc(dt)}">${esc(dt)}</button>`).join("")
+    : '<div class="spot-menu-head">Every time series is already placed.</div>';
+  menu.dataset.person = personId;
+  menu.dataset.part = part;
+  menu.style.left = at.left + "px";
+  menu.style.top = at.top + "px";
+  menu.hidden = false;
+}
+
+function wireDiagram() {
+  const svg = $("#network-diagram");
+  if (!svg) return;
+
+  svg.addEventListener("click", (e) => {
+    const clear = e.target.closest("[data-clear]");
+    if (clear) { unplace(clear.dataset.clear); renderDiagram(); return; }
+    const spot = e.target.closest("[data-spot]");
+    if (!spot) return;
+    const dt = spot.dataset.dt;
+    if (!dt) {
+      const box = svg.getBoundingClientRect();
+      const node = spot.getBoundingClientRect();
+      openSpotMenu(spot.dataset.person, spot.dataset.spot, {
+        left: node.left - box.left + node.width,
+        top: node.top - box.top,
+      });
+      return;
+    }
+    closeSpotMenu();
+    if (state.armed === dt) state.armed = null;
+    else if (state.armed) { toggleEdge(state.armed, dt); state.armed = null; }
+    else state.armed = dt;
+    renderDiagram();
+  });
+
+  $("#spot-menu").addEventListener("click", (e) => {
+    const pick = e.target.closest("[data-pick]");
+    if (!pick) return;
+    const menu = $("#spot-menu");
+    place(pick.dataset.pick, menu.dataset.person, menu.dataset.part);
+    closeSpotMenu();
+    renderDiagram();
+  });
+
+  $("#add-person").addEventListener("click", () => { addPerson(); renderDiagram(); });
+
+  $("#people").addEventListener("click", (e) => {
+    const rm = e.target.closest("[data-person-remove]");
+    if (!rm) return;
+    removePerson(rm.dataset.personRemove);
+    renderDiagram();
+  });
+
+  $("#people").addEventListener("input", (e) => {
+    const labelId = e.target.dataset.personLabel;
+    const colorId = e.target.dataset.personColor;
+    const person = state.people.find((p) => p.id === (labelId || colorId));
+    if (!person) return;
+    if (labelId) {
+      // The effectors reference a person by label, so renaming has to follow.
+      const was = person.label;
+      person.label = e.target.value;
+      Object.values(state.effectors).forEach((eff) => {
+        if (eff.group === was) eff.group = person.label;
+      });
+    } else {
+      person.color = e.target.value;
+    }
+    redrawDiagramOnly();
+  });
+}
 
 function renderAnalysisTypes() {
   const types = allDataTypes();
   const pairs = allPairs();
+  renderCwSummary();
 
   // RQA: single-type chips (one signal vs itself).
   const mkTypes = (box, setRef, disabled) => {
@@ -827,7 +1170,6 @@ function renderAnalysisTypes() {
   };
 
   mkTypes($("#rqa_types"), state.rqa, !$("#t_rqa").checked);
-  mkPairs($("#cw_types"), state.cw, !$("#t_cw").checked);
   mkPairs($("#crqa_types"), state.crqa, !$("#t_crqa").checked);
   renderCost();
 }
@@ -894,9 +1236,14 @@ function syncAnalysisDefaults() {
   $("#" + id).addEventListener("change", () => {
     syncAnalysisDefaults();
     renderAnalysisTypes();
+    renderDiagram();
     reflectNetwork();
   })
 );
+
+// The diagram's listeners are delegated and bound once; the picture itself is
+// rebuilt from state on every change, the way every other view here is.
+wireDiagram();
 
 // The network draws its edges from cross-wavelet output and reads the chance
 // level, so switching it on has two consequences the wizard states rather than
@@ -972,24 +1319,19 @@ function collectTuning() {
   return Object.keys(block).length ? block : null;
 }
 
-// "Label, pattern, colour" per line -- one line is far less to explain than a
-// row of three inputs repeated, and it is what a group actually is.
+// The diagram is the source. A person becomes a group, a placed measure becomes
+// an effector, and the layout is `figure` because a body diagram that configured
+// a column chart would be a lie.
 function collectNetwork() {
   if (!$("#t_network").checked) return false;
-  const groups = $("#network_groups").value.split("\n")
-    .map((line) => line.split(",").map((x) => x.trim()))
-    .filter((parts) => parts[0] || parts[1])
-    .map((parts) => {
-      const g = { match: parts[1] || parts[0] };
-      if (parts[0]) g.label = parts[0];
-      if (parts[2]) g.color = parts[2];
-      return g;
-    });
-  const band = bandOrNull("network_band");
-  const layout = $("#network_layout") ? $("#network_layout").value : "";
+  const groups = state.people.map((p) => {
+    const g = { label: p.label };
+    if (p.color) g.color = p.color;
+    // Only ever carried in from a config that already had one.
+    if (p.match) g.match = p.match;
+    return g;
+  });
 
-  // Only the rows that say something. A blank row means "let the pattern
-  // decide", which is what every study did before this table existed.
   const effectors = allDataTypes().map((dt) => {
     const cur = state.effectors[dt] || {};
     const extra = state.effectorExtras[dt] || {};
@@ -1000,20 +1342,20 @@ function collectNetwork() {
     if (cur.group) out.group = cur.group;
     if (cur.label) out.label = cur.label;
     if (cur.part) out.part = cur.part;
-    // Carried through, not rebuilt: the table has no coordinate column, and
-    // dropping what it cannot show is the bug this whole function had.
+    // Carried through, not rebuilt: the diagram has no coordinate handles, and
+    // dropping what it cannot show is the bug this function already had once.
     if (extra.x !== undefined) out.x = extra.x;
     if (extra.y !== undefined) out.y = extra.y;
     return out;
   }).filter(Boolean);
 
-  if (!groups.length && !effectors.length && layout !== "figure"
-      && (!band || band === "bad")) return true;
+  const band = bandOrNull("network_band");
+  if (!groups.length && !effectors.length && (!band || band === "bad")) return true;
   const out = {};
   if (groups.length) out.groups = groups;
   if (effectors.length) out.effectors = effectors;
   if (band && band !== "bad") out.band = band;
-  if (layout === "figure") out.layout = layout;
+  if (effectors.length) out.layout = "figure";
   return out;
 }
 
