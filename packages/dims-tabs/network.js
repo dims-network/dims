@@ -927,6 +927,15 @@
         // Redrawn on every playhead move: the whole point is that the picture is
         // of a moment, not of the recording.
         updateNetwork() {
+            // The detail figure is of a moment too. It is drawn once, when an
+            // edge is selected, and nothing moved its window afterwards -- so
+            // the edges rethickened as the playhead moved while the cross-wavelet
+            // plot underneath them stayed frozen at whatever moment it was
+            // opened, showing a window that was no longer the one being read.
+            if (this._networkSelected && typeof this.updateCrossWaveletWindow === 'function') {
+                this.updateCrossWaveletWindow('networkDetailPlot',
+                                              this._networkSelected.pair);
+            }
             if (!this._networkEdges) return;
             const half = ((this.config && this.config.defaultWindowSize) || 5) / 2;
             const centre = this.lastClickedPoint;

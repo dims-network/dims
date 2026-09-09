@@ -650,96 +650,13 @@ if (arrowData.x.length > 0) {
                 hovermode: 'closest'
             };
             
-            // Add highlight shapes if there's a selected time
-            if (this.lastClickedPoint !== null) {
-                const windowSize = parseInt(document.getElementById('windowSize').value) || 5;
-                const minTime = Math.min(...vis.time);
-                const maxTime = Math.max(...vis.time);
-                const minLog2Period = Math.min(...log2Period);
-                const maxLog2Period = Math.max(...log2Period);
-                
-                const startTime = Math.max(minTime, this.lastClickedPoint - windowSize / 2);
-                const endTime = Math.min(maxTime, this.lastClickedPoint + windowSize / 2);
-                
-                layout.shapes = [
-                    // Vertical lines on time series (panel A)
-                    {
-                        type: 'line',
-                        x0: startTime, x1: startTime,
-                        y0: 0, y1: 1,
-                        line: { color: window.DIMS.theme().highlight, width: 2 },
-                        xref: 'x4', yref: 'y4 domain'
-                    },
-                    {
-                        type: 'line',
-                        x0: endTime, x1: endTime,
-                        y0: 0, y1: 1,
-                        line: { color: window.DIMS.theme().highlight, width: 2 },
-                        xref: 'x4', yref: 'y4 domain'
-                    },
-                    // Highlight box on time series
-                    {
-                        type: 'rect',
-                        x0: startTime, x1: endTime,
-                        y0: 0, y1: 1,
-                        fillcolor: window.DIMS.theme().highlight,
-                        opacity: 0.15,
-                        line: { width: 0 },
-                        xref: 'x4', yref: 'y4 domain'
-                    },
-                    // Vertical lines on XWT spectrum (panel B)
-                    {
-                        type: 'line',
-                        x0: startTime, x1: startTime,
-                        y0: minLog2Period, y1: maxLog2Period,
-                        line: { color: window.DIMS.theme().highlight, width: 2 },
-                        xref: 'x', yref: 'y'
-                    },
-                    {
-                        type: 'line',
-                        x0: endTime, x1: endTime,
-                        y0: minLog2Period, y1: maxLog2Period,
-                        line: { color: window.DIMS.theme().highlight, width: 2 },
-                        xref: 'x', yref: 'y'
-                    },
-                    // Highlight box on XWT spectrum
-                    {
-                        type: 'rect',
-                        x0: startTime, x1: endTime,
-                        y0: minLog2Period, y1: maxLog2Period,
-                        fillcolor: window.DIMS.theme().highlight,
-                        opacity: 0.15,
-                        line: { width: 0 },
-                        xref: 'x', yref: 'y'
-                    },
-                    // Vertical lines on scale-averaged plot (panel D)
-                    {
-                        type: 'line',
-                        x0: startTime, x1: startTime,
-                        y0: 0, y1: 1,
-                        line: { color: window.DIMS.theme().highlight, width: 2 },
-                        xref: 'x3', yref: 'y3 domain'
-                    },
-                    {
-                        type: 'line',
-                        x0: endTime, x1: endTime,
-                        y0: 0, y1: 1,
-                        line: { color: window.DIMS.theme().highlight, width: 2 },
-                        xref: 'x3', yref: 'y3 domain'
-                    },
-                    // Highlight box on scale-averaged plot
-                    {
-                        type: 'rect',
-                        x0: startTime, x1: endTime,
-                        y0: 0, y1: 1,
-                        fillcolor: window.DIMS.theme().highlight,
-                        opacity: 0.15,
-                        line: { width: 0 },
-                        xref: 'x3', yref: 'y3 domain'
-                    }
-                ];
-            }
-            
+            // The window the playhead is sitting in, on every panel that has a
+            // time axis. Built by a shared helper because the network tab draws
+            // this same figure and has to be able to move the window on it
+            // without redrawing the heatmap underneath.
+            const shapes = this.crossWaveletWindowShapes(vis, log2Period);
+            if (shapes) layout.shapes = shapes;
+
             Plotly.newPlot(containerId, traces, layout, { responsive: true });
             
             // Add click handler
@@ -759,16 +676,69 @@ if (arrowData.x.length > 0) {
             });
         },
 
+        // Where the playhead's window falls on this pair's figure, as Plotly
+        // shapes -- or null when nothing is selected yet.
+        //
+        // Split out of createCrossWaveletPlot so that moving the window does not
+        // mean rebuilding the plot. The heatmap does not change when the
+        // playhead moves; only this does, and a full newPlot per slider tick is
+        // what made dragging stutter and what left the network tab's detail
+        // figure frozen at whatever moment it was opened.
+        crossWaveletWindowShapes(vis, log2Period) {
+            if (this.lastClickedPoint === null || this.lastClickedPoint === undefined) return null;
+            const sizeEl = document.getElementById('windowSize');
+            const windowSize = (sizeEl && parseInt(sizeEl.value)) || 5;
+            const minTime = Math.min(...vis.time);
+            const maxTime = Math.max(...vis.time);
+            const minLog2Period = Math.min(...log2Period);
+            const maxLog2Period = Math.max(...log2Period);
+
+            const startTime = Math.max(minTime, this.lastClickedPoint - windowSize / 2);
+            const endTime = Math.min(maxTime, this.lastClickedPoint + windowSize / 2);
+            const highlight = window.DIMS.theme().highlight;
+
+            // One edge, one panel: the three time panels differ only in which
+            // axis pair they hang off and whether y is the period scale or the
+            // panel's own domain.
+            const band = (xref, yref, y0, y1) => ([
+                { type: 'line', x0: startTime, x1: startTime, y0, y1,
+                  line: { color: highlight, width: 2 }, xref, yref },
+                { type: 'line', x0: endTime, x1: endTime, y0, y1,
+                  line: { color: highlight, width: 2 }, xref, yref },
+                { type: 'rect', x0: startTime, x1: endTime, y0, y1,
+                  fillcolor: highlight, opacity: 0.15, line: { width: 0 }, xref, yref },
+            ]);
+
+            return [
+                ...band('x4', 'y4 domain', 0, 1),                       // the signals
+                ...band('x', 'y', minLog2Period, maxLog2Period),        // the spectrum
+                ...band('x3', 'y3 domain', 0, 1),                       // scale-averaged
+            ];
+        },
+
+        // Move the window on a figure that is already drawn. Plotly.relayout
+        // touches the shapes and leaves the heatmap alone, which is the whole
+        // difference between a slider that drags smoothly and one that does not.
+        updateCrossWaveletWindow(containerId, pairData) {
+            const host = document.getElementById(containerId);
+            if (!host || !host.data || typeof Plotly === 'undefined') return;
+            const vis = pairData && pairData.visualization;
+            if (!vis || !vis.period) return;
+            const log2Period = vis.period.map(pp => Math.log2(pp));
+            Plotly.relayout(containerId,
+                            { shapes: this.crossWaveletWindowShapes(vis, log2Period) || [] });
+        },
+
         updateCrossWaveletHighlights() {
-            // Re-render all cross-wavelet plots with updated highlights
-            if (this.crossWaveletData && this.crossWaveletData.crosswavelet_pairs) {
-                Object.entries(this.crossWaveletData.crosswavelet_pairs).forEach(([pairKey, pairData], index) => {
-                    const containerId = `cw-plot-${index}`;
-                    if (document.getElementById(containerId)) {
-                        this.createCrossWaveletPlot(containerId, pairKey, pairData);
-                    }
-                });
-            }
+            // Move the window on each figure rather than rebuilding it. This
+            // used to call createCrossWaveletPlot per plot per playhead move --
+            // a full Plotly.newPlot of a heatmap that had not changed -- which
+            // is why dragging the slider over a study with several pairs
+            // stuttered.
+            if (!this.crossWaveletData || !this.crossWaveletData.crosswavelet_pairs) return;
+            Object.entries(this.crossWaveletData.crosswavelet_pairs).forEach(([pairKey, pairData], index) => {
+                this.updateCrossWaveletWindow(`cw-plot-${index}`, pairData);
+            });
         }
     });
 

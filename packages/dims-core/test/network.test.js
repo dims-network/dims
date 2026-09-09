@@ -701,3 +701,49 @@ test('declaring a node does not cost it its co-activity figure', async () => {
   const title = edges(w)[0].querySelector('title').textContent;
   assert.match(title, /both measures active: \d+% of this window/);
 });
+
+// --- the playhead and the detail figure --------------------------------------
+
+test('the detail figure follows the playhead instead of freezing', async () => {
+  // The network's edges are of a moment, and so is the cross-wavelet figure that
+  // opens under them when an edge is clicked. That figure was drawn once, at
+  // selection, and nothing moved its window afterwards: the edges rethickened as
+  // the playhead moved while the plot beneath them still showed the window it
+  // was opened at. Two answers to "which moment am I looking at", on one screen.
+  const w = await open_(await boot());
+  const edge = edges(w)[0];
+  assert.ok(edge, 'no edge to select');
+
+  edge.dispatchEvent(new w.Event('click', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 60));
+  assert.ok(w.document.getElementById('networkDetailPlot'), 'no detail figure opened');
+
+  const before = w.__relaidOut.length;
+  w.dimsApp.handleTimeClick(1.2);
+  await new Promise(r => setTimeout(r, 30));
+
+  const moved = w.__relaidOut.slice(before)
+    .filter(c => c.el === 'networkDetailPlot' && c.update && c.update.shapes);
+  assert.ok(moved.length, 'the playhead moved and the detail figure did not');
+  assert.ok(moved[moved.length - 1].update.shapes.length,
+    'the window should be drawn as shapes once a time is selected');
+});
+
+test('moving the playhead does not redraw the heatmap under it', async () => {
+  // The window is the only thing that changes, so it is the only thing that
+  // should be rewritten. Rebuilding the figure per slider tick -- which is what
+  // the cross-wavelet tab used to do for every plot it had -- is what made
+  // dragging stutter.
+  const w = await open_(await boot());
+  edges(w)[0].dispatchEvent(new w.Event('click', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 60));
+
+  const drawnBefore = w.__plotted.filter(p => p.el === 'networkDetailPlot').length;
+  w.dimsApp.handleTimeClick(1.5);
+  w.dimsApp.handleTimeClick(1.9);
+  await new Promise(r => setTimeout(r, 30));
+
+  assert.strictEqual(
+    w.__plotted.filter(p => p.el === 'networkDetailPlot').length, drawnBefore,
+    'the detail figure was rebuilt rather than relaid out');
+});
