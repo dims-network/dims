@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DIMS Dashboard Builder</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>DIMS Dashboard Builder</h1>
+    <p class="tagline">Turn your recordings into a working dashboard — no code.</p>
+  </header>
+
+  <nav class="steps" id="stepnav">
+    <button class="step" data-step="1"><span>1</span> Study</button>
+    <button class="step" data-step="2"><span>2</span> Sessions &amp; files</button>
+    <button class="step" data-step="3"><span>3</span> Align</button>
+    <button class="step" data-step="4"><span>4</span> Tabs &amp; analyses</button>
+    <button class="step" data-step="5"><span>5</span> Build</button>
+    <button class="step" data-step="6"><span>6</span> Compute</button>
+    <button class="step" data-step="7"><span>7</span> Open it</button>
+  </nav>
+
+  <main>
+    <!-- STEP 1 -->
+    <section class="panel" data-panel="1">
+      <h2>1 · Your study</h2>
+
+      <div class="choice">
+        <label class="radio"><input type="radio" name="mode" value="new" checked />
+          <strong>Start a new study</strong></label>
+        <label class="radio"><input type="radio" name="mode" value="open" />
+          <strong>Open one I made earlier</strong>
+          <small>Everything comes back filled in, so you can add a session or
+            change an analysis and rebuild.</small></label>
+      </div>
+
+      <label>Folder
+        <input id="output_dir" type="text" placeholder="/path/to/my-study" />
+        <small id="dir-hint">A new or empty folder. The dashboard is created inside it.</small>
+      </label>
+
+      <fieldset class="src" id="new-only">
+          <legend>Who may see this data?</legend>
+          <label class="radio"><input type="radio" name="vis" value="private" checked />
+            <strong>Private</strong> — recordings of identifiable people</label>
+          <small class="src-note">Turns on guards that stop data reaching a git
+            repository by accident: a pre-commit hook, a pre-push hook and a CI
+            check. Choose this if you are not certain.</small>
+          <label class="radio"><input type="radio" name="vis" value="public" />
+            <strong>Public</strong> — the data may be published</label>
+          <small class="src-note">Assets are committed with the study and a
+            GitHub Pages workflow is included.</small>
+      </fieldset>
+      <div class="note" id="open-visibility" hidden></div>
+
+      <div id="details">
+        <h3>Dashboard details</h3>
+        <label>Title <input id="title" type="text" placeholder="My study" /></label>
+        <label>Subtitle <input id="subtitle" type="text" placeholder="Optional one-liner" /></label>
+        <label>Authors <input id="authors" type="text" placeholder="Your name(s)" /></label>
+        <label>Contacts <input id="contacts" type="text" placeholder="you@example.org" /></label>
+        <label>Playback window (seconds)
+          <input id="defaultWindowSize" type="number" value="5" min="1" />
+          <small>How much video plays around the point you click.</small></label>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="btn-create">Create study &rarr;</button>
+      </div>
+      <div class="msg" id="msg-1"></div>
+      <div id="privacy-note" class="note" hidden></div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="panel" data-panel="2" hidden>
+      <h2>2 · Sessions &amp; files</h2>
+      <p class="hint">Drop your files here. The builder works out what each one
+        is — <code>.mp4</code> video, <code>.csv</code> measurements,
+        <code>*_transcript.json</code>, <code>.eaf</code> from ELAN — and which
+        <strong>session</strong> it belongs to, from its name. A CSV with several
+        measurement columns is split into one per measure automatically.</p>
+
+      <div class="actions inline">
+        <button id="btn-samples" class="ghost">Load the example study</button>
+        <small>Two ready-made sessions that ship with the builder — the fastest
+          way to see a finished dashboard before you have data of your own.</small>
+      </div>
+
+      <div id="dropzone" class="dropzone">
+        <p>Drop files here, or <label class="link">browse<input id="filepick" type="file" multiple hidden /></label></p>
+      </div>
+      <div id="filelist"></div>
+
+      <details class="advanced" id="cameras">
+        <summary>More than one camera per session?</summary>
+        <p class="hint">Some studies film the same session from several angles.
+          Name the angles and say how the files are named, and the dashboard
+          gets a camera selector. Leave this closed if each session has one video.</p>
+        <label>Angle names, comma separated
+          <input id="perspectives" type="text" placeholder="wide, parent, child" /></label>
+        <label>Where the videos are
+          <input id="videoSrcTemplate" type="text"
+                 placeholder="assets/videos/{videoID}_{persp}.mp4" />
+          <small><code>{videoID}</code> is the session, <code>{persp}</code> the angle.</small></label>
+        <label>If an angle is missing, fall back to
+          <input id="fallbackVideoSrcTemplate" type="text"
+                 placeholder="assets/videos/{videoID}.mp4" /></label>
+        <div id="videoPerspectives"></div>
+      </details>
+
+      <div class="actions">
+        <button id="back-2" class="ghost">&larr; Back</button>
+        <button class="primary" id="next-2">Next &rarr;</button>
+      </div>
+      <div class="msg" id="msg-2"></div>
+    </section>
+
+    <!-- STEP 3 — Align -->
+    <section class="panel" data-panel="3" hidden>
+      <h2>3 · Align video &amp; data</h2>
+      <p class="hint">When a session's video and measurements have different
+        lengths, the dashboard shows dead space. You can <strong>trim the
+        video</strong> to a window you pick, or <strong>pad the measurements
+        with zeros</strong> at either end. Your original files are never
+        modified — the edits are applied to the copies inside the study.</p>
+      <div id="align-list"></div>
+      <div class="actions">
+        <button id="back-3" class="ghost">&larr; Back</button>
+        <button class="primary" id="next-3">Next &rarr;</button>
+      </div>
+      <div class="msg" id="msg-3"></div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="panel" data-panel="4" hidden>
+      <h2>4 · Tabs &amp; analyses</h2>
+      <p class="hint">Every dashboard shows the video, the measurements and any
+        transcript. Everything below is optional — switch on what your question
+        needs.</p>
+
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_rqa" /> <strong>Recurrence (RQA)</strong></label>
+        <p class="hint">Where one signal repeats itself. Pick which measures to run it on.</p>
+        <div id="rqa_types" class="chips"></div>
+        <details class="advanced">
+          <summary>Settings</summary>
+          <div class="grid">
+            <label>Window (s) <input id="rqa_window" type="number" step="0.5" placeholder="20" />
+              <small>Shortened automatically on a short recording; the study records both.</small></label>
+            <label>Step (s) <input id="rqa_step" type="number" step="0.5" placeholder="1" /></label>
+            <label>Target recurrence <input id="rqa_target" type="number" step="0.01" min="0.01" max="0.99" placeholder="0.07" />
+              <small>A fraction. DET and LAM depend on it, so studies compared with
+                each other must use the same value.</small></label>
+          </div>
+        </details>
+      </div>
+
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_crqa" /> <strong>Cross-recurrence (cRQA)</strong></label>
+        <p class="hint">Where two signals repeat <em>each other</em>, and with what
+          delay. Pick the pairs — all are on by default; click to drop one.</p>
+        <div id="crqa_types" class="chips"></div>
+        <details class="advanced">
+          <summary>Settings</summary>
+          <div class="grid">
+            <label>Window (s) <input id="crqa_window" type="number" step="0.5" placeholder="20" /></label>
+            <label>Step (s) <input id="crqa_step" type="number" step="0.5" placeholder="1" /></label>
+            <label>Target recurrence <input id="crqa_target" type="number" step="0.01" min="0.01" max="0.99" placeholder="0.07" /></label>
+          </div>
+        </details>
+      </div>
+
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_cw" /> <strong>Cross-wavelet &amp; coherence</strong></label>
+        <p class="hint">Which timescales two signals share, and who leads. Pick the pairs.</p>
+        <div id="cw_types" class="chips"></div>
+        <details class="advanced">
+          <summary>Settings</summary>
+          <div class="grid">
+            <label>Chance-level surrogates
+              <input id="cw_mc" type="number" min="0" step="10" placeholder="0" />
+              <small><strong>0</strong> skips it. Only the network below reads it,
+                and it is the slow part — 300 is the publication setting and costs
+                hours on a large study.</small></label>
+            <label>Picture width (time points) <input id="cw_maxt" type="number" min="50" step="50" placeholder="500" /></label>
+            <label>Picture height (scales) <input id="cw_maxf" type="number" min="20" step="10" placeholder="100" /></label>
+            <label>Averaging band (s) <input id="cw_band" type="text" placeholder="e.g. 0.5, 8" />
+              <small>Two numbers: the shortest and longest period to average over.</small></label>
+            <label class="toggle"><input type="checkbox" id="cw_full" checked />
+              Also write the full-resolution result
+              <small>A second file for analysis in a notebook. Larger; the dashboard does not read it.</small></label>
+          </div>
+        </details>
+      </div>
+
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_network" /> <strong>Cross-effector network</strong></label>
+        <p class="hint">One picture of who is coupled with whom, following the
+          playhead: measures are nodes, coherence between them are edges. Needs
+          cross-wavelet on, for the pairs you want as edges.</p>
+        <div class="note" id="network-note">Switching this on also switches on the
+          chance level (100 surrogates), because without it no edge can be told
+          from coincidence — an unrelated pair scores about 0.25, not 0.</div>
+        <details class="advanced">
+          <summary>Grouping (optional)</summary>
+          <p class="hint">If your measures divide into groups — two people, two
+            conditions — name them and say how to recognise them. One line each:
+            <code>Label, pattern, colour</code>. The pattern matches the start of
+            a measure's name.</p>
+          <textarea id="network_groups" rows="3"
+                    placeholder="Teacher, ^teacher, #e84393&#10;Student, ^student, #00b894"></textarea>
+          <label>Period band (s) <input id="network_band" type="text" placeholder="e.g. 0.5, 8" /></label>
+        </details>
+      </div>
+
+      <div class="analysis">
+        <label class="toggle"><input type="checkbox" id="t_elan" /> <strong>ELAN annotations</strong></label>
+        <p class="hint">Show what you coded in ELAN beside the signals. Needs an
+          <code>.eaf</code> file per session.</p>
+      </div>
+
+      <div class="note" id="cost"></div>
+
+      <div class="actions">
+        <button id="back-4" class="ghost">&larr; Back</button>
+        <button class="primary" id="next-4">Next &rarr;</button>
+      </div>
+      <div class="msg" id="msg-4"></div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="panel" data-panel="5" hidden>
+      <h2>5 · Build</h2>
+      <p class="hint">Copies your files into the study and writes its
+        <code>config.json</code>. Nothing here touches your originals.</p>
+      <div id="validation"></div>
+      <details class="advanced"><summary>What will be written</summary>
+        <pre id="config-preview" class="codebox"></pre></details>
+      <div class="actions">
+        <button id="back-5" class="ghost">&larr; Back</button>
+        <button class="primary" id="btn-build">Build the study</button>
+      </div>
+      <div class="msg" id="msg-5"></div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="panel" data-panel="6" hidden>
+      <h2>6 · Compute</h2>
+      <p class="hint">Runs the analyses you switched on. The first run also sets
+        up a Python environment inside the study, which takes a few minutes.</p>
+      <div class="actions">
+        <button class="primary" id="btn-precompute">Run the analyses</button>
+        <button id="skip-6" class="ghost">Skip &rarr;</button>
+      </div>
+      <pre id="precompute-log" class="codebox log"></pre>
+      <div class="msg" id="msg-6"></div>
+    </section>
+
+    <!-- STEP 7 -->
+    <section class="panel" data-panel="7" hidden>
+      <h2>7 · Open it</h2>
+      <div class="actions">
+        <button class="primary" id="btn-preview">Open the dashboard</button>
+      </div>
+      <div class="msg" id="msg-7"></div>
+      <div class="note" id="privacy-note-2" hidden></div>
+      <h3>Share it</h3>
+      <p class="hint">The study folder is ready for any static host that supports
+        range requests, which is what lets a video seek:</p>
+      <pre class="codebox" id="deploy-cmds"></pre>
+    </section>
+  </main>
+
+  <script src="/static/builder.js"></script>
+</body>
+</html>

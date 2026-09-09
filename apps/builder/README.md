@@ -26,11 +26,11 @@ Or manually, from this directory (also the simplest way to avoid the macOS
 prompt below) — this is what the launchers above do:
 
 ```bash
-pip install -r requirements.txt
+pip install -e "../..[builder]"
 python -m dims_builder
 ```
 
-`requirements.txt` installs what the builder needs, not the builder itself, so
+The `builder` extra installs what the builder needs, and the builder itself, so
 run it as a module from here. The `dims-builder` command comes from installing
 the package: `pip install -e '.[builder]'` at the repository root.
 

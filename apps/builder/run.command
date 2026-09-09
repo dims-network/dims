@@ -1,35 +1,7 @@
 #!/usr/bin/env bash
-# macOS double-click launcher: installs dependencies, then starts the builder.
-# (Finder runs .command files in Terminal; double-click this one.)
-set -e
-cd "$(dirname "$0")"
-
-# Find a Python 3 interpreter.
-PY=""
-for c in python3 python; do
-  if command -v "$c" >/dev/null 2>&1; then PY="$c"; break; fi
-done
-if [ -z "$PY" ]; then
-  echo
-  echo "Python 3 is not installed."
-  echo "Install it (free) from https://www.python.org/downloads/ then run this again."
-  read -r -p "Press Enter to close..." _ || true
-  exit 1
-fi
-
-# Create an isolated virtual environment so we don't fight the system Python
-# (modern macOS/Homebrew block system-wide pip installs — PEP 668).
-VENV=".venv"
-if [ ! -d "$VENV" ]; then
-  echo "Creating virtual environment (first run only)..."
-  "$PY" -m venv "$VENV"
-fi
-# Use the venv's interpreter from here on.
-PY="$VENV/bin/python"
-
-echo "Installing builder dependencies (first run only)..."
-"$PY" -m pip install --upgrade pip >/dev/null
-"$PY" -m pip install -r requirements.txt
-
-echo "Starting DIMS Dashboard Builder..."
-"$PY" -m dims_builder
+# macOS double-click launcher. Finder runs .command files in Terminal.
+#
+# It execs run.sh rather than repeating it: the two were byte-identical apart
+# from this comment, including the PEP 668 venv handling, which is not a thing
+# to maintain twice.
+exec "$(dirname "$0")/run.sh" "$@"

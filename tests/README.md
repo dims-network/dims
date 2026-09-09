@@ -1,6 +1,6 @@
 # Where the tests are, and why
 
-Five roots, and each of them belongs to something. The question this file
+Six roots, and each of them belongs to something. The question this file
 answers is "where does my test go", so that the answer is a rule rather than a
 precedent.
 
@@ -12,9 +12,16 @@ precedent.
 | `packages/dims-core/test/` | the dashboard host and the built-in tabs, headless | `cd packages/dims-core/test && node --test` |
 | `apps/builder/tests/` | the wizard | `pytest apps/builder` |
 
-**A package's tests live with the package.** A package is a shippable unit, and
-`pip install -e packages/dims-analysis && pytest` has to work on its own. That
-is why `dims-case/tests` is not a stray.
+`pytest` with no arguments runs every Python root; they are listed in
+`[tool.pytest.ini_options]` in the root `pyproject.toml`, so a new root belongs
+in both places.
+
+**A package's tests live with the package**, including the two that are not
+importable packages. `packages/dims-case-scaffold/` ships `build_assets.py` and
+`serve.py` into every study, so its tests import them by path; and
+`packages/dims-tabs/` has no suite of its own because its tabs cannot run
+without the host, so they are tested from `packages/dims-core/test/`, which
+loads both.
 
 **`packages/dims-core/test/` stays singular.** It is an npm package with its own
 `package.json` and `node_modules`; `test/` is the npm convention and

@@ -107,3 +107,46 @@ test('switching tabs marks exactly one button active', async () => {
   const active = [...w.document.querySelectorAll('.tab-button.active')].map(b => b.dataset.tab);
   assert.deepStrictEqual(active, ['elan']);
 });
+
+// --- what a re-render throws away, and what it must not ----------------------
+//
+// The list of built-in tab caches was written out three times -- the
+// constructor, rerenderAll and the video switch -- and they had drifted:
+// rerenderAll left elanSelectedTiers set while the other two cleared it.
+// Collapsing them into one list is right; collapsing them into one *behaviour*
+// is not, because a theme change would then discard which ELAN tiers the
+// viewer had asked to see. These tests say which is which, so the next person
+// to notice the near-duplication does not "fix" it.
+
+test('a re-render drops the cached payloads', async () => {
+  const w = await boot({ ...BASE, include_RQA: ['a'], include_elan: true });
+  const app = w.dimsApp;
+  app.rqaData = { some: 'payload' };
+  app.crossWaveletData = { some: 'payload' };
+  app.crqaData = { some: 'payload' };
+  app.elanData = { some: 'payload' };
+
+  app._resetTabCaches();
+
+  assert.strictEqual(app.rqaData, null);
+  assert.strictEqual(app.crossWaveletData, null);
+  assert.strictEqual(app.crqaData, null);
+  assert.strictEqual(app.elanData, null);
+});
+
+test('a re-render keeps the ELAN tiers the viewer chose', async () => {
+  const w = await boot({ ...BASE, include_RQA: ['a'], include_elan: true });
+  const app = w.dimsApp;
+  app.elanSelectedTiers = ['gaze', 'speech'];
+
+  // The cache reset on its own must not touch it...
+  app.elanData = { some: 'payload' };
+  app._resetTabCaches();
+  assert.deepStrictEqual(app.elanSelectedTiers, ['gaze', 'speech'],
+    'the tier selection is a choice the viewer made, not a fetched payload');
+
+  // ...nor must a whole re-render, which is what a theme switch triggers.
+  app.rerenderAll();
+  assert.deepStrictEqual(app.elanSelectedTiers, ['gaze', 'speech'],
+    'switching theme must not discard the tier selection');
+});

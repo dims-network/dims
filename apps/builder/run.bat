@@ -20,7 +20,7 @@ set PY=.venv\Scripts\python.exe
 
 echo Installing builder dependencies ^(first run only^)...
 "%PY%" -m pip install --upgrade pip >nul
-"%PY%" -m pip install -r requirements.txt
+"%PY%" -m pip install -e "../..[builder]"
 echo Starting DIMS Dashboard Builder...
 "%PY%" -m dims_builder
 pause

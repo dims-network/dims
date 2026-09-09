@@ -80,11 +80,19 @@ reaching into internals.
    been constructed is too late and is ignored.
 2. **A duplicate `id` is refused**, so you cannot shadow a built-in tab by
    registering over it. Pick a distinct one.
-3. **Style only with CSS custom properties** — `var(--text)`, `var(--muted)`,
-   `var(--panel)`, `var(--accent)`. Never read the host's JS theme object: it is
-   a module-level variable initialised after your file runs, so it is not there
-   when you need it. Tabs that follow this rule survive theme switches with no
-   host support at all.
+3. **Style the DOM with CSS custom properties** — `var(--text)`, `var(--muted)`,
+   `var(--panel)`, `var(--accent)`. A colour written into an element's `style`
+   attribute is fixed at the moment it is written and does not follow a theme
+   switch; a custom property does, with no host support at all.
+
+   `DIMS.theme()` exists for the one case a custom property cannot serve: a
+   plotting library that needs a concrete colour value rather than a CSS
+   reference — a Plotly `layout.paper_bgcolor`, a `gridcolor`, a trace colour.
+   Use it there and nowhere else. (An earlier version of this rule said the
+   theme object was "initialised after your file runs, so it is not there when
+   you need it". That was not true — it is a module-level variable set when
+   `dims-core.js` loads, which is before any tab file — and a rule with a wrong
+   reason is one people work around rather than follow.)
 4. **Stay inside your container.** Do not touch other panes, and do not add
    controls to the header directly — declare them and let the host place them.
 5. **Load data lazily,** in `onActivate`, not at registration.

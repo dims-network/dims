@@ -35,7 +35,9 @@ Write one against [`docs/contracts/tab.md`](../../docs/contracts/tab.md).
 - read a file directly — the host resolves assets, including for a study whose
   data lives outside the repository
 - talk to another tab; the shared time bus is the only channel
-- read the host's JavaScript theme object; style with CSS custom properties
+- style the DOM by writing colours into `style` attributes — those do not
+  follow a theme switch; use CSS custom properties. `DIMS.theme()` is for
+  handing concrete values to Plotly, which cannot read one
 
 ## Reading an analysis payload
 

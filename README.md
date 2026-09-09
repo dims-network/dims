@@ -26,11 +26,13 @@ the video and every chart follow.
 | **ELAN** | your own annotations, on the same timeline |
 
 Coherence is measured against a chance level estimated by simulation, not read
-off raw — two unrelated signals score about 0.25, not 0, so a number without
-that comparison cannot be interpreted. The analyses follow Torrence & Compo
-(1998) for the wavelet work; the constants taken from that paper are transcribed
-in [`examples/reference/`](examples/reference/) and checked on synthetic signals
-whose answers are known in advance.
+off raw — two unrelated signals score around 0.25–0.6 depending on the
+timescale, not 0, so a number without that comparison cannot be interpreted. The
+wavelet work follows Torrence & Compo (1998); the constants taken from that
+paper are transcribed in [`examples/reference/`](examples/reference/) and
+checked on synthetic signals whose answers are known in advance. The recurrence
+analyses run on the raw signal, with **no time-delay embedding** — what that
+means for the numbers is on [their page](docs/analyses/rqa.md).
 
 ## Build your own
 
@@ -80,7 +82,7 @@ Read the one page for the thing you are doing. This is the map.
 | From data to a running dashboard | [`docs/getting-started.md`](docs/getting-started.md) |
 | What goes in `config.json` | [`docs/contracts/config.schema.json`](docs/contracts/config.schema.json) |
 | Where each file belongs | [`docs/contracts/assets.md`](docs/contracts/assets.md) |
-| How to read a coherence value | [`docs/coherence.md`](docs/coherence.md) |
+| What the three analyses do | [`docs/analyses/`](docs/analyses/index.md) |
 | Working with human-subject data | [`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md) |
 | Setting up a study | [`docs/contracts/case.md`](docs/contracts/case.md) |
 

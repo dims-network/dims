@@ -19,6 +19,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from dims_builder import precompute  # noqa: E402
 from dims_builder.precompute import (  # noqa: E402
     _enabled, discover_steps, run_precompute,
 )
@@ -139,3 +140,31 @@ def test_a_study_owned_step_runs_after_the_shared_ones(tmp_path, monkeypatch):
 ])
 def test_the_config_key_is_matched_case_insensitively(key, config, expected):
     assert _enabled(config, key) is expected
+
+
+def test_a_study_keeps_the_versions_it_pinned(tmp_path):
+    """The cleaner drops what cannot be installed, and nothing else.
+
+    It used to carry a repair for a template that no longer exists: the
+    template's `scipy==1.26.4` is not a real release -- 1.26.4 is a numpy
+    version -- so the rule replaced any scipy requirement with a bare `scipy`.
+    Applied to a study that had deliberately pinned scipy==1.11.4, that
+    silently removed the pin. Repairing a file nobody writes any more, by
+    un-pinning one somebody did, is the wrong trade.
+    """
+    opt = tmp_path / "opt"
+    opt.mkdir()
+    (opt / "requirements.txt").write_text(
+        "# a study's own analysis dependencies\n"
+        "scipy==1.11.4\n"
+        "pandas>=2.0\n"
+        "json\n"          # stdlib: cannot be installed, and is dropped
+        "\n")
+
+    cleaned = precompute._filtered_requirements(str(tmp_path))
+    written = open(cleaned).read().split()
+
+    assert "scipy==1.11.4" in written, "the study's pin was removed"
+    assert "pandas>=2.0" in written
+    assert "json" not in written, "stdlib is not pip-installable"
+    assert "numpy" in written, "added explicitly, not relied on transitively"

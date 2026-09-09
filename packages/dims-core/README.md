@@ -28,10 +28,10 @@ The contract, with its acceptance checks, is
 
 ## Two rules that are not obvious
 
-**Style through custom properties only.** Never read the host's JavaScript
-theme object: it is initialised *after* tabs load, so a tab that reads it gets
-undefined values on the first paint and correct ones after any re-render — a
-bug that only appears for the person who did not write it.
+**Style the DOM through custom properties.** A colour written into a `style`
+attribute is fixed when it is written and does not follow a theme switch; a
+`var(--text)` does. `DIMS.theme()` is for handing concrete colour values to a
+plotting library, which cannot read a CSS variable — not for styling elements.
 
 **Plotly figures must be resized when their pane becomes visible.** A plot laid
 out in a hidden pane has no width, and stays that size when the pane is shown.

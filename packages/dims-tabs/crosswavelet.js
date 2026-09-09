@@ -18,7 +18,6 @@
             
             try {
                 const dataPath = `assets/crosswavelet/${videoID}_crosswavelet_data.json`;
-                console.log('Loading cross-wavelet data from:', dataPath);
                 
                 const cwData = await this.loadJSON(dataPath);
                 
@@ -29,7 +28,6 @@
                     return;
                 }
                 
-                console.log('Cross-wavelet data loaded:', cwData);
                 
                 // Validate data structure
                 const stale = window.DIMS.payloadProblem(cwData, 'cross-wavelet output');
@@ -62,9 +60,8 @@
                 return;
             }
             
-            console.log('Displaying cross-wavelet plots for:', this.crossWaveletData);
             
-            container.innerHTML = '<h2 style="color: white; margin-bottom: 20px;">Cross-Wavelet Coherence Analysis</h2>';
+            container.innerHTML = '<h2 style="margin-bottom: 20px;">Cross-Wavelet Coherence Analysis</h2>';
             
             // Create grid for cross-wavelet plots
             const grid = document.createElement('div');
@@ -75,12 +72,13 @@
             // Create all plot containers first
             const plotConfigs = [];
             Object.entries(this.crossWaveletData.crosswavelet_pairs).forEach(([pairKey, pairData], index) => {
-                console.log(`Creating cross-wavelet plot container ${index} for ${pairKey}`);
                 
                 const plotDiv = document.createElement('div');
                 plotDiv.id = `cw-plot-${index}`;
                 plotDiv.style.height = '800px'; // Increased for 4-panel layout
-                plotDiv.style.backgroundColor = window.DIMS.theme().paper;
+                // .plot-pane, not an inline background: an inline one is written
+                // once and keeps the colour of whichever theme was active then.
+                plotDiv.classList.add('plot-pane');
                 plotDiv.style.padding = '10px';
                 plotDiv.style.borderRadius = '5px';
                 
@@ -101,7 +99,6 @@
             setTimeout(() => {
                 plotConfigs.forEach(config => {
                     try {
-                        console.log(`Creating cross-wavelet plot for ${config.pairKey} in ${config.containerId}`);
                         this.createCrossWaveletPlot(config.containerId, config.pairKey, config.pairData);
                     } catch (error) {
                         console.error(`Error creating cross-wavelet plot for ${config.pairKey}:`, error);
@@ -188,7 +185,6 @@
                     : row.map(v => (v === null || v === undefined ? null : v / l));
             });
             
-            console.log(`Creating cross-wavelet plot for ${pairKey}`);
             
             // Extract data type names
             const dataType1 = pairData.data_type1;
@@ -744,7 +740,6 @@ if (arrowData.x.length > 0) {
                 ];
             }
             
-            console.log(`Calling Plotly.newPlot for ${containerId}`);
             Plotly.newPlot(containerId, traces, layout, { responsive: true });
             
             // Add click handler
@@ -754,7 +749,6 @@ if (arrowData.x.length > 0) {
                     
                     // Get clicked time (works for all three time-based panels)
                     const clickedTime = point.x;
-                    console.log(`Cross-wavelet clicked at time: ${clickedTime.toFixed(2)}s`);
                     
                     // Update video and timeseries
                     this.handleTimeClick(clickedTime);

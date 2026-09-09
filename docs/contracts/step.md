@@ -63,9 +63,9 @@ entry point. The runner never lists steps, so adding one edits no existing
 file.
 
 ```python
-from dims_analysis.base import Step
+from dims_analysis.base import Step as BaseStep
 
-class RQAStep(Step):
+class Step(BaseStep):          # the entry point below points at this name
     id          = "rqa"                       # also the CLI selector
     config_key  = "include_RQA"               # gate key in config.json
     output_dir  = "assets/rqa"                # default; resolved through data.local.json
@@ -80,7 +80,7 @@ class RQAStep(Step):
 
 ```toml
 [project.entry-points."dims.steps"]
-rqa = "dims_analysis.steps.rqa:RQAStep"
+rqa = "dims_analysis.steps.rqa:Step"
 ```
 
 A step in a *separate* package registers the same way — that is how an outside

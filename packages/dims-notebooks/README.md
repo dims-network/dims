@@ -3,7 +3,7 @@
 Sanity checks for a DIMS study, as notebooks you can run against any case.
 
 ```sh
-pip install -r requirements.txt
+pip install -e "../..[notebooks]"
 jupyter lab            # then set STUDY at the top of a notebook
 ```
 

@@ -12,12 +12,14 @@ These tests run them.
 import json
 import os
 import subprocess
+import pathlib
 import sys
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from dims_case import core  # noqa: E402
 from dims_case.core import _install_private_bits  # noqa: E402
 
 
@@ -206,3 +208,38 @@ def test_check_says_when_a_clone_has_not_enabled_its_guards(study, capsys):
     r = subprocess.run([sys.executable, dims_case, "check", str(study)],
                        capture_output=True, text=True)
     assert "guards are not enabled" not in r.stdout
+
+
+def test_the_hooks_fall_back_to_the_one_restricted_list():
+    """There is one list, and the generated hooks carry it.
+
+    There used to be two: `RESTRICTED`, and a hand-written literal inside the
+    hook template 130 lines away, serving as the fallback for a dims-case.json
+    that has lost its `restricted` key. The comment beside the first said "the
+    rule exists once rather than in two places that can disagree". It did not,
+    and nothing checked -- so adding a directory to the guard silently left
+    every generated hook's fallback one entry short, in the one piece of code
+    whose whole job is to stop identifiable video leaving a machine.
+    """
+    for name, hook in (("pre-commit", core.PRE_COMMIT), ("pre-push", core.PRE_PUSH)):
+        assert "__DEFAULT_RESTRICTED__" not in hook, (
+            f"{name}: the template placeholder was never substituted")
+        # The fallback assignment, with exactly the module's list in it.
+        assert f"DEFAULT_RESTRICTED = {core.RESTRICTED!r}" in hook, (
+            f"{name} does not carry RESTRICTED; it has drifted again")
+
+
+def test_the_restricted_list_is_written_exactly_once():
+    """The property, not just today's agreement between two copies.
+
+    Counted in the source, because that is where the duplication lived: one
+    list in RESTRICTED and one hand-typed inside the hook template. If someone
+    re-inlines it, this fails on the second occurrence rather than waiting for
+    the two to disagree.
+    """
+    source = pathlib.Path(core.__file__).read_text()
+    for directory in core.RESTRICTED:
+        occurrences = source.count(f'"{directory}"') + source.count(f"'{directory}'")
+        assert occurrences == 1, (
+            f"{directory} appears {occurrences} times in core.py; the "
+            f"restricted list belongs in RESTRICTED and nowhere else")

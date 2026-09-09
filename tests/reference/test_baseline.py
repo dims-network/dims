@@ -15,7 +15,7 @@ format change moves that file and leaves `baseline.json` untouched.
 
 **When this fails, do not regenerate.** Look at which number moved and by how
 much, decide whether the new value is better, and only then run
-`python tests/make_baseline.py` -- saying in the commit why each number moved.
+`python tests/reference/make_baseline.py` -- saying in the commit why each number moved.
 Regenerating first is how a regression becomes the new normal.
 """
 from __future__ import annotations

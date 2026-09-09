@@ -51,20 +51,36 @@ test('the choice survives a reload', async () => {
     'the theme should be remembered per viewer');
 });
 
-test('a study inherits themes without owning any theme code', async () => {
+// Which case repositories to check, as a colon-separated list of paths:
+//
+//     DIMS_CASE_REPOS=../../case-demo:../../case-ortho node --test
+//
+// This used to be two absolute paths into one contributor's home directory,
+// guarded by `if (!fs.existsSync(c)) continue`. On every other machine, and on
+// CI, the loop body never ran and the test reported success having asserted
+// nothing -- the same failure ci.yml guards pyrqa against: a gate that can pass
+// without checking anything is not a gate. Unset, it now skips and says so.
+const CASE_REPOS = (process.env.DIMS_CASE_REPOS || '')
+  .split(':').map(s => s.trim()).filter(Boolean);
+
+test('a study inherits themes without owning any theme code', { skip:
+  CASE_REPOS.length ? false : 'set DIMS_CASE_REPOS to a colon-separated list of case repos'
+}, async () => {
   // The point of vendoring: a case repo has no stylesheet of its own.
   const fs = require('fs');
   const path = require('path');
-  for (const c of ['/Users/m11/Documents/codes/DIMS_ALL/case-demo',
-                   '/Users/m11/Documents/codes/DIMS_ALL/case-ortho']) {
-    if (!fs.existsSync(c)) continue;
+  let checked = 0;
+  for (const c of CASE_REPOS) {
+    assert.ok(fs.existsSync(c), `DIMS_CASE_REPOS names ${c}, which does not exist`);
     assert.ok(fs.existsSync(path.join(c, 'vendor/dims-core/css/theme.css')),
       `${path.basename(c)} should vendor theme.css`);
     assert.ok(!fs.existsSync(path.join(c, 'css')),
       `${path.basename(c)} must not keep a stylesheet of its own`);
     const html = fs.readFileSync(path.join(c, 'index.html'), 'utf8');
     assert.ok(html.includes('themeSelect'), `${path.basename(c)} should offer the theme control`);
+    checked++;
   }
+  assert.ok(checked > 0, 'DIMS_CASE_REPOS was set but named no repository');
 });
 
 
