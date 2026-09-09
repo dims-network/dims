@@ -90,6 +90,11 @@ The no-code builder draws this diagram in step 4 and asks you to fill it in,
 which is the same decision as writing the config below by hand.
 
 - **Add a person** for each figure you want, and name it. That is a `group`.
+  One is enough: a network of a single body's own effectors — hands with head,
+  left with right — is a whole network, and the tab centres the lone figure.
+  Be aware that the "above chance in more than 15% of cells" threshold was
+  chosen against between-person data; whether it reads the same way within one
+  body is an open question rather than a settled one.
 - **Click an empty circle** — head, either hand, torso, hip or foot — and pick a
   time series from the list. That is one `effectors` entry.
 - **Click two placed nodes** to draw a dashed line between them. That is one

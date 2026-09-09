@@ -966,7 +966,8 @@ function renderDiagramHint() {
   const host = $("#diagram-hint");
   if (!host) return;
   if (!state.people.length) {
-    host.textContent = "Add a person to start. Each one gets a figure.";
+    host.textContent = "Add a person to start. Each one gets a figure — one is "
+      + "enough if you are comparing a single body's own effectors.";
   } else if (state.armed) {
     host.textContent = "Linking from " + state.armed + " — click another node to "
       + "ask for the cross-wavelet between them, or click it again to cancel.";

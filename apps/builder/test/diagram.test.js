@@ -363,3 +363,44 @@ test('what the wizard writes renders exactly as what it read', async () => {
   assert.deepStrictEqual(after, before,
     'opening a study in the wizard and pressing Next moved its nodes');
 });
+
+// --- one person is a whole network -------------------------------------------
+
+test('one person with several effectors is a complete network', async () => {
+  // Every study that exists is two people, and an issue was filed saying the
+  // wizard assumed that. It does not: nothing anywhere requires a second
+  // figure, and this is the test that says so rather than leaving it to be
+  // rediscovered. What a single-body network *means* -- whether the 0.15
+  // above-chance threshold, tuned between people, reads the same within one --
+  // is a separate and empirical question.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['hand_l', 'hand_r', 'head'], true);
+  const p = page.addPerson('Player', '#5b8cff');
+  page.place('hand_l', p, 'lefthand');
+  page.place('hand_r', p, 'righthand');
+  page.place('head', p, 'head');
+  page.state.cw.clear();
+  page.toggleEdge('hand_l', 'hand_r');
+  page.toggleEdge('hand_l', 'head');
+  page.toggleEdge('hand_r', 'head');
+  page.renderDiagram();
+
+  assert.strictEqual(figures(w).length, 1);
+  assert.strictEqual(filled(w).length, 3);
+  assert.strictEqual(edges(w).length, 3, 'all three within-body pairs should draw');
+
+  const out = plain(page.collectNetwork());
+  assert.strictEqual(out.groups.length, 1);
+  assert.strictEqual(out.effectors.length, 3);
+  assert.strictEqual(out.layout, 'figure');
+
+  // And the tab centres the single figure rather than pushing it to one side.
+  const tab = tabRenderer();
+  const pairs = {};
+  page.pairKeysToList(page.state.cw).forEach(([a, b]) => {
+    pairs[`${a}_vs_${b}`] = { data_type1: a, data_type2: b };
+  });
+  const pos = tab.layout(tab.grouping({ include_network: out }, tab.measuresIn(pairs)), 'figure');
+  assert.strictEqual(Math.round(pos.head.x), 500, 'the lone figure should be centred');
+  assert.strictEqual(Object.keys(pos).length, 3);
+});
