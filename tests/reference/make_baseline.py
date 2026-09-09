@@ -2,7 +2,7 @@
 """Record what the analyses currently answer, so a change that moves a number
 is caught rather than assumed away.
 
-    python tests/make_baseline.py          # rewrite tests/baseline.json
+    python tests/reference/make_baseline.py   # rewrite tests/reference/baseline.json
 
 The other tests here check *properties* -- that DET matches its definition,
 that the lag is where it was put, that unrelated signals beat chance 5 % of the
@@ -28,7 +28,13 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-STUDY = os.path.dirname(HERE)
+ROOT = os.path.dirname(os.path.dirname(HERE))
+#: The reference study, which lives in `examples/` because it *is* a study --
+#: `serve.py` it and open it in a browser. This pointed at `tests/` instead,
+#: from before the suite and the study were separated, so `build()` looked for
+#: a generator that is not there and this script could not be run at all.
+#: `conftest.py` computes the same path; the two must agree.
+STUDY = os.path.join(ROOT, "examples", "reference")
 BASELINE = os.path.join(HERE, "baseline.json")
 
 sys.path.insert(0, HERE)
@@ -71,7 +77,7 @@ def main() -> None:
         json.dump(baseline, fh, indent=2, sort_keys=True)
         fh.write("\n")
     total = sum(len(a["entries"]) for a in baseline.values())
-    print(f"wrote {os.path.relpath(BASELINE, STUDY)}: {total} entries across "
+    print(f"wrote {os.path.relpath(BASELINE, ROOT)}: {total} entries across "
           f"{len(baseline)} analyses")
 
 
