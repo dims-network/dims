@@ -50,6 +50,15 @@ RESTRICTED = ["assets/videos", "assets/timeseries", "assets/transcripts",
               "assets/elan", "assets/motion_tracking"]
 
 
+#: Never copied into a study. A scaffold that has been run from -- to serve it,
+#: or to build its assets -- has bytecode beside its scripts, and `dims-case new`
+#: copied it in: a brand-new public study started life with a __pycache__ it did
+#: not write, one `git add -A` from committing it. The wizard already skipped
+#: these; the command did not.
+SCAFFOLD_IGNORE = shutil.ignore_patterns(
+    "__pycache__", "*.pyc", ".git", ".venv", "node_modules", ".DS_Store")
+
+
 #: The payload encoding this core reads. Kept in step with
 #: `dims_analysis.common.arrays.PAYLOAD_VERSION` -- read from there when the
 #: analyses are installed, and declared here so `dims-case` works without them,

@@ -1,23 +1,257 @@
-"""Console entry point for `dims-case`.
+"""dims-case — create a study repo, or refresh its vendored core.
 
-The command in tools/ is the same thing for someone working from a checkout;
-both call dims_case.core, so they cannot drift apart.
+    dims-case new   <name> --visibility public|private [--dir PATH]
+    dims-case adopt <path> --name NAME --visibility public|private
+    dims-case sync  <path> [--version VERSION]
+    dims-case check <path> [--release]
+
+`sync` is what the version-bump bot runs. `check` is what CI runs.
+
+The work itself lives in dims_case.core, so this command and the no-code
+builder produce the same study rather than two slightly different ones.
+
+This used to be 253 lines in `tools/dims-case`, a file in no package, reached by
+a console script that `runpy`-ed it by path and a `sys.path.insert` that reached
+back into the package it was a client of. `pip install dims-network` therefore
+gave you a `dims-case` that could only ever print "this command needs a
+checkout". `tools/dims-case` is now a three-line shim for anyone with the file
+path in their fingers.
 """
+import argparse
+import json
 import os
-import runpy
+import shutil
+import subprocess
 import sys
+
+from dims_case.core import (
+    shadowed_tabs, stale_assets,          # noqa: E402
+    CORE_ROOT, RESTRICTED, SCAFFOLD_IGNORE, SHARED_STEPS, SCAFFOLD, VENDOR,
+    _core_version, _dir_hash, _install_private_bits, _register_study_tabs,
+    _refresh_scaffold_files, _write_hooks, _write_index, _write_vendor,
+    _write_workflows,
+    verify_vendor,
+)
+
+
+def cmd_new(args):
+    dest = os.path.abspath(args.dir or f"case-{args.name}")
+    if os.path.exists(dest) and os.listdir(dest):
+        sys.exit(f"error: {dest} exists and is not empty")
+
+    shutil.copytree(os.path.join(CORE_ROOT, SCAFFOLD), dest,
+                    dirs_exist_ok=True, ignore=SCAFFOLD_IGNORE)
+    hashes = _write_vendor(dest)
+
+    case = {
+        "case": args.name,
+        "visibility": args.visibility,
+        "dimsCore": _core_version(),
+        "publishable": [],
+        # The hook and CI both read this, so the rule exists once rather than
+        # in two places that can disagree.
+        "restricted": RESTRICTED,
+        "vendorHashes": hashes,
+    }
+    with open(os.path.join(dest, "dims-case.json"), "w") as fh:
+        json.dump(case, fh, indent=2)
+        fh.write("\n")
+
+    _write_workflows(dest, args.visibility)
+
+    if args.visibility == "private":
+        # The same call `adopt` makes. This block used to be a second copy of
+        # it, and the copies had already diverged over whether an existing
+        # data.local.json.example may be overwritten -- so a study created here
+        # and a study adopted here were not the same study.
+        _install_private_bits(dest)
+
+    print(f"created {dest}")
+    print(f"  visibility: {args.visibility}")
+    print(f"  core:       {case['dimsCore']}")
+    if args.visibility == "private":
+        print("  next:       git init && git config core.hooksPath .githooks")
+        print("              cp data.local.json.example data.local.json  and edit it")
+    return 0
+
+
+def cmd_adopt(args):
+    """Convert an EXISTING study into the pinned-core shape.
+
+    `new` deliberately refuses a non-empty directory, so that it can never
+    scribble over someone's data. Migrating an existing study is a different
+    operation and says so: it keeps config.json and assets/ exactly as they are,
+    and only adds what a case needs.
+    """
+    dest = os.path.abspath(args.path)
+    if not os.path.isdir(dest):
+        sys.exit(f"error: no such directory: {dest}")
+    if not os.path.exists(os.path.join(dest, "config.json")):
+        sys.exit("error: no config.json here — is this a study?")
+
+    scaffold = os.path.join(CORE_ROOT, SCAFFOLD)
+    # Only files the study does not already have. config.json and assets/ are
+    # the study's own and are never touched.
+    shutil.copy(os.path.join(scaffold, "serve.py"), os.path.join(dest, "serve.py"))
+    _write_index(dest)
+    for sub in ("rqa", "crqa", "crosswavelet", "timeseries", "videos",
+                "transcripts", "elan"):
+        os.makedirs(os.path.join(dest, "assets", sub), exist_ok=True)
+
+    hashes = _write_vendor(dest)
+    _register_study_tabs(dest)
+    case_path = os.path.join(dest, "dims-case.json")
+    existing = {}
+    if os.path.exists(case_path):
+        try:
+            existing = json.load(open(case_path))
+        except ValueError:
+            pass
+    case = {
+        "case": args.name,
+        "visibility": args.visibility,
+        "dimsCore": _core_version(),
+        "publishable": existing.get("publishable", []),
+        "restricted": RESTRICTED,
+        "vendorHashes": hashes,
+    }
+    with open(case_path, "w") as fh:
+        json.dump(case, fh, indent=2)
+        fh.write("\n")
+
+    _write_workflows(dest, args.visibility)
+    if args.visibility == "private":
+        _install_private_bits(dest)
+
+    print(f"adopted {dest}")
+    print(f"  visibility: {args.visibility}   core: {case['dimsCore']}")
+    print("  config.json and assets/ were left exactly as they were")
+
+    opt = os.path.join(dest, "opt")
+    if os.path.isdir(opt):
+        own = sorted(f for f in os.listdir(opt)
+                     if f.endswith((".py", ".txt")) and f not in SHARED_STEPS)
+        shared = sorted(f for f in os.listdir(opt) if f in SHARED_STEPS)
+        if shared:
+            print(f"\n  opt/ still holds {len(shared)} file(s) that now come from the core:")
+            for f in shared:
+                print(f"    {f}")
+            print("    These can go: run them with `dims-analysis run --config config.json`.")
+        if own:
+            print(f"\n  opt/ also holds {len(own)} file(s) that look specific to this study:")
+            for f in own:
+                print(f"    {f}")
+            print("    KEEP these. Study-specific data preparation belongs with the study;")
+            print("    only the shared analyses moved to the core.")
+    return 0
+
+
+def cmd_sync(args):
+    dest = os.path.abspath(args.path)
+    case_path = os.path.join(dest, "dims-case.json")
+    case = json.load(open(case_path))
+    old = case.get("dimsCore")
+    case["dimsCore"] = args.version or _core_version()
+    case["vendorHashes"] = _write_vendor(dest)
+    _write_index(dest)
+    _register_study_tabs(dest)
+    case["seededHashes"] = _refresh_scaffold_files(dest, case)
+    # Workflows are generated, like index.html and vendor/, so a core refresh
+    # refreshes them too. Otherwise a study keeps whatever CI it was created
+    # with, which is how five repos ended up with five drifted copies.
+    _write_workflows(dest, case.get("visibility", "public"))
+    # So is the pair of hooks a private study is guarded by. A fix to one of
+    # them has to reach the studies that already exist, and a bump is how
+    # anything else reaches them.
+    if case.get("visibility") == "private":
+        _write_hooks(dest)
+    with open(case_path, "w") as fh:
+        json.dump(case, fh, indent=2)
+        fh.write("\n")
+    print(f"{case['case']}: {old} -> {case['dimsCore']}")
+    # Said at bump time, which is when the owner is deciding what to do about
+    # it -- rather than at check time, by which point they have moved on.
+    for msg in shadowed_tabs(dest):
+        print(f"  note: {msg}")
+    for msg in stale_assets(dest):
+        print(f"  note: {msg}")
+    return 0
+
+
+def cmd_check(args):
+    """Offline by default; `--release` compares against this core checkout.
+
+    CI runs the release's own copy of this command, so `--release` means "the
+    version this study pins", and the comparison is one a fork cannot pass.
+    """
+    dest = os.path.abspath(args.path)
+    case = json.load(open(os.path.join(dest, "dims-case.json")))
+    problems = verify_vendor(dest, strict=args.release)
+    # A study's committed outputs are part of what makes it consistent with the
+    # core it pins. Bumping without rebuilding is the failure v2.0.0 warns
+    # about, and until this ran the only place it surfaced was a browser.
+    problems += stale_assets(dest)
+    for msg in problems:
+        print(f"::error::{msg}")
+    if problems:
+        return 1
+
+    # Not an error: a shadowed tab still leaves a working dashboard, it just
+    # leaves the study carrying a file that does nothing.
+    for msg in shadowed_tabs(dest):
+        print(f"warning: {msg}")
+
+    # A private study's hooks are tracked, but git does not run them until the
+    # clone opts in -- and forgetting is silent, which is the one thing a guard
+    # may not be. CI still catches it, but only after a push.
+    if case.get("visibility") == "private":
+        configured = subprocess.run(
+            ["git", "-C", dest, "config", "--get", "core.hooksPath"],
+            capture_output=True, text=True).stdout.strip()
+        if configured != ".githooks":
+            print("warning: the commit and push guards are not enabled in this "
+                  "clone.")
+            print("         git -C . config core.hooksPath .githooks")
+            print("         (this study is declared private; until then only CI "
+                  "stops data)")
+    against = f"core {case.get('dimsCore')}" if args.release else "the recorded pin"
+    print(f"vendored core matches {against}")
+    return 0
 
 
 def main(argv=None):
-    here = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.dirname(os.path.dirname(os.path.dirname(here)))
-    script = os.path.join(root, "tools", "dims-case")
-    if not os.path.exists(script):
-        sys.exit("dims-case: this command needs a checkout of dims-network/dims "
-                 "(it copies the core into your study, so it needs the core).")
-    sys.argv = ["dims-case"] + list(argv if argv is not None else sys.argv[1:])
-    runpy.run_path(script, run_name="__main__")
+    p = argparse.ArgumentParser(prog="dims-case", description=__doc__.splitlines()[0])
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    n = sub.add_parser("new", help="create a study repo")
+    n.add_argument("name")
+    n.add_argument("--visibility", required=True, choices=["public", "private"],
+                   help="the researcher's decision, recorded. Never inferred.")
+    n.add_argument("--dir")
+    n.set_defaults(func=cmd_new)
+
+    a = sub.add_parser("adopt", help="convert an existing study to the pinned-core shape")
+    a.add_argument("path")
+    a.add_argument("--name", required=True)
+    a.add_argument("--visibility", required=True, choices=["public", "private"])
+    a.set_defaults(func=cmd_adopt)
+
+    s = sub.add_parser("sync", help="refresh the vendored core (what the bot runs)")
+    s.add_argument("path")
+    s.add_argument("--version")
+    s.set_defaults(func=cmd_sync)
+
+    c = sub.add_parser("check", help="verify the vendored core (what CI runs)")
+    c.add_argument("path")
+    c.add_argument("--release", action="store_true",
+                   help="rebuild vendor/ from this core and compare against "
+                        "that, rather than trusting the study's own hashes")
+    c.set_defaults(func=cmd_check)
+
+    args = p.parse_args(argv)
+    return args.func(args)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
+
