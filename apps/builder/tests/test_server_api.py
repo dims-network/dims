@@ -5,6 +5,7 @@ is quietly not there, and the person using it is the one least able to work out
 why. So each of them asks "would a user get what the screen promised?" rather
 than "did the call return 200".
 """
+import io
 import json
 import os
 import sys
@@ -21,6 +22,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 pytest.importorskip("flask", reason="the builder's extra: pip install '.[builder]'")
 
 from dims_builder import server  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _example_study_cache(tmp_path_factory):
+    """Generate the example study once per run, and never into the user's cache.
+
+    The wizard generates it on demand rather than shipping it, so a test that
+    presses the button pays for the videos. Once per session is the whole cost;
+    every later call is a cache hit.
+    """
+    os.environ["DIMS_BUILDER_CACHE"] = str(tmp_path_factory.mktemp("cache"))
+    yield
+    os.environ.pop("DIMS_BUILDER_CACHE", None)
 
 
 @pytest.fixture
@@ -41,44 +55,71 @@ def start(client, tmp_path, visibility="private"):
 
 # --- the example study ------------------------------------------------------
 
+EXPECTED_MEASURES = [
+    "personLeftLeftHandSpeed", "personLeftRightHandSpeed",
+    "personRightLeftHandSpeed", "personRightRightHandSpeed", "rtpjSync",
+]
+
+
 def test_the_example_study_loads_in_one_click(client, tmp_path):
-    """The samples ship with the builder and the only documented way to use them
-    was to find the folder and drag the files in. Someone who has not got their
-    own data yet cannot reach a working dashboard at all that way."""
+    """Someone who has not got their own data yet has to be able to reach a
+    working dashboard, and the only way in used to be finding a folder and
+    dragging its contents in."""
     start(client, tmp_path)
     r = client.post("/api/samples")
     assert r.status_code == 200, r.get_json()
     files = r.get_json()["files"]
 
     sessions = {f["videoID"] for f in files}
-    assert sessions == {"session1", "session2"}, sessions
-    # The multi-column CSV is what the samples exist to demonstrate, and it goes
-    # through the same splitting an upload does rather than a shortcut.
-    s2 = sorted(f["dataType"] for f in files
-                if f["videoID"] == "session2" and f["role"] == "timeseries")
-    assert s2 == ["bodysync", "gaze", "neuralsync"], s2
+    assert sessions == {"dyad01", "dyad02"}, sessions
+    # Each dyad is its own folder, so the button only works if the endpoint
+    # walks the generated tree rather than listing its top level. And both
+    # dyads carry the same measures: a study where one session is shaped
+    # differently from the next teaches the wrong thing.
+    for dyad in sorted(sessions):
+        got = sorted(f["dataType"] for f in files
+                     if f["videoID"] == dyad and f["role"] == "timeseries")
+        assert got == EXPECTED_MEASURES, (dyad, got)
     assert {f["role"] for f in files} == {"video", "timeseries", "transcript", "elan"}
     assert not any(i["level"] == "error" for f in files for i in f["issues"]), (
         "the example study does not validate cleanly, so it teaches the wrong thing")
+
+
+def test_a_multi_column_csv_is_split_on_upload(client, tmp_path):
+    """Motion tracking hands you one wide file; every analysis reads one measure
+    per file. The example study no longer carries such a file -- it would make
+    one dyad shaped unlike the other -- so the behaviour is asserted directly."""
+    start(client, tmp_path)
+    wide = b"Time,alpha,beta,gamma\n0.0,1,2,3\n0.5,4,5,6\n1.0,7,8,9\n"
+    r = client.post("/api/upload", data={
+        "file": (io.BytesIO(wide), "session9.csv")}, content_type="multipart/form-data")
+    assert r.status_code == 200, r.get_json()
+    rows = r.get_json()["files"]
+
+    assert sorted(f["dataType"] for f in rows) == ["alpha", "beta", "gamma"]
+    assert {f["videoID"] for f in rows} == {"session9"}
+    assert all(f["columns"][0] == "Time" and len(f["columns"]) == 2 for f in rows)
 
 
 def test_the_example_study_builds_and_its_config_is_valid(client, tmp_path):
     out, _ = start(client, tmp_path)
     client.post("/api/samples")
     client.post("/api/config", json={
-        "include_RQA": ["bodysync"],
-        "include_crosswavelet": [["bodysync", "neuralsync"]],
-        "include_cRQA": [["bodysync", "neuralsync"]],
+        "include_RQA": ["rtpjSync"],
+        "include_crosswavelet": [["personLeftRightHandSpeed",
+                                  "personRightRightHandSpeed"]],
+        "include_cRQA": [["personLeftRightHandSpeed",
+                          "personRightRightHandSpeed"]],
         "include_elan": True,
     })
     r = client.post("/api/build")
     assert r.status_code == 200, r.get_json()
-    assert len(r.get_json()["placed"]) == 12
+    assert len(r.get_json()["placed"]) == 16
 
     cfg = json.load(open(os.path.join(out, "config.json")))
     from dims_builder import project
     assert project.schema_problems(cfg) == []
-    assert sorted(cfg["videoIDs"]) == ["session1", "session2"]
+    assert sorted(cfg["videoIDs"]) == ["dyad01", "dyad02"]
 
 
 # --- the network, and what switching it on implies --------------------------
@@ -90,7 +131,7 @@ def test_switching_the_network_on_switches_the_chance_level_on(client, tmp_path)
     out, _ = start(client, tmp_path)
     client.post("/api/samples")
     client.post("/api/config", json={
-        "include_crosswavelet": [["bodysync", "neuralsync"]],
+        "include_crosswavelet": [["personLeftRightHandSpeed", "personRightRightHandSpeed"]],
         "include_network": True,
     })
     assert client.post("/api/build").status_code == 200
@@ -103,7 +144,7 @@ def test_an_explicit_surrogate_count_wins(client, tmp_path):
     out, _ = start(client, tmp_path)
     client.post("/api/samples")
     client.post("/api/config", json={
-        "include_crosswavelet": [["bodysync", "neuralsync"]],
+        "include_crosswavelet": [["personLeftRightHandSpeed", "personRightRightHandSpeed"]],
         "include_network": True,
         "analysis": {"crosswavelet": {"mcCount": 20}},
     })
@@ -118,7 +159,7 @@ def test_reopening_brings_back_the_files_and_the_settings(client, tmp_path):
     out, _ = start(client, tmp_path)
     client.post("/api/samples")
     client.post("/api/config", json={
-        "include_RQA": ["bodysync"], "include_elan": True,
+        "include_RQA": ["rtpjSync"], "include_elan": True,
         "analysis": {"rqa": {"window": 6, "targetRecurrence": 0.1}},
     })
     client.post("/api/build")
@@ -128,10 +169,10 @@ def test_reopening_brings_back_the_files_and_the_settings(client, tmp_path):
     assert r.status_code == 200, r.get_json()
     d = r.get_json()
     assert d["visibility"] == "private"
-    assert len(d["files"]) == 12
-    assert d["config"]["include_RQA"] == ["bodysync"]
+    assert len(d["files"]) == 16
+    assert d["config"]["include_RQA"] == ["rtpjSync"]
     assert d["config"]["analysis"]["rqa"]["window"] == 6
-    assert sorted(d["config"]["videoIDs"]) == ["session1", "session2"]
+    assert sorted(d["config"]["videoIDs"]) == ["dyad01", "dyad02"]
 
 
 def test_removing_a_reopened_row_does_not_delete_the_studys_data(client, tmp_path):

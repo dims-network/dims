@@ -75,7 +75,7 @@
     "defaultWindowSize": {
       "type": "number",
       "exclusiveMinimum": 0,
-      "description": "Half-width, in seconds, of the window around the playhead."
+      "description": "Full width, in seconds, of the window around the playhead: the playhead ± half this value."
     },
     "title": {
       "type": "string"

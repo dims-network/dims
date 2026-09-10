@@ -12,6 +12,15 @@ so** — the two nodes are still drawn, with nothing between them.
 
 - Tab id `network`, gated by `include_network`.
 - Needs the cross-wavelet analysis, and needs its coherence chance level.
+- Reads nothing else: no raw signal, no config beyond `include_network` — except
+  the raw series for the co-activity figure below, and the **Window Size**
+  control, seeded from `defaultWindowSize`, for how wide "the moment" is.
+
+The window is the playhead ± half of the **Window Size** control, which starts
+at `defaultWindowSize` (5 s unless the study says otherwise) and follows the
+control from then on, and a **whole recording** toggle above the picture
+switches to averaging over everything, for when you want the study rather than
+the moment.
 
 ## Reading an edge
 
@@ -32,9 +41,42 @@ you hide another one. The "width sensitivity" slider controls how hard the scale
 pushes.
 
 **Dashed means the measurement said nothing.** An edge is called real when more
-than 15 % of its tested cells beat the 95 % chance level. Not 5 % plus a
-whisker: the fraction is itself an estimate, and a threshold sitting on the
-chance level turns half of the at-chance edges solid.
+than 15 % of its tested cells beat the 95 % chance level (`REAL = 0.15` in
+`network.js`). Not 5 % plus a whisker: the fraction is itself an estimate, and a
+threshold sitting on the chance level turns half of the at-chance edges solid.
+
+There is a third verdict. An edge whose payload carries no chance level at all is
+**untestable** — drawn, but its tooltip says the value cannot be tested and names
+the fix (`analysis.crosswavelet.mcCount`, then rebuild). The tab counts them and
+says how many, rather than letting an untested picture pass for a tested one.
+
+**Every edge's numbers are in its tooltip**: the pair, the mean coherence, the
+period band it was averaged over, the share of tested cells above chance and how
+many cells that was, and what independence would have given (about 5 %).
+
+The widths themselves run from `MIN_WIDTH = 1.5` px at the bottom of the visible
+range to `MAX_WIDTH = 16` px at the top. The node they end at is deliberately
+small — `TAB_NODE_R` in `figure-geometry.js`, half the radius the wizard uses for
+the same body — because the wizard's circle is a drop target and this one is the
+end of a line, and a big dot eats the width channel.
+
+**Every edge is a curve, and no two curve alike.** Ranks are handed out across
+the whole set on screen and each edge bows perpendicular to its chord by its own
+amount (`bowRanks`, `bowStep` and `edgePath`, all in `figure-geometry.js`, which
+the wizard's diagram draws from too). Straight lines between nodes in a column
+are *the same line* — three edges drawing one bar — and edges that merely meet at
+a node arrive as a smear. Separating only the edges whose endpoints match is not
+enough; it leaves every other edge at the minimum bow. Past about sixteen edges
+the fan tightens rather than sweeping arcs out of the frame.
+
+### The controls above the picture
+
+| control | what it does |
+|---|---|
+| **whole recording** | averages every edge over the entire session instead of the window at the playhead |
+| **Period band (s)** | the shortest and longest period each edge is averaged over. **This changes the answer**, not its presentation: it selects which cells enter both the mean and the significance fraction |
+| **Width sensitivity** | how hard the relative width scale pushes. Presentation only |
+| **one checkbox per pair** | hides an edge. Fifteen edges is a lot to read at once, and hiding some also re-pivots the width scale, because it pivots on what is visible |
 
 ### It needs a chance level to say anything at all
 
@@ -72,6 +114,21 @@ Three things to know about that number:
   omitted entirely rather than reported as 0, because "we did not measure this"
   and "they were still" are different statements.
 
+## Clicking an edge: the detail figure
+
+Selecting an edge does two things. It colours that line — the only use of colour
+in the picture, so "selected" reads as a state rather than as another
+measurement — and it draws **that pair's cross-wavelet figure underneath the
+diagram**.
+
+The detail figure is of a moment too, and its window follows the playhead. It is
+drawn once, when the edge is selected, and afterwards only the shaded window is
+moved: two answers to "which moment am I looking at" on one screen, where the
+wrong one has a box drawn round it, is worse than one.
+
+An edge can be selected whose pair has no cross-wavelet payload loaded in the
+dashboard — the tab says so in the panel rather than drawing an empty figure.
+
 ## Where the nodes go
 
 Two layouts, chosen with `layout`:
@@ -90,12 +147,30 @@ The no-code builder draws this diagram in step 4 and asks you to fill it in,
 which is the same decision as writing the config below by hand.
 
 - **Add a person** for each figure you want, and name it. That is a `group`.
+  One is enough: a network of a single body's own effectors — hands with head,
+  left with right — is a whole network, and the tab centres the lone figure.
+  Be aware that the "above chance in more than 15% of cells" threshold was
+  chosen against between-person data; whether it reads the same way within one
+  body is an open question rather than a settled one.
 - **Click an empty circle** — head, either hand, torso, hip or foot — and pick a
-  time series from the list. That is one `effectors` entry.
-- **Click two placed nodes** to draw a dashed line between them. That is one
-  `include_crosswavelet` pair, which is what the tab turns into an edge; without
-  it two nodes are simply two nodes.
-- The `×` on a node takes it back off, and takes its lines with it.
+  time series from the list. That is one `effectors` entry, and the node takes
+  the spot's own name as its `label`: *Left hand*, *Head*. Real measure names
+  are long enough that neighbouring nodes overlap into a smear, here and in the
+  dashboard; the full name stays in the node's tooltip. The picker closes on
+  Escape or a click outside it, without placing anything.
+- **Drag from one placed node to another** to ask for the coupling between them.
+  A dashed line follows the pointer; releasing on the second node makes the pair.
+  Clicking the two in turn does the same, and draws the same line while you are
+  between clicks. Escape, or releasing on empty space, abandons it.
+- That line is one `include_crosswavelet` pair, which is what the tab turns into
+  an edge; without it two nodes are simply two nodes. **The same pairs are chips
+  in the cross-wavelet block above, and the two are one list** — either view
+  edits it and both redraw. So a pair can be asked for without ever touching the
+  diagram, and a pair whose measures are not both placed is selected but not
+  drawn (the summary line under the chips says how many are in each state).
+- The `×` on a node takes it back off. Its lines go with it, because a line
+  needs two placed endpoints — but the pairs stay selected: where a measure sat
+  on a body is not whether to analyse it.
 
 Choosing the figure layout is not a separate step: placing anything on a body
 means `layout: "figure"`, because a body diagram that configured a column chart
@@ -190,6 +265,36 @@ questions only the study can answer:
 The wizard checks these before it writes a study: a `series` with no CSV and a
 duplicated `series` are errors; an unknown `part` and an undefined `group` are
 warnings.
+
+## Where the drawing lives
+
+The body — its coordinate space, its six places, the aliases for their names, and
+the lines that make a figure — is
+[`packages/dims-tabs/figure-geometry.js`](../../packages/dims-tabs/figure-geometry.js).
+
+**To move a body part, change it there.** Two things draw that figure and they
+have to agree to the pixel, because what you arrange in the wizard is what the
+dashboard draws:
+
+| | reads it from |
+|---|---|
+| this tab (`network.js`) | `vendor/dims-tabs/figure-geometry.js`, beside it |
+| the wizard's step 4 diagram | the DIMS checkout, served at `/vendor/figure-geometry.js` |
+
+They used to be two copies kept identical by hand, with a comment in the wizard
+saying so — and a third copy of the body-token list elsewhere again. They agreed
+until they did not: both drew each arm to the hand on the *opposite* side, so
+every figure had its arms crossed over its chest.
+
+A study keeps the copy under its own `vendor/dims-tabs/` until `dims-case sync`,
+which refreshes both the vendored directory and the `index.html` that loads it.
+So a change here reaches the wizard at once and a built study when it syncs —
+which is what vendoring is for.
+
+The file exports one object, `window.DIMS_FIGURE`: the constants, `SPOTS`,
+`ALIASES`, `BODY_TOKENS`, `spotOf`, `bodyPart`, `spot`, `positions(cx)`,
+`personCx(index, total)` and `appendFigure(svg, {cx, color, el})` — which takes
+the caller's element-maker, because the two consumers each have one already.
 
 ## The rest of the config
 

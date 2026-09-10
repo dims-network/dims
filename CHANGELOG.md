@@ -4,6 +4,37 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.4.0
+
+The wizard and the dashboard draw the same body, from the same file, and the
+network's edges fan out instead of piling up. No output change; a study written
+before this reads and renders exactly as it did.
+
+**One copy of the figure.** `packages/dims-tabs/figure-geometry.js` holds the
+body coordinates, the six places, the aliases and the token list. The tab loads
+it from `vendor/`, the wizard is served it from the checkout. To move a body
+part, change it there.
+
+**Edges are fanned across the whole set.** Only edges with matching endpoints
+used to get ranks of their own, so everything else sat at the minimum bow and
+the cross-body lines arrived as one smear. The wizard's diagram draws the same
+curves now, and the dashboard's nodes are smaller so the width channel reads.
+
+**The example study is generated, not shipped.** ConvoConnect-Mini -- two
+synthetic dyads, three minutes each, brains and hands and heads, transcript and
+ELAN phases -- is written into a cache on first use. The two sample sessions and
+their videos are out of the repository.
+
+**Cross-wavelet has its own pairs again, and starts empty.** v1.3.0 made the
+diagram the only way to pick one, which meant switching the analysis on seeded
+every pair: 45 runs for ten measures, before anyone had chosen anything. The
+chips are back and the diagram is a second view of the same set.
+
+**Also:** step 6 streams its output instead of block-buffering it into what
+looked like a hang; step 3 no longer prints a trim nobody applied; a link can be
+dragged as well as clicked; and `sig95_wtc` is documented as `null` rather than
+absent when no chance level was computed.
+
 ## v1.3.0
 
 The cross-effector network is built by drawing it. No output change; a study

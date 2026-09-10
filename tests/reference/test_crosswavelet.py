@@ -124,6 +124,10 @@ def test_K6_the_fraction_excludes_the_cone_of_influence(coherence_study):
     study, _ = coherence_study
     vis = pair(study, "noise_a_vs_noise_b")
     coh = as_array(vis["coherence"])
+    # The key is always there; the value is null when the study set mcCount 0.
+    assert vis["sig95_wtc"] is not None, (
+        "this fixture study must set mcCount -- without the null there is "
+        "nothing to read coherence against, and this test means nothing")
     level = np.array([np.nan if x is None else x for x in vis["sig95_wtc"]], dtype=float)
     period = np.array(vis["period"], dtype=float)
     coi = np.array(vis["coi"], dtype=float)

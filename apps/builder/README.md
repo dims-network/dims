@@ -51,11 +51,21 @@ Your browser opens to the wizard. Follow the 7 steps:
    in, so adding a session or changing an analysis is a rebuild rather than a
    hand-edit of `config.json`.
 2. **Sessions & files** — drag your files in, or press **Load the example
-   study** for two ready-made sessions that ship with the builder. The builder
+   study** for ConvoConnect-Mini: two synthetic dyads, three-minute
+   conversations with both partners' brains, hands and heads, a transcript and
+   ELAN phases ([EXAMPLE-STUDY.md](EXAMPLE-STUDY.md)). Nothing ships — it is
+   generated on first use, which takes a few seconds once. The builder
    works out what each file is (`.mp4`, `.csv`, `_transcript.json`, `.eaf`),
    which session it belongs to, and splits a multi-column CSV into one file per
    measure. If a session was filmed from several angles, name them here and the
    dashboard gets a camera selector.
+> The body the step 4 diagram is drawn on — its coordinates, its six places and
+> the aliases for their names — is
+> [`packages/dims-tabs/figure-geometry.js`](../../packages/dims-tabs/figure-geometry.js),
+> the same file the dashboard's network tab draws from. **To move a body part,
+> change it there**; both pictures follow. The builder is served it from the
+> checkout it is running out of.
+
 3. **Align video & data** — when a session's video and measurements have
    different lengths the dashboard shows dead space. Per session, a
    shared-timeline preview shows the video track above each measurement track,
@@ -66,12 +76,11 @@ Your browser opens to the wizard. Follow the 7 steps:
    that ships via `imageio-ffmpeg` — no system install needed.)
 4. **Tabs & analyses** — switch on recurrence, cross-recurrence, cross-wavelet,
    the cross-effector network and ELAN annotations, and pick which measures or
-   pairs each runs on. Every analysis has a **Settings** panel for the tuning
-   the study can set — the recurrence window and target rate, the cross-wavelet
-   picture size and its chance-level surrogate count. A line at the foot of the
-   step says how many runs that adds up to and which of them are the slow ones,
-   because the first sign that a choice was expensive should not be being forty
-   minutes into step 6.
+   pairs each runs on. Cross-wavelet starts with nothing selected: it is the
+   analysis that can take hours, so it does not choose its own workload. Every
+   analysis has a **Settings** panel for the tuning the study can set — the
+   recurrence window and target rate, the cross-wavelet picture size and its
+   chance-level surrogate count.
 5. **Build** — files are copied into place and `config.json` is written, after
    being checked against the same schema CI validates every study against.
 6. **Compute** — the builder creates a study-local Python environment and runs

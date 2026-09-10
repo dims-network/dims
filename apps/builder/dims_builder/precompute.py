@@ -58,11 +58,21 @@ def _venv_python(project: str) -> str:
 
 def _stream(cmd, cwd):
     """Run `cmd` in `cwd`, yielding combined stdout/stderr lines, then a final
-    status line. Yields '__EXIT__:<code>' last."""
+    status line. Yields '__EXIT__:<code>' last.
+
+    PYTHONUNBUFFERED is the whole reason step 6 used to look dead. Writing to a
+    pipe rather than a terminal, Python block-buffers stdout: the analysis
+    printed its banner and its per-pair progress into an 8 KB buffer that
+    reached the browser only when it filled or the process ended. The page
+    showed one `$` line and a spinner for as long as the run took -- which is
+    minutes, and reads as a hang. Whoever gives up there and moves on to step 7
+    opens a dashboard whose analyses have not finished, and the network tab
+    tells them no cross-wavelet output exists.
+    """
     yield f"$ {' '.join(cmd)}\n"
     proc = subprocess.Popen(
         cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
+        text=True, bufsize=1, env=dict(os.environ, PYTHONUNBUFFERED="1"),
     )
     for line in iter(proc.stdout.readline, ""):
         yield line

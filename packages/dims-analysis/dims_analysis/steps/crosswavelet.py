@@ -428,7 +428,7 @@ def _wct_significance_level(alpha1, alpha2, dt, dj, s0, n_scales, mother_wavelet
     except Exception as exc:  # noqa: BLE001 -- never fail the whole step over this
         if VERBOSE:
             print(f"  WARNING: coherence significance failed ({exc}); "
-                  f"field omitted")
+                  f"field set to null")
         _WCT_SIGNIF_CACHE[key] = None
         return None
     finally:
@@ -634,7 +634,7 @@ def compute_cross_wavelet_standard(data1, data2, time, dt,
     if sig95_wtc is not None and len(sig95_wtc) != len(scales):
         if VERBOSE:
             print(f"  WARNING: coherence significance length {len(sig95_wtc)} "
-                  f"!= {len(scales)} scales; field omitted")
+                  f"!= {len(scales)} scales; field set to null")
         sig95_wtc = None
 
     # Phase angles for plotting (only where coherence is significant)

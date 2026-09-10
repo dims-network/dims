@@ -248,6 +248,9 @@ textarea {
 .person button:hover { color: var(--err); }
 
 .diagram-wrap { position: relative; margin: 8px 0; }
+/* Two lines' worth, always. The hint grows when a link is half-made, and a
+   picture that jumps down a row while you are pointing at it is unusable. */
+#diagram-hint { min-height: 2.6em; }
 #network-diagram {
   width: 100%; height: auto; display: block;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
@@ -256,6 +259,12 @@ textarea {
 #network-diagram .spot circle { transition: stroke .12s, fill .12s; }
 #network-diagram .spot:hover circle { stroke: var(--accent); }
 #network-diagram .spot.armed circle { stroke: var(--accent); stroke-width: 5; }
+/* The link being made, following the pointer. Dashed like the edges it becomes,
+   and inert so it never swallows the release that completes the gesture. */
+#network-diagram .rubber {
+  stroke: var(--accent); stroke-width: 3; stroke-dasharray: 7 6;
+  pointer-events: none; opacity: .85;
+}
 #network-diagram .spot-clear { opacity: 0; transition: opacity .12s; }
 #network-diagram .spot:hover .spot-clear { opacity: 1; }
 #network-diagram .spot-clear:hover text { fill: var(--err); }

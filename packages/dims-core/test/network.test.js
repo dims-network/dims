@@ -42,6 +42,7 @@ async function boot(config = BASE, files = FILES) {
       scripts: [
         'packages/dims-core/video-component.js',
         'packages/dims-core/dims-core.js',
+        'packages/dims-tabs/figure-geometry.js',
         'packages/dims-tabs/timeseries.js',
         'packages/dims-tabs/crosswavelet.js',
         'packages/dims-tabs/network.js',
@@ -301,6 +302,34 @@ test('no two edges are drawn on top of each other', async () => {
     + geometry.join(' | '));
 });
 
+// The signed distance the curve's control point sits off its own chord: how
+// hard, and which way, this edge is bowed. Read back off the drawn path,
+// because the drawn path is the thing that was wrong.
+function bowOf(d) {
+  const n = d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+  const [x1, y1, cx, cy, x2, y2] = n;
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  return ((cx - (x1 + x2) / 2) * (-dy / len)) + ((cy - (y1 + y2) / 2) * (dx / len));
+}
+
+test('edges sharing one node fan apart, not just edges sharing both', async () => {
+  // The narrower fault under the same screenshot, and the reason this tab was
+  // rebuilt from the older one: ranking only the edges whose *endpoints match*
+  // separated the collinear bars and left everything else at the minimum bow.
+  // Three edges leaving one node by 22 px each leave it in near enough the same
+  // direction, so they arrive as one smear -- distinct `d` strings, one visible
+  // line. Every edge on screen gets its own rank, so the whole set spreads.
+  const w = await open_(await boot({ ...NETWORK_CONFIG, defaultWindowSize: 5 },
+                                   NETWORK_FILES));
+  const bows = paths(w).map(p => bowOf(p.getAttribute('d')));
+  assert.strictEqual(bows.length, 3, 'expected three edges');
+  assert.strictEqual(new Set(bows).size, bows.length,
+    `two edges are bowed by the same amount: ${bows.join(', ')}`);
+  assert.ok(Math.max(...bows) - Math.min(...bows) >= 30,
+    `the edges are not fanned, they all sit at the floor: ${bows.join(', ')}`);
+});
+
 test('a figure layout draws a body per group, not a column of dots', async () => {
   const w = await open_(await boot({
     ...NETWORK_CONFIG,
@@ -470,6 +499,26 @@ test('there is a way back to the whole recording', async () => {
 
   back.dispatchEvent(new w.Event('click'));
   assert.match(w.document.getElementById('networkScope').textContent, /whole recording/);
+});
+
+test('the window follows the Window Size control, not the config default', async () => {
+  // This tab used to read config.defaultWindowSize directly, while the
+  // cross-wavelet detail figure drawn underneath it read the live control. So
+  // changing the control moved the shaded window in the detail plot and left
+  // the edges above it averaging over a different span entirely -- two
+  // pictures of two different moments, stacked, with nothing saying so.
+  const w = await open_(await boot({ ...NETWORK_CONFIG, defaultWindowSize: 5 },
+                                   NETWORK_FILES));
+  const scope = () => w.document.getElementById('networkScope').textContent;
+
+  w.dimsApp.lastClickedPoint = 4.0;
+  w.dimsApp.updateNetwork();
+  assert.match(scope(), /1\.5–6\.5/, 'the control is seeded from the config');
+
+  w.document.getElementById('windowSize').value = '3';
+  w.dimsApp.updateNetwork();
+  assert.match(scope(), /2\.5–5\.5/,
+    'the network is still on the config default after the control moved');
 });
 
 test('movement context is reported when it can be, and never invented', async () => {
@@ -700,4 +749,50 @@ test('declaring a node does not cost it its co-activity figure', async () => {
   }));
   const title = edges(w)[0].querySelector('title').textContent;
   assert.match(title, /both measures active: \d+% of this window/);
+});
+
+// --- the playhead and the detail figure --------------------------------------
+
+test('the detail figure follows the playhead instead of freezing', async () => {
+  // The network's edges are of a moment, and so is the cross-wavelet figure that
+  // opens under them when an edge is clicked. That figure was drawn once, at
+  // selection, and nothing moved its window afterwards: the edges rethickened as
+  // the playhead moved while the plot beneath them still showed the window it
+  // was opened at. Two answers to "which moment am I looking at", on one screen.
+  const w = await open_(await boot());
+  const edge = edges(w)[0];
+  assert.ok(edge, 'no edge to select');
+
+  edge.dispatchEvent(new w.Event('click', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 60));
+  assert.ok(w.document.getElementById('networkDetailPlot'), 'no detail figure opened');
+
+  const before = w.__relaidOut.length;
+  w.dimsApp.handleTimeClick(1.2);
+  await new Promise(r => setTimeout(r, 30));
+
+  const moved = w.__relaidOut.slice(before)
+    .filter(c => c.el === 'networkDetailPlot' && c.update && c.update.shapes);
+  assert.ok(moved.length, 'the playhead moved and the detail figure did not');
+  assert.ok(moved[moved.length - 1].update.shapes.length,
+    'the window should be drawn as shapes once a time is selected');
+});
+
+test('moving the playhead does not redraw the heatmap under it', async () => {
+  // The window is the only thing that changes, so it is the only thing that
+  // should be rewritten. Rebuilding the figure per slider tick -- which is what
+  // the cross-wavelet tab used to do for every plot it had -- is what made
+  // dragging stutter.
+  const w = await open_(await boot());
+  edges(w)[0].dispatchEvent(new w.Event('click', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 60));
+
+  const drawnBefore = w.__plotted.filter(p => p.el === 'networkDetailPlot').length;
+  w.dimsApp.handleTimeClick(1.5);
+  w.dimsApp.handleTimeClick(1.9);
+  await new Promise(r => setTimeout(r, 30));
+
+  assert.strictEqual(
+    w.__plotted.filter(p => p.el === 'networkDetailPlot').length, drawnBefore,
+    'the detail figure was rebuilt rather than relaid out');
 });

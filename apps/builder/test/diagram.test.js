@@ -161,7 +161,12 @@ test('unplacing a measure takes its lines with it', async () => {
   page.unplace('alpha');
   page.renderDiagram();
   assert.strictEqual(edges(w).length, 0, 'an edge survived one of its own endpoints');
-  assert.strictEqual(page.pairKeysToList(page.state.cw).length, 0);
+  // The line goes because a line needs two placed endpoints. The analysis
+  // stays: where a measure sat on a body is not whether to compute it, and
+  // deleting the pair here cancelled work that may have been picked in the
+  // chips, with nothing on screen saying so.
+  assert.deepStrictEqual(plain(page.pairKeysToList(page.state.cw)), [['alpha', 'beta']],
+    'taking a node off the diagram cancelled the analysis as well');
 });
 
 // --- the migration -----------------------------------------------------------
@@ -319,6 +324,10 @@ function tabRenderer() {
     __dirname, '..', '..', '..', 'packages', 'dims-tabs', 'network.js'), 'utf8');
   const body = src.slice(src.indexOf('const SVG_NS'), src.indexOf('window.DIMS.extendHost'));
   const dom = new JSDOM('<!doctype html><body>', { runScripts: 'outside-only' });
+  // The tab draws from the shared figure geometry, exactly as the page does:
+  // index.html loads figure-geometry.js before the tabs.
+  dom.window.eval(fs.readFileSync(path.resolve(
+    __dirname, '..', '..', '..', 'packages', 'dims-tabs', 'figure-geometry.js'), 'utf8'));
   dom.window.eval(`${body}\n;window.__tab = { grouping, layout, measuresIn };`);
   return dom.window.__tab;
 }
@@ -362,4 +371,172 @@ test('what the wizard writes renders exactly as what it read', async () => {
   assert.strictEqual(Object.keys(before).length, 6);
   assert.deepStrictEqual(after, before,
     'opening a study in the wizard and pressing Next moved its nodes');
+});
+
+// --- one person is a whole network -------------------------------------------
+
+test('one person with several effectors is a complete network', async () => {
+  // Every study that exists is two people, and an issue was filed saying the
+  // wizard assumed that. It does not: nothing anywhere requires a second
+  // figure, and this is the test that says so rather than leaving it to be
+  // rediscovered. What a single-body network *means* -- whether the 0.15
+  // above-chance threshold, tuned between people, reads the same within one --
+  // is a separate and empirical question.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['hand_l', 'hand_r', 'head'], true);
+  const p = page.addPerson('Player', '#5b8cff');
+  page.place('hand_l', p, 'lefthand');
+  page.place('hand_r', p, 'righthand');
+  page.place('head', p, 'head');
+  page.state.cw.clear();
+  page.toggleEdge('hand_l', 'hand_r');
+  page.toggleEdge('hand_l', 'head');
+  page.toggleEdge('hand_r', 'head');
+  page.renderDiagram();
+
+  assert.strictEqual(figures(w).length, 1);
+  assert.strictEqual(filled(w).length, 3);
+  assert.strictEqual(edges(w).length, 3, 'all three within-body pairs should draw');
+
+  const out = plain(page.collectNetwork());
+  assert.strictEqual(out.groups.length, 1);
+  assert.strictEqual(out.effectors.length, 3);
+  assert.strictEqual(out.layout, 'figure');
+
+  // And the tab centres the single figure rather than pushing it to one side.
+  const tab = tabRenderer();
+  const pairs = {};
+  page.pairKeysToList(page.state.cw).forEach(([a, b]) => {
+    pairs[`${a}_vs_${b}`] = { data_type1: a, data_type2: b };
+  });
+  const pos = tab.layout(tab.grouping({ include_network: out }, tab.measuresIn(pairs)), 'figure');
+  assert.strictEqual(Math.round(pos.head.x), 500, 'the lone figure should be centred');
+  assert.strictEqual(Object.keys(pos).length, 3);
+});
+
+// --- the gestures -------------------------------------------------------------
+//
+// Asking for a pair used to be click one node, click another, with nothing in
+// between but a slightly thicker ring. The first click looked like it had done
+// nothing, so the gesture read as broken and people concluded the diagram did
+// not work. Dragging is the gesture the picture implies; both now draw a line
+// that follows the pointer.
+
+function pointer(w, el, type, at = {}) {
+  const ev = new w.MouseEvent(type, { bubbles: true, cancelable: true,
+                                      clientX: at.x || 0, clientY: at.y || 0 });
+  el.dispatchEvent(ev);
+  return ev;
+}
+const nodeFor = (w, dt) => w.document.querySelector(`#network-diagram [data-dt="${dt}"]`);
+const rubber = (w) => w.document.getElementById('rubber-band');
+
+test('dragging one node onto another asks for the pair', async () => {
+  const { window: w, page } = boot();
+  withTypes(page, w, ['alpha', 'beta'], true);
+  const t = page.addPerson('Teacher');
+  page.place('alpha', t, 'head');
+  page.place('beta', t, 'righthand');
+  page.state.cw.clear();
+  page.renderDiagram();
+
+  const from = nodeFor(w, 'alpha');
+  pointer(w, from, 'pointerdown');
+  pointer(w, from, 'pointermove', { x: 40, y: 40 });
+  assert.ok(rubber(w), 'nothing followed the pointer, so the drag was invisible');
+
+  pointer(w, nodeFor(w, 'beta'), 'pointerup');
+  assert.deepStrictEqual(plain(page.pairKeysToList(page.state.cw)), [['alpha', 'beta']]);
+  assert.strictEqual(rubber(w), null, 'the line stayed behind after the drop');
+  assert.strictEqual(edges(w).length, 1);
+});
+
+test('a drag released on nothing asks for nothing', async () => {
+  const { window: w, page } = boot();
+  withTypes(page, w, ['alpha', 'beta'], true);
+  const t = page.addPerson('Teacher');
+  page.place('alpha', t, 'head');
+  page.place('beta', t, 'righthand');
+  page.state.cw.clear();
+  page.renderDiagram();
+
+  const from = nodeFor(w, 'alpha');
+  pointer(w, from, 'pointerdown');
+  pointer(w, from, 'pointermove', { x: 40, y: 40 });
+  pointer(w, w.document.querySelector('#network-diagram'), 'pointerup');
+
+  assert.strictEqual(page.pairKeysToList(page.state.cw).length, 0);
+  assert.strictEqual(page.state.armed, null, 'the diagram was left half-linked');
+  assert.strictEqual(rubber(w), null);
+});
+
+test('Escape abandons a half-made link', async () => {
+  const { window: w, page } = boot();
+  withTypes(page, w, ['alpha', 'beta'], true);
+  const t = page.addPerson('Teacher');
+  page.place('alpha', t, 'head');
+  page.place('beta', t, 'righthand');
+  page.state.cw.clear();
+  page.renderDiagram();
+
+  nodeFor(w, 'alpha').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert.strictEqual(page.state.armed, 'alpha');
+
+  w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.strictEqual(page.state.armed, null);
+  assert.strictEqual(page.pairKeysToList(page.state.cw).length, 0);
+});
+
+// --- the picker ---------------------------------------------------------------
+
+test('the picker closes without picking anything', async () => {
+  const { window: w, page } = boot();
+  withTypes(page, w, ['alpha', 'beta'], true);
+  const t = page.addPerson('Teacher');
+  page.renderDiagram();
+
+  const before = plain(page.state.effectors);
+  const empty = [...w.document.querySelectorAll('#network-diagram [data-spot]')]
+    .find((g) => !g.dataset.dt);
+  empty.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  assert.strictEqual(w.document.getElementById('spot-menu').hidden, false,
+    'clicking an empty spot did not offer anything to put there');
+
+  pointer(w, w.document.body, 'pointerdown');
+  assert.strictEqual(w.document.getElementById('spot-menu').hidden, true,
+    'the menu could only be left by choosing something');
+  assert.deepStrictEqual(plain(page.state.effectors), before,
+    'dismissing it placed a measure anyway');
+});
+
+test('Escape closes the picker too', async () => {
+  const { window: w, page } = boot();
+  withTypes(page, w, ['alpha'], true);
+  page.addPerson('Teacher');
+  page.renderDiagram();
+
+  w.document.querySelector('#network-diagram [data-spot="head"]')
+   .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.strictEqual(w.document.getElementById('spot-menu').hidden, true);
+});
+
+// --- labels -------------------------------------------------------------------
+
+test('a placed node is labelled by where it was put, not by its full name', async () => {
+  const { window: w, page } = boot();
+  withTypes(page, w, ['personLeftLeftHandSpeed', 'personRightRightHandSpeed'], true);
+  const a = page.addPerson('Left partner');
+  page.place('personLeftLeftHandSpeed', a, 'lefthand');
+  page.renderDiagram();
+
+  assert.strictEqual(page.state.effectors.personLeftLeftHandSpeed.label, 'Left hand');
+  const drawn = [...w.document.querySelectorAll('#network-diagram text')].map((t) => t.textContent);
+  assert.ok(drawn.includes('Left hand'), `the node drew its data type: ${drawn}`);
+  assert.ok(!drawn.includes('personLeftLeftHandSpeed'),
+    'the full name is what overlaps its neighbour; it belongs in the tooltip');
+
+  const eff = page.collectNetwork().effectors.find((e) => e.series === 'personLeftLeftHandSpeed');
+  assert.strictEqual(eff.label, 'Left hand', 'the label did not reach the study');
+  assert.strictEqual(eff.series, 'personLeftLeftHandSpeed', 'series must stay the real name');
 });

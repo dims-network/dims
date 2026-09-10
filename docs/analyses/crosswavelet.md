@@ -154,7 +154,7 @@ Two guards sit on the result:
 
 | key | type | default | what it does |
 |---|---|---|---|
-| `mcCount` | integer ≥ 0 | **100** if `include_network` is set, otherwise **0** | surrogate pairs behind the coherence chance level. `0` skips it, and `sig95_wtc` is then absent from the payload |
+| `mcCount` | integer ≥ 0 | **100** if `include_network` is set, otherwise **0** | surrogate pairs behind the coherence chance level. `0` skips it, and `sig95_wtc` is then `null` in the payload |
 | `maxPeriod` | seconds or `null` | `null` | longest period computed. Caps `J`; the usual reason to set it is compute time |
 | `scaleAvgBand` | `[min, max]` seconds | `[2Δt, min(8Δt, longest period / 2)]` | the band `scale_avg_power` averages over |
 | `maxTimePoints` | integer ≥ 1 | 500 | width of the **stored picture**, in samples. The analysis always runs at full resolution |
@@ -414,7 +414,7 @@ Every 2-D field is **period × time**, in that order.
 | `coherence` | `f32-b64` | `P × T` | 0…1, `null` where undefined |
 | `coi` | JSON list | `T` | period, seconds — compare against `scales` |
 | `signif_xwt` | JSON list | `P` | same units as `power` |
-| `sig95_wtc` | JSON list or `null` | `P` | coherence units; absent when `mcCount` is 0 |
+| `sig95_wtc` | JSON list or `null` | `P` | coherence units; `null` when `mcCount` is 0 |
 | `global_power`, `global_signif` | JSON list | `P` | time-averaged power and its level |
 | `scale_avg_power` | JSON list | `T` | band-averaged power per time point |
 | `downsampling_factors` | object | — | `{time_factor, freq_factor}` |

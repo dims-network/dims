@@ -48,6 +48,7 @@ function makeEnv({ config, files = {}, scripts }) {
   // on tab switch, for one -- finds nothing without them, so the stub sets both
   // or the test passes while the product is broken.
   const resized = [];
+  const relaidOut = [];
   const attach = (el) => {
     if (el && typeof el.on !== 'function') {
       el._handlers = {};
@@ -66,15 +67,30 @@ function makeEnv({ config, files = {}, scripts }) {
       // The layout is kept, not only the trace count: a caption is something a
       // reader acts on, so a test that cannot see it cannot check it. The
       // coherence chance level is drawn as one, and its absence is a sentence.
+      // Real Plotly hangs the traces on the div, and code that asks "has this
+      // been drawn yet?" reads that rather than a flag of its own.
+      const node = typeof el === 'string' ? w.document.getElementById(el) : el;
+      if (node) { node.data = data || []; node.layout = layout || {}; }
       plotted.push({ el: el && (el.id || el), n: (data || []).length,
                      data: data || [], layout: layout || {} });
       return Promise.resolve();
     },
     react: (el) => { attach(typeof el === 'string' ? w.document.getElementById(el) : el); return Promise.resolve(); },
-    purge: () => {}, relayout: () => Promise.resolve(),
+    purge: () => {},
+    // Recorded, not swallowed: moving a window on an already-drawn figure is a
+    // relayout, and a stub that returns without a trace cannot tell a test that
+    // the playhead was followed from one that says it was not.
+    relayout: (el, update) => {
+      const id = typeof el === 'string' ? el : (el && el.id);
+      relaidOut.push({ el: id, update: update || {} });
+      const node = typeof el === 'string' ? w.document.getElementById(el) : el;
+      if (node && node.layout) Object.assign(node.layout, update || {});
+      return Promise.resolve();
+    },
     Plots: { resize: (el) => { resized.push(el && el.id); } },
   };
   w.__resized = resized;
+  w.__relaidOut = relaidOut;
   w.__attachPlotly = attach;
   w.React = { createElement: (...a) => ({ __el: a }), Fragment: 'F' };
   w.ReactDOM = { render: () => {}, createRoot: () => ({ render: () => {} }) };

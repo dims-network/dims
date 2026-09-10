@@ -96,21 +96,26 @@ def test_every_contract_the_docs_cross_reference_exists():
 def test_the_figure_layout_vocabulary_is_the_same_in_every_file_that_names_it():
     """Where the network can put a node is written down four times.
 
-    `figurePositions()` in packages/dims-tabs/network.js draws them, the `part`
-    enum in the config schema accepts them, FIGURE_PARTS in the builder's
-    validate.py warns about them, and the builder's own dropdown offers them.
-    Nothing connects the four, and the failure is quiet in the direction that
-    matters: a part one of them has not heard of is stacked beside the figure by
-    the tab, which reads as a layout the study chose rather than a name it got
-    wrong.
+    SPOTS in packages/dims-tabs/figure-geometry.js draws them -- the tab and the
+    wizard's diagram both draw from it -- the `part` enum in the config schema
+    accepts them, FIGURE_PARTS in the builder's validate.py warns about them, and
+    the builder's own dropdown offers them. Nothing connects the four, and the
+    failure is quiet in the direction that matters: a part one of them has not
+    heard of is stacked beside the figure by the tab, which reads as a layout the
+    study chose rather than a name it got wrong.
     """
     schema = json.load(open(os.path.join(ROOT, "docs/contracts/config.schema.json")))
     net = schema["properties"]["include_network"]["oneOf"][1]
     from_schema = set(net["properties"]["effectors"]["items"]["properties"]["part"]["enum"])
 
-    source = open(os.path.join(ROOT, "packages/dims-tabs/network.js")).read()
-    body = source[source.index("function figurePositions"):source.index("const BODY_PARTS")]
-    from_tab = set(re.findall(r"^\s{12}(\w+):", body, re.M))
+    source = open(os.path.join(ROOT, "packages/dims-tabs/figure-geometry.js")).read()
+    body = source[source.index("const SPOTS = ["):source.index("const ALIASES")]
+    # Six places, and the older spellings for two of them. A study may still say
+    # `nose`, so the schema accepts eight names for six spots -- which is what
+    # positions() hands back, and so what the tab can actually draw.
+    aliases = source[source.index("const ALIASES = {"):]
+    from_tab = (set(re.findall(r"part:\s*'(\w+)'", body))
+                | set(re.findall(r"(\w+):", aliases[:aliases.index("}")])))
 
     validate = open(os.path.join(ROOT, "apps/builder/dims_builder/validate.py")).read()
     block = validate[validate.index("FIGURE_PARTS = ("):]
@@ -126,7 +131,8 @@ def test_the_figure_layout_vocabulary_is_the_same_in_every_file_that_names_it():
             f"{sorted(from_schema)}")
 
     assert from_tab == from_schema, (
-        f"network.js draws {sorted(from_tab)}, schema accepts {sorted(from_schema)}")
+        f"figure-geometry.js draws {sorted(from_tab)}, schema accepts "
+        f"{sorted(from_schema)}")
     assert from_validate == from_schema, (
         f"validate.py knows {sorted(from_validate)}, schema accepts "
         f"{sorted(from_schema)}")
