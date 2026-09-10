@@ -120,13 +120,12 @@ made, which is why the tab says in the title when it could not be.
 
 ## The playhead
 
-Clicking seeks to the clicked point's x value.
+Clicking panel A, B or D seeks to that time. **Panel C does not seek** — its
+x-axis is power, so there is no time on it to go to.
 
-**One caution:** the handler applies no axis filter, so clicking the *global
-spectrum* in panel C — whose x-axis is power, not time — also seeks, to a power
-value read as though it were seconds. Click panels A, B or D. The recurrence
-figures exclude their non-time axis explicitly; this one does not. Filed as a
-defect.
+Until v1.4.2 it did: the handler took `point.x` from whichever panel was clicked,
+so clicking the spectrum moved the whole dashboard to a power value read as
+seconds.
 
 The window is drawn as two vertical edge lines plus a translucent band spanning
 `playhead ± windowSize / 2`, clamped to the pair's own time range. It appears on

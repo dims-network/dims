@@ -360,3 +360,38 @@ test('the axis a series is labelled on is the axis it is drawn on', async () => 
   assert.deepStrictEqual(Array.from(left.x), entry.visualization.data_y,
     'the left marginal must be the series its axis is labelled with');
 });
+
+// --- clicking a panel that has no time on it ---------------------------------
+
+test('clicking the global spectrum does not seek to a power value', async () => {
+  // The cross-wavelet figure has four panels and only three carry time. Panel C
+  // is the spectrum: its x is power. The click handler took point.x from
+  // whichever panel was clicked, so clicking there moved the whole dashboard to
+  // a power reading interpreted as seconds.
+  //
+  // Note the axis: this figure excludes x2, where the recurrence figures
+  // exclude x3 -- which here is the scale-averaged panel and is real time.
+  const w = await boot();
+  const made = await open_(w, 'crosswavelet');
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  assert.ok(fig, 'the cross-wavelet tab drew no figure of its own');
+
+  const el = w.document.getElementById(String(fig.el));
+  const click = (el._handlers || {})['plotly_click'];
+  assert.ok(click && click.length, 'no plotly_click handler was attached');
+
+  const app = w.dimsApp;
+  app.lastClickedPoint = 12.5;
+
+  // Panel C: x is power, and 0.004 is a power, not a time.
+  click.forEach(fn => fn({ points: [{ x: 0.004, xaxis: { _id: 'x2' } }] }));
+  await new Promise(r => setTimeout(r, 20));
+  assert.strictEqual(app.lastClickedPoint, 12.5,
+    'a click on the power axis moved the playhead');
+
+  // A time panel still seeks, or the guard has taken the feature with it.
+  click.forEach(fn => fn({ points: [{ x: 3.25, xaxis: { _id: 'x' } }] }));
+  await new Promise(r => setTimeout(r, 20));
+  assert.strictEqual(app.lastClickedPoint, 3.25,
+    'clicking a time panel no longer seeks');
+});
