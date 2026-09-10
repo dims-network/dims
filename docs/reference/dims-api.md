@@ -201,10 +201,9 @@ into internals.
 know it before you copy one:
 
 - **`app.currentData`** — the loaded time series, as `[{name, data}]`. Read
-  directly by the RQA, cross-RQA, cross-wavelet and network tabs, to match a
-  measure to its colour and, in the network's case, to compute its co-activity
-  figure. The time series tab does not read it: the host passes it in as an
-  argument instead.
+  directly by the RQA, cross-RQA and cross-wavelet tabs, to match a measure to
+  its colour. The time series tab does not read it: the host passes it in as an
+  argument instead, and the network tab does not read it at all.
 - **`app.handleTimeClick(time)`** — how a tab moves the playhead. The time series,
   ELAN and cross-wavelet tabs call it from their own click handlers; the two
   recurrence tabs reach it through the host's shared figure builder, and the

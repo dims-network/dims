@@ -225,7 +225,7 @@
           "mcCount": {
             "type": "integer",
             "minimum": 0,
-            "description": "crosswavelet: Monte Carlo surrogates behind the coherence null. 300 is the publication setting and costs about 2.8 hours on a twelve-recording study; 0 skips it. Defaults to 100 when include_network is set and 0 otherwise, because the network is the only thing that reads the null."
+            "description": "crosswavelet: Monte Carlo surrogates behind the coherence null. 300 is the publication setting and costs about 2.8 hours on a twelve-recording study; 0 skips it. Defaults to 100 when include_network is set and 0 otherwise, because the network's coherence mode is the only thing that reads the null -- its shared power mode uses an analytic level instead and needs no surrogates."
           },
           "maxTimePoints": {
             "type": "integer",
@@ -241,7 +241,7 @@
       }
     },
     "include_network": {
-      "description": "The cross-effector network: nodes are measures, edges are the coherence between them, and both follow the playhead. Built into the core -- it used to live in one study, where it was the only reader of the Monte Carlo coherence null the core computes for everyone. Setting this also switches that null on by default, at 100 surrogates, because without it no edge can be told from chance. `true` draws every measure that appears in a cross-wavelet pair; an object groups them. Every edge also reports what share of the window had both measures active, which assumes a measure whose near-zero means \"not moving\" -- a speed or another magnitude. It never changes a coherence value, but it does fade the edge below a quarter of the window, and it is omitted entirely -- reported as nothing, not as stillness -- when the raw series are not loaded.",
+      "description": "The cross-effector network: nodes are measures, edges are how strongly two measures went together, and both follow the playhead. An edge carries either wavelet coherence or shared cross-wavelet power, chosen by `mode` and switchable in the tab. Setting this switches the Monte Carlo coherence null on by default, at 100 surrogates, because without it a coherence edge cannot be told from chance; the shared power mode uses an analytic level and needs no surrogates. `true` draws every measure that appears in a cross-wavelet pair; an object groups them.",
       "oneOf": [
         {
           "type": "boolean"
@@ -283,7 +283,7 @@
                 "properties": {
                   "series": {
                     "type": "string",
-                    "description": "The data type this node is, exactly as it appears in `dataTypes` and in assets/timeseries/{videoID}_{dataType}.csv. It stays a real data type rather than becoming a display name because the tab looks the raw series up by this name to report how much of the window both measures were active for; a label here would cost every edge that line, silently."
+                    "description": "The data type this node is, exactly as it appears in `dataTypes` and in assets/timeseries/{videoID}_{dataType}.csv. It stays a real data type rather than becoming a display name because the node is matched to its cross-wavelet pairs by this name: a label here resolves against no pair, so the node is drawn with no edges and the real measure turns up again in the trailing `Other` group."
                   },
                   "label": {
                     "type": "string",
@@ -331,7 +331,31 @@
               "minItems": 2,
               "maxItems": 2
             },
-            "layout": {
+            "mode": {
+            "type": "string",
+            "enum": ["coherence", "power"],
+            "default": "coherence",
+            "description": "Which measure the edges carry, and the value the reader starts on. `coherence` asks whether two measures held a steady phase relationship, and ignores how much either of them moved. `power` asks whether both were moving at that timescale: cross-wavelet power divided by its own per-scale red-noise level, which is the product of the two amplitudes and says nothing about phase -- a thick power edge means both were busy, not that they were coupled. The control above the picture switches between them; this is only the starting point. `power` needs no Monte Carlo null.",
+            "$comment": "Read the two together: thick in coherence and thin in power is a coupling computed out of stillness."
+          },
+          "threshold": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "The share of tested cells that must beat the 95 % level before an edge is drawn solid rather than as a dashed hairline. Defaults to 0.15 for both. One value per mode, because the fraction of cells above a coherence chance level and the fraction above a red-noise power level are different distributions and one number would judge one of them by the other's yardstick.",
+            "properties": {
+              "coherence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "power": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "layout": {
               "type": "string",
               "enum": [
                 "columns",

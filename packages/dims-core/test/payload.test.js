@@ -248,6 +248,58 @@ test('the two averaged significance levels are drawn beside what they judge', as
   assert.ok(levels.some(t => t.yaxis === 'y3'), 'no level beside the scale-averaged power');
 });
 
+test('the heatmap tooltip can resolve the period it promises', async () => {
+  // `z` is a grid, so a customdata with one entry per period row cannot be
+  // indexed against it: Plotly gives up and prints the template into the
+  // tooltip, so the reader is shown "%{customdata:.2f}" where the period goes.
+  const w = await boot();
+  const made = await open_(w, 'crosswavelet');
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  const heat = (fig.data || []).find(t => t.type === 'heatmap');
+  assert.ok(heat, 'no heatmap');
+  assert.match(heat.hovertemplate, /%\{customdata/,
+    'this test is about the customdata tooltip and the template no longer uses one');
+  assert.ok(Array.isArray(heat.customdata) && Array.isArray(heat.customdata[0]),
+    'customdata must be a grid, not one value per period row');
+  assert.strictEqual(heat.customdata.length, heat.z.length);
+  assert.strictEqual(heat.customdata[0].length, heat.z[0].length);
+});
+
+test('the phase arrows are drawn to be seen', async () => {
+  // They took the body text colour, which is near-black in the light theme, on
+  // a Viridis heatmap -- and they are drawn only where power is high, which is
+  // its pale end. Dark on dark at one end, and white would be light on light
+  // at the other, so the glyphs also need something to sit on.
+  const w = await boot();
+  const made = await open_(w, 'crosswavelet');
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  const arrows = (fig.data || []).find(
+    t => t.mode === 'markers+text' && Array.isArray(t.text));
+  assert.ok(arrows, 'no phase arrow trace');
+  assert.strictEqual(arrows.textfont.color, '#ffffff');
+  assert.ok(arrows.marker.size > 1,
+    'a white glyph needs a backing disc to read against the bright end');
+});
+
+test('the colorbar and the legend keep out of the spectrum panel', async () => {
+  // The colorbar sat in the gap at 0.72 with its title on the right, so it
+  // reached across into the panel beginning at 0.75; the legend was pinned in
+  // the same column in a hard-coded half-black box.
+  const w = await boot();
+  const made = await open_(w, 'crosswavelet');
+  const fig = made.find(p => String(p.el).startsWith('cw-plot-'));
+  const heat = (fig.data || []).find(t => t.type === 'heatmap');
+  const panelC = fig.layout.xaxis2.domain;
+
+  assert.ok(heat.colorbar.x < panelC[0],
+    `the colorbar starts at ${heat.colorbar.x}, inside panel C at ${panelC[0]}`);
+  assert.ok(heat.colorbar.thickness <= 12, 'the colorbar is still full width');
+  assert.ok(fig.layout.legend.x < panelC[0],
+    'the legend is still in the spectrum column');
+  assert.doesNotMatch(String(fig.layout.legend.bgcolor), /0,0,0,0\.5/,
+    'the legend still paints a hard-coded dark box over whatever is behind it');
+});
+
 // --- a study that bumped without rebuilding ---------------------------------
 //
 // The one failure v2.0.0 most wants nobody to find by looking at a dashboard.

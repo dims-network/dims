@@ -325,6 +325,12 @@ class DIMSApp {
         }
         this.currentTab = tabName;
 
+        // One status line is shared by every tab, and a tab is activated once.
+        // Without this the line kept whatever the tab you just left had written
+        // -- so the reader was told to click plots that are no longer on screen,
+        // and a tab whose own message never fired sat on someone else's.
+        this.showTabStatus();
+
         document.querySelectorAll('.tab-button').forEach(b => {
             b.classList.toggle('active', b.dataset.tab === tabName);
         });
@@ -1084,6 +1090,15 @@ class DIMSApp {
             console.error('Error loading video data:', error);
             this.showError('Error loading data. Check console for details.');
         }
+    }
+
+    // The visible tab's own steady line, or nothing when it has none. Tabs
+    // call this when their loading finishes, so the settled text lives in one
+    // place -- the registration -- rather than being repeated at each site that
+    // has to restore it.
+    showTabStatus() {
+        const tab = (this.tabs || []).find(t => t.id === this.currentTab);
+        this.showStatus((tab && tab.status) || '');
     }
 
     showStatus(message) {

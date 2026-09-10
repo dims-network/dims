@@ -4,6 +4,74 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.4.3
+
+**The network tab's co-activity figure is gone.** Every edge used to report what
+share of the window had both measures moving, and to fade below a quarter of it.
+Deciding what counts as moving meant `|value|` above 10 % of that measure's own
+95th percentile — which assumes near-zero means *not moving*. That holds for a
+speed and does not hold for a position, a joint angle, or anything centred on
+zero, where the number was meaningless and nothing said so. No better threshold
+exists to swap in: the right estimator depends on what the channel measures,
+which is the study's knowledge and not the tab's.
+
+- Edges are drawn at full strength for their verdict. No edge is faint for any
+  reason other than being at chance.
+- The tooltip keeps the pair, the mean coherence, the period band and the
+  above-chance fraction, and drops the co-activity line.
+- The tab reads no raw time series at all now, so `app.currentData` has one
+  fewer reader.
+- What the figure was there to warn about is stated instead, in the tab's own
+  help and in the docs: coherence is amplitude-normalised, so a thick edge can be
+  two nearly-still measures whose jitter has a shared source, and no period band
+  separates that.
+- `series` in an `effectors` entry must still be a real data type rather than a
+  display name, now because a node is matched to its cross-wavelet pairs by it —
+  a label there costs the node its edges.
+
+Nothing stored changes and `PAYLOAD_VERSION` is untouched: no analysis output
+gained or lost a field, so a study takes this by bumping its pin.
+
+**Network edges can be weighed by shared power instead of coherence.** Coherence
+is amplitude-normalised, so it cannot tell a real coupling from one computed out
+of stillness. Cross-wavelet power can: it is the product of the two amplitude
+envelopes, and the edge carries it divided by its own per-scale red-noise level.
+An **Edges show** control switches between the two, and the tooltip carries both
+numbers either way — thick in coherence and thin in power is the case to
+distrust.
+
+- A thick power edge means both measures were busy, **not** that they were
+  coupled: cross-wavelet power magnitude is phase-independent. The legend and the
+  (i) panel say so.
+- Power mode needs no Monte Carlo null. Its level is analytic, so a study built
+  without `mcCount` can be read this way, and the tab no longer sends anyone to
+  rebuild for a field the payload already has.
+- Width in power mode ranks edges on a log-like scale, because the ratio is
+  unbounded and a linear one clipped every edge above its level to one width.
+- New `include_network` keys: `mode` and `threshold`.
+
+**The share of cells that makes an edge solid is now a control.** It was fixed at
+15 %, chosen against coherence, and applied unchanged to any other measure. Each
+mode keeps its own value, because the fraction of cells above a coherence chance
+level and the fraction above a red-noise power level are different distributions.
+
+**The status line above the panes belonged to whichever tab wrote last.** It is
+one element shared by every tab, and a tab activates once — so it kept the
+instructions of the tab you had just left, and on a return visit nothing rewrote
+it. The network tab never wrote a settled message at all and sat on "Loading
+cross-effector network..." for the life of the page, then handed that to the next
+tab. A tab now declares its own `status` and the host writes it on every switch.
+
+**Four fixes in the cross-wavelet tab.**
+
+- The heatmap tooltip printed `%{customdata:.2f}` where the period should be: the
+  grid had one period per row where Plotly needed one per cell.
+- Phase arrows took the body text colour over a Viridis heatmap and were drawn
+  only where power is high — dark on dark. They are white on a dark disc now.
+- The colorbar reached out of its gap into the spectrum panel beside it.
+- The legend sat in that panel's column in a hard-coded half-black box.
+- The three dashed lines are explained behind a new (i), matching the network tab.
+
 ## v1.4.2
 
 **The cross-RQA plot was drawn transposed.** Its axes said x was the first

@@ -1065,8 +1065,8 @@ function place(dt, personId, part) {
   // long enough that neighbouring nodes overlap into an unreadable smear --
   // `personLeftLeftHandSpeed` running into `personRightRightHandSpeed`. The
   // spot already has a short name for itself, and the full series name stays
-  // in the node's tooltip. `series` is untouched: the tab looks the raw signal
-  // up by it, and a display name there would cost every edge its co-activity.
+  // in the node's tooltip. `series` is untouched: the tab matches a node to its
+  // cross-wavelet pairs by it, and a display name there would cost it its edges.
   const spot = SPOTS.find((sp) => sp.part === spotOf(part));
   const label = spot ? spot.label.replace(/^./, (c) => c.toUpperCase()) : undefined;
   state.effectors[dt] = {

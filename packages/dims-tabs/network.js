@@ -23,8 +23,8 @@
     'use strict';
 
     const SVG_NS = 'http://www.w3.org/2000/svg';
-    const MIN_WIDTH = 1.5;      // px stroke at coherence 0
-    const MAX_WIDTH = 16;       // px stroke at coherence 1
+    const MIN_WIDTH = 1.5;      // px stroke at the bottom of the visible range
+    const MAX_WIDTH = 16;       // px stroke at the top of it
 
     // The body itself — its coordinate space, its parts and how a name maps to
     // one — lives in figure-geometry.js beside this file, because the wizard's
@@ -65,6 +65,89 @@
     // the fraction is itself estimated, and a threshold at the chance level
     // turns half the at-chance edges solid.
     const REAL = 0.15;
+
+    // ---- what an edge is made of ---------------------------------------------
+    //
+    // Two questions, and an edge answers one of them at a time.
+    //
+    // **Coherence** asks whether the two measures held a steady phase relation.
+    // It is amplitude-normalised on purpose, so it says nothing about how much
+    // either of them moved: a thick coherence edge can be two nearly-still
+    // measures whose jitter has a shared source, which is the common case when
+    // both are tracked from one video.
+    //
+    // **Power** asks whether both were moving at all, at this timescale. The
+    // cross-wavelet transform is `W1 * conj(W2)`, so its magnitude is exactly
+    // `|W1| |W2|` -- the product of the two amplitude envelopes, and nothing to
+    // do with phase. Divided by `signif_xwt`, its own per-scale red-noise level
+    // (Torrence & Compo eq. 31, itself normalised by the two series' standard
+    // deviations), the result is dimensionless, comparable between pairs, and
+    // significant exactly where it exceeds 1.
+    //
+    // So a fat power edge means "both of these were busy", **not** "these two
+    // were coupled". Read the pair: thick in coherence and thin in power is the
+    // stillness case, which is why the tooltip carries both numbers in both
+    // modes.
+    //
+    // `signif_xwt` is analytic rather than sampled, so it is in every payload
+    // even when the Monte Carlo coherence null is not -- power mode works in a
+    // study that never paid for `mcCount`.
+    const MODES = {
+        coherence: {
+            grid: 'coherence',
+            level: 'sig95_wtc',
+            //: Coherence is compared against its level; power is divided by it.
+            normalise: false,
+            value: 'mean coherence',
+            noun: 'coherence',
+            //: How the significant share is described. "Above chance" is right
+            //: for coherence, whose null is a chance level, and wrong for power,
+            //: where it would read as a claim about coupling.
+            beat: 'above chance',
+            //: Named in the tooltip when an edge cannot be tested at all.
+            missing: 'no coherence null in this output, so this value cannot|'
+                + 'be tested. Set analysis.crosswavelet.mcCount and rebuild.',
+        },
+        power: {
+            grid: 'power',
+            level: 'signif_xwt',
+            normalise: true,
+            value: 'mean power / its 95% level',
+            noun: 'shared power',
+            beat: 'above its own 95% power level',
+            // `mcCount` is the coherence null and has nothing to do with this
+            // level, so naming it here would send the reader to rebuild for a
+            // field that is already present.
+            missing: 'no usable power level for this pair, so this value|'
+                + 'cannot be tested.',
+        },
+    };
+
+    function modeSpec(mode) {
+        return MODES[mode] || MODES.coherence;
+    }
+
+    // In [0,1] whatever the mode, and the only thing the width scale sees.
+    //
+    // Coherence is already bounded. The power ratio is not -- it runs from 0 to
+    // tens -- and feeding it raw to `widthFor` would clip every edge above the
+    // 95 % level to the same maximum width. `r / (1 + r)` is `0.5 + 0.5 *
+    // tanh(ln(r) / 2)`: a logistic in log space, so a soft-clipped log2 scale
+    // that never actually clips, keeping every pair of edges in the right
+    // order. It also makes the pivot quasi-geometric, which is the right centre
+    // for a ratio -- an arithmetic mean would let one strong pair set the scale
+    // every other edge is judged against.
+    //
+    // The cost: sensitivity per octave is `ln2 * r / (1 + r)^2`, about 0.17 near
+    // the level and 0.03 at twenty times it, so the scale separates weak edges
+    // more finely than strong ones. Width in power mode ranks edges; it does not
+    // read out the ratio, which the tab says in its legend and the docs say at
+    // length. The number itself is in the tooltip.
+    function weightOf(mean, spec) {
+        if (mean === null || !Number.isFinite(mean)) return null;
+        if (!spec.normalise) return mean;
+        return mean / (1 + mean);
+    }
 
     // ---- reading the payload -------------------------------------------------
 
@@ -187,22 +270,34 @@
     // A cell is **usable** when it is finite, inside the band, and outside the
     // cone of influence -- near the start and end of a recording the wavelet
     // window extends past the data, so what is there is an edge artefact of the
-    // transform rather than a measurement. The value and the verdict are taken
-    // over exactly the same cells, so they always describe the same population.
+    // transform rather than a measurement.
+    //
+    // The value and the verdict do not always run over the same cells, and the
+    // difference is the mode's. In power mode the level is the divisor, so a
+    // period without a usable one has no value at all and leaves both. In
+    // coherence mode a value is still a value without a threshold to judge it
+    // against, so such a period stays in the mean and leaves only the test --
+    // which is why `cells` and `tested` are reported separately.
     //
     // Returns the mean, which drives the width, and the share of usable cells
     // beating the coherence null, which decides whether the edge is a finding.
     // That share is `null` when the payload carries no null -- not zero, and not
     // quietly treated as significant.
-    function reduceEdge(vis, t0, t1, band) {
-        const empty = { mean: null, fraction: null, tested: 0, cells: 0 };
-        if (!vis || !vis.time || !vis.coherence) return empty;
+    function reduceEdge(vis, t0, t1, band, mode) {
+        const spec = modeSpec(mode);
+        const empty = { mean: null, weight: null, fraction: null,
+                        tested: 0, cells: 0 };
+        if (!vis || !vis.time || !vis[spec.grid]) return empty;
 
-        const coherence = window.DIMS.decodeArray(vis.coherence);
+        const grid = window.DIMS.decodeArray(vis[spec.grid]);
         const time = vis.time;
         const period = vis.period || [];
         const coi = vis.coi;
-        const levels = Array.isArray(vis.sig95_wtc) ? vis.sig95_wtc : null;
+        const levels = Array.isArray(vis[spec.level]) ? vis[spec.level] : null;
+        // Power is the ratio to its level, so without levels there is no value
+        // to report at all -- and falling back to raw power would clip every
+        // edge to the maximum width. Nothing, not a wrong number.
+        if (spec.normalise && !levels) return empty;
         const lo = (band && band[0] != null) ? band[0] : 0;
         const hi = (band && band[1] != null) ? band[1] : Infinity;
         const whole = (t0 === null || t0 === undefined);
@@ -225,28 +320,39 @@
         }
 
         let sum = 0, n = 0, tested = 0, significant = 0;
-        for (let i = 0; i < coherence.length; i++) {
+        for (let i = 0; i < grid.length; i++) {
             if (period.length && !(period[i] >= lo && period[i] <= hi)) continue;
-            const row = coherence[i];
+            const row = grid[i];
             if (!row) continue;
             const level = levels ? levels[i] : undefined;
             // A null level marks a period row lying entirely inside the cone,
             // where no threshold could be estimated. Skipped, not counted as
-            // always-significant.
-            const levelOk = (level !== null && level !== undefined && !Number.isNaN(level));
+            // always-significant. Zero and negative go the same way: a level of
+            // 0 would call every cell significant, and in power mode it is the
+            // divisor as well -- the same rule the cross-wavelet contour uses.
+            const levelOk = Number.isFinite(level) && level > 0;
+            // Where the level is the divisor, a row without one has no value at
+            // all: it leaves the mean as well as the test, not just the test.
+            if (spec.normalise && !levelOk) continue;
             for (let k = 0; k < cols.length; k++) {
                 const j = cols[k];
                 const v = row[j];
-                // null means the coherence is undefined here: neither signal had
+                // null means the value is undefined here: neither signal had
                 // energy in this band. Absent, not zero.
                 if (v === null || v === undefined || Number.isNaN(v)) continue;
                 if (period.length && coi && !(period[i] < coi[j])) continue;
-                sum += v; n++;
-                if (levelOk) { tested++; if (v > level) significant++; }
+                const value = spec.normalise ? v / level : v;
+                sum += value; n++;
+                if (levelOk) {
+                    tested++;
+                    if (value > (spec.normalise ? 1 : level)) significant++;
+                }
             }
         }
+        const mean = n ? sum / n : null;
         return {
-            mean: n ? sum / n : null,
+            mean,
+            weight: weightOf(mean, spec),
             fraction: tested ? significant / tested : null,
             tested, cells: n,
         };
@@ -283,35 +389,34 @@
         return input;
     }
 
-    function verdictOf(edge) {
+    function verdictOf(edge, threshold) {
         if (edge.fraction === null) return 'untestable';
-        if (edge.fraction >= REAL) return 'real';
+        if (edge.fraction >= (Number.isFinite(threshold) ? threshold : REAL)) {
+            return 'real';
+        }
         return 'chance';
     }
 
-    function edgeTitle(pairKey, edge, band) {
-        const value = edge.mean === null ? '—' : edge.mean.toFixed(3);
+    // Both measures, whichever one is driving the width. Coherence alone cannot
+    // tell you whether it was computed out of stillness and power alone cannot
+    // tell you whether anything was coupled; the diagnosis is the pair, and a
+    // reader should not have to flip the control to get it.
+    function edgeTitle(pairKey, edge, band, mode, alt) {
+        const spec = modeSpec(mode);
+        const other = modeSpec(mode === 'power' ? 'coherence' : 'power');
+        const show = (e) => (e && e.mean !== null ? e.mean.toFixed(3) : '—');
         const lines = [`${pairKey.replace('_vs_', '  ↔  ')}`,
-                       `mean coherence: ${value}`,
+                       `${spec.value}: ${show(edge)}`,
                        band ? `periods ${band[0]}–${band[1]} s, outside the cone of influence`
                             : 'every period, outside the cone of influence'];
         if (edge.fraction === null) {
-            lines.push('no coherence null in this output, so this value cannot',
-                       'be tested. Set analysis.crosswavelet.mcCount and rebuild.');
+            lines.push(...spec.missing.split('|'));
         } else {
-            lines.push(`above chance in ${(edge.fraction * 100).toFixed(1)}% of `
+            lines.push(`${spec.beat} in ${(edge.fraction * 100).toFixed(1)}% of `
                        + `${edge.tested} tested cells`,
                        `(independence gives about ${(CHANCE * 100).toFixed(0)}%)`);
         }
-        // Coherence cannot tell you this, because it is amplitude-normalised on
-        // purpose. So the edge says it separately rather than pretending to.
-        const mv = edge.movement;
-        if (mv !== null && mv !== undefined) {
-            lines.push(`both measures active: ${(mv * 100).toFixed(0)}% of this window`);
-            if (mv < LOW_MOVEMENT) {
-                lines.push('  -> computed mostly from stillness; treat with care');
-            }
-        }
+        if (alt) lines.push(`for comparison, ${other.value}: ${show(alt)}`);
         return lines.join('\n');
     }
 
@@ -450,111 +555,15 @@
     // hard the differences are pushed apart.
     const FLEX_MIN = 0, FLEX_MAX = 30, FLEX_DEFAULT = 10;
 
-    function widthFor(mean, centre, flex) {
-        const c = Math.max(0, Math.min(1, mean === null ? 0 : mean));
+    function widthFor(weight, centre, flex) {
+        // An edge with nothing to measure is not an edge of zero strength. It
+        // never reaches here today -- it is dashed at MIN_WIDTH instead -- but
+        // saying so is cheaper than relying on that chain staying true.
+        if (!Number.isFinite(weight)) return MIN_WIDTH;
+        const c = Math.max(0, Math.min(1, weight));
         const mid = (centre === null || centre === undefined) ? 0.5 : centre;
         const norm = Math.max(0, Math.min(1, 0.5 + (c - mid) * (flex ?? FLEX_DEFAULT)));
         return MIN_WIDTH + norm * (MAX_WIDTH - MIN_WIDTH);
-    }
-
-    // --- movement context ----------------------------------------------------
-    //
-    // Coherence is amplitude-normalised by design: a tiny shared tremor counts
-    // exactly as much as a large shared movement. That is right for "is the
-    // timing related" and a liability for "are these two moving together" --
-    // especially with motion capture, where both measures are tracked from the
-    // same video and their jitter has shared sources.
-    //
-    // So rather than filtering, the tab reports. A thick edge computed over a
-    // stretch where neither measure was doing anything is visibly suspect, and
-    // the reader decides what to do about it. Nothing here changes a coherence
-    // value.
-    //
-    // **This assumes a measure whose near-zero means "not moving"** -- a speed,
-    // or another magnitude. On a position channel the number is meaningless,
-    // which is why it never touches a coherence value.
-    //
-    // It is not, however, "only ever reported": LOW_MOVEMENT below fades an edge
-    // computed mostly from stillness, so the figure does change the picture. The
-    // comment here used to claim otherwise, two lines above the constant that
-    // contradicts it, and the config schema repeated the claim.
-
-    //: A measure counts as active above this share of its own 95th percentile.
-    //: The 95th rather than the maximum, so one tracking glitch does not set the
-    //: scale for a whole recording.
-    const MOVING_FRACTION_OF_P95 = 0.10;
-    //: Below this share of the window, an edge is drawn faint: whatever its
-    //: coherence, it was computed mostly from stillness.
-    const LOW_MOVEMENT = 0.25;
-
-    // Keyed by measure name, and dropped whenever the host hands us a different
-    // set of series. Clearing it only on a video change -- which is what the
-    // original did -- leaves it stale for any other route to new data, and a
-    // stale activity figure is worse than none: it is a number about a recording
-    // you are no longer looking at.
-    const movementCache = new Map();
-    let movementSource = null;
-
-    function movementMask(app, measure) {
-        if (movementSource !== (app.currentData || null)) {
-            movementSource = app.currentData || null;
-            movementCache.clear();
-        }
-        if (movementCache.has(measure)) return movementCache.get(measure);
-        const series = (app.currentData || []).find(d => d.name === measure);
-        let out = null;
-        if (series && series.data && series.data.length) {
-            const key = Object.keys(series.data[0]).find(k => k !== 'Time');
-            const time = [], val = [];
-            series.data.forEach(row => {
-                const v = Math.abs(Number(row[key])), t = Number(row.Time);
-                if (Number.isFinite(v) && Number.isFinite(t)) { time.push(t); val.push(v); }
-            });
-            if (val.length) {
-                const sorted = [...val].sort((a, b) => a - b);
-                const p95 = sorted[Math.min(sorted.length - 1,
-                                            Math.floor(0.95 * sorted.length))];
-                const thr = MOVING_FRACTION_OF_P95 * p95;
-                out = { time, moving: val.map(v => v > thr) };
-            }
-        }
-        movementCache.set(measure, out);
-        return out;
-    }
-
-    // Share of the window in which BOTH measures were active. `null` when the
-    // raw series are not loaded, which is a different thing from zero and is
-    // reported as nothing rather than as stillness.
-    function movementContext(app, m1name, m2name, t0, t1) {
-        const m1 = movementMask(app, m1name), m2 = movementMask(app, m2name);
-        if (!m1 || !m2) return null;
-        const whole = (t0 === null || t0 === undefined);
-        const sameGrid = m1.time.length === m2.time.length;
-        let both = 0, n = 0;
-        for (let i = 0; i < m1.time.length; i++) {
-            const t = m1.time[i];
-            if (!whole && !(t >= t0 && t <= t1)) continue;
-            let j = i;
-            if (!sameGrid) {
-                j = 0; let best = Infinity;
-                for (let k = 0; k < m2.time.length; k++) {
-                    const d = Math.abs(m2.time[k] - t);
-                    if (d < best) { best = d; j = k; }
-                }
-            }
-            n++;
-            if (m1.moving[i] && m2.moving[j]) both++;
-        }
-        return n > 0 ? both / n : null;
-    }
-
-    // A visual channel of its own, separate from width (coherence) and dashing
-    // (at chance): an edge resting on very little movement is drawn faint.
-    function movementFade(edge) {
-        const mv = edge.movement;
-        if (mv === null || mv === undefined) return 1;
-        if (mv >= LOW_MOVEMENT) return 1;
-        return 0.35 + 0.65 * (mv / LOW_MOVEMENT);
     }
 
     window.DIMS.extendHost({
@@ -574,6 +583,11 @@
                 }
                 this.networkData = data;
                 this.displayNetwork();
+                // Every other tab pairs its "Loading..." with a settled line.
+                // This one never did, so the tab sat on its loading message for
+                // as long as the dashboard was open, and carried it to whatever
+                // tab was opened next.
+                this.showTabStatus();
             } catch (error) {
                 console.error('Error loading network data:', error);
                 this.showError(`Failed to load the network: ${error.message}`);
@@ -590,6 +604,104 @@
             return this._networkBand;
         },
 
+        // Which question the edges answer. Kept on the host for the same reason
+        // the band is: a redraw or a video change must not silently put the
+        // reader back on a different measure than the one they chose.
+        networkMode() {
+            if (this._networkMode) return this._networkMode;
+            const spec = (this.config && this.config.include_network) || {};
+            this._networkMode = MODES[spec.mode] ? spec.mode : 'coherence';
+            return this._networkMode;
+        },
+
+        // The share of tested cells that has to beat the 95 % level before an
+        // edge is drawn solid. Remembered per mode, because the two are
+        // different distributions: 0.15 was chosen against coherence, and the
+        // fraction of cells above a red-noise power level is not the same
+        // quantity. One number for both would judge one of them by the other's
+        // yardstick.
+        //
+        // `!= null` rather than a truthiness test: 0 is a legitimate threshold
+        // and `if (x)` would discard it on every render.
+        networkThreshold(mode) {
+            const key = mode || this.networkMode();
+            this._networkThreshold = this._networkThreshold || {};
+            if (this._networkThreshold[key] != null) return this._networkThreshold[key];
+            const spec = (this.config && this.config.include_network) || {};
+            const declared = (spec.threshold || {})[key];
+            this._networkThreshold[key] = Number.isFinite(declared) ? declared : REAL;
+            return this._networkThreshold[key];
+        },
+
+        // How hard the width scale pushes. Also per mode: the full stroke range
+        // covers a window of +/-0.5/flex, and the two modes do not spread their
+        // edges over the same interval.
+        networkFlex(mode) {
+            const key = mode || this.networkMode();
+            this._networkFlex = this._networkFlex || {};
+            return this._networkFlex[key] != null
+                ? this._networkFlex[key] : FLEX_DEFAULT;
+        },
+
+        // The legend and the (i) help both describe the mode and quote the live
+        // threshold, and the mode can change without a redraw -- a redraw would
+        // reset the selection and close the detail figure under the reader. So
+        // both are written here, from state, by whichever path last ran.
+        syncNetworkWording() {
+            const mode = this.networkMode();
+            const spec = modeSpec(mode);
+            const share = (this.networkThreshold() * 100).toFixed(0);
+
+            const help = document.getElementById('networkHelp');
+            if (help) {
+                const common =
+                    'Averaged over the period band below — the whole-recording '
+                    + 'mean until you pick a point on the timeline, after which '
+                    + 'it is that window. Cells inside the cone of influence, '
+                    + 'near the start and end of the record where the wavelet '
+                    + 'window runs past the data, are always excluded. Width is '
+                    + 'relative to the other edges on screen, never an absolute '
+                    + 'strength — hover any line for its numbers, click one for '
+                    + 'its cross-wavelet detail.';
+                help.textContent = mode === 'power'
+                    ? 'Line width is how far the two measures\u2019 shared power '
+                      + 'rises above what red noise alone would give at that '
+                      + 'timescale. Cross-wavelet power is the product of the two '
+                      + 'amplitudes and has nothing to do with phase, so a thick '
+                      + 'line means both measures were moving — not that they '
+                      + 'were coupled. Read it against coherence: thick there and '
+                      + 'thin here is a coupling computed out of stillness. '
+                      + 'Width ranks the edges on a log-like scale rather than '
+                      + 'reading out the ratio; the ratio is in the tooltip. '
+                      + common
+                    : 'Line width is wavelet coherence between two measures. '
+                      + 'Coherence asks whether they keep a steady phase '
+                      + 'relationship and ignores how much either of them moved, '
+                      + 'so a thick line can be two nearly-still measures whose '
+                      + 'jitter has a shared source. Switch the edges to shared '
+                      + 'power to tell those apart. '
+                      + common;
+            }
+
+            const legend = document.getElementById('networkLegend');
+            if (legend) {
+                legend.innerHTML =
+                    `Line width is ${spec.noun} <b>relative to the other edges `
+                    + 'shown</b>, never an absolute strength. '
+                    + `<b>Solid</b>: ${spec.beat} in more than `
+                    + `${share}&nbsp;% of tested cells. `
+                    + '<b>Dashed</b>: not distinguishable from that level — a '
+                    + 'measurement, not a missing one. '
+                    + 'Click a line for its cross-wavelet detail.';
+            }
+
+            const svg = document.getElementById('networkSvg');
+            if (svg) {
+                svg.setAttribute('aria-label',
+                    `${spec.noun} between measures, following the playhead`);
+            }
+        },
+
         displayNetwork() {
             if (FIGURE_MISSING) { this.showError(FIGURE_MISSING); return; }
             const container = document.getElementById('networkContainer');
@@ -601,7 +713,6 @@
             const groups = grouping(this.config, measures);
             this._networkHidden = this._networkHidden || new Set();
             this._networkSelected = null;
-            movementCache.clear();
             const style = ((this.config.include_network || {}).layout) || 'columns';
             const positions = layout(groups, style);
             const theme = window.DIMS.theme();
@@ -630,19 +741,6 @@
             help.id = 'networkHelp';
             help.style.cssText =
                 'opacity:.8;margin:8px 0 14px;max-width:70ch;font-size:13px;';
-            help.textContent =
-                'Line width is wavelet coherence between two measures, averaged '
-                + 'over the period band below — the whole-recording mean until you '
-                + 'pick a point on the timeline, after which it is that window. '
-                + 'Cells inside the cone of influence, near the start and end of '
-                + 'the record where the wavelet window runs past the data, are '
-                + 'always excluded. Coherence asks whether two measures keep a '
-                + 'steady phase relationship and ignores how much movement there '
-                + 'is, so every line also reports what share of the window had '
-                + 'both actually moving. Width is relative to the other edges on '
-                + 'screen, never an absolute strength. A faint dashed line is a '
-                + 'pair not distinguishable from chance — hover any line for its '
-                + 'numbers, click one for its cross-wavelet detail.';
             info.setAttribute('aria-controls', help.id);
             const syncHelp = () => {
                 help.style.display = this._networkHelpOpen ? '' : 'none';
@@ -742,16 +840,10 @@
             });
 
             const legend = document.createElement('p');
+            legend.id = 'networkLegend';
             legend.style.cssText = 'margin:10px 0 0;opacity:0.75;font-size:12px;';
-            legend.innerHTML =
-                'Line width is coherence <b>relative to the other edges shown</b>, '
-                + 'never an absolute strength. '
-                + '<b>Solid</b>: above the 95&nbsp;% chance level in more than '
-                + `${(REAL * 100).toFixed(0)}&nbsp;% of cells. `
-                + '<b>Dashed</b>: at chance — a measurement, not a missing one. '
-                + '<b>Faint</b>: computed mostly from stillness. '
-                + 'Click a line for its cross-wavelet detail.';
             container.appendChild(legend);
+            this.syncNetworkWording();
 
             const detail = document.createElement('div');
             detail.id = 'networkDetailPanel';
@@ -809,6 +901,53 @@
             bandBox.append(lo, document.createTextNode(' – '), hi);
             wrap.appendChild(bandBox);
 
+            // Which measure the edges carry. Changes the answer, not its
+            // presentation -- and changes what the legend and the help say, so
+            // both are rewritten from the mode rather than built once.
+            const mode = this.networkMode();
+            const modeBox = document.createElement('div');
+            modeBox.innerHTML = '<div style="font-size:12px;opacity:.75">Edges show</div>';
+            const modeSel = document.createElement('select');
+            modeSel.id = 'networkMode';
+            [['coherence', 'coherence (phase)'],
+             ['power', 'shared power (amplitude)']].forEach(([value, label]) => {
+                const opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = label;
+                if (value === mode) opt.selected = true;
+                modeSel.appendChild(opt);
+            });
+            modeSel.addEventListener('change', () => {
+                this._networkMode = MODES[modeSel.value] ? modeSel.value : 'coherence';
+                // The threshold and the sensitivity are per mode, so the two
+                // inputs beside this one have to show the new mode's values.
+                const t = document.getElementById('networkThreshold');
+                if (t) t.value = String(this.networkThreshold().toFixed(2));
+                const f = document.getElementById('networkFlex');
+                if (f) f.value = String(this.networkFlex());
+                this.updateNetwork();
+            });
+            modeBox.appendChild(modeSel);
+            wrap.appendChild(modeBox);
+
+            // How much of the window has to beat the level before an edge is
+            // called real rather than drawn as a dashed hairline.
+            const threshBox = document.createElement('div');
+            threshBox.innerHTML =
+                '<div style="font-size:12px;opacity:.75">Solid above (share of cells)</div>';
+            const thresh = numberInput('networkThreshold',
+                                       this.networkThreshold(), [0, 1]);
+            thresh.step = '0.05';
+            thresh.addEventListener('change', () => {
+                const v = Number(thresh.value);
+                if (!Number.isFinite(v) || v < 0 || v > 1) return;
+                this._networkThreshold = this._networkThreshold || {};
+                this._networkThreshold[this.networkMode()] = v;
+                this.updateNetwork();
+            });
+            threshBox.appendChild(thresh);
+            wrap.appendChild(threshBox);
+
             // Width sensitivity.
             const flexBox = document.createElement('div');
             flexBox.innerHTML =
@@ -818,9 +957,13 @@
             flex.id = 'networkFlex';
             flex.min = String(FLEX_MIN);
             flex.max = String(FLEX_MAX);
-            flex.value = String(this._networkFlex ?? FLEX_DEFAULT);
+            // The full stroke range covers a window of +/-0.5/flex, so the useful
+            // low end is 1 to 3 and whole steps are coarsest exactly there.
+            flex.step = '0.5';
+            flex.value = String(this.networkFlex());
             flex.addEventListener('input', () => {
-                this._networkFlex = Number(flex.value);
+                this._networkFlex = this._networkFlex || {};
+                this._networkFlex[this.networkMode()] = Number(flex.value);
                 this.updateNetwork();
             });
             flexBox.appendChild(flex);
@@ -915,7 +1058,11 @@
             const t0 = (centre === null || centre === undefined) ? null : centre - half;
             const t1 = (centre === null || centre === undefined) ? null : centre + half;
             const band = this.networkBand();
-            const flex = this._networkFlex ?? FLEX_DEFAULT;
+            const mode = this.networkMode();
+            const altMode = mode === 'power' ? 'coherence' : 'power';
+            const threshold = this.networkThreshold();
+            const flex = this.networkFlex();
+            this.syncNetworkWording();
 
             // Reduce first, then scale: the pivot is the mean of the *visible*,
             // above-chance edges. At-chance edges are kept out of it because a
@@ -923,25 +1070,34 @@
             // against, and a hidden edge leaves it so the rest rescale.
             let untestable = 0;
             this._networkEdges.forEach(entry => {
-                entry.edge = reduceEdge(entry.pair.visualization, t0, t1, band);
-                entry.edge.movement = movementContext(
-                    this, entry.pair.data_type1, entry.pair.data_type2, t0, t1);
-                entry.verdict = verdictOf(entry.edge);
+                entry.edge = reduceEdge(entry.pair.visualization, t0, t1, band, mode);
+                // The other measure, for the tooltip only. It never touches the
+                // width, the verdict or the pivot. Reducing twice costs one more
+                // pass over the same window, which is a few columns wide unless
+                // the reader asked for the whole recording.
+                entry.alt = reduceEdge(entry.pair.visualization, t0, t1, band, altMode);
+                entry.verdict = verdictOf(entry.edge, threshold);
                 entry.hidden = this._networkHidden.has(entry.pairKey);
                 if (entry.verdict === 'untestable') untestable++;
             });
             const pool = this._networkEdges.filter(e => !e.hidden && e.verdict === 'real');
             const scoring = pool.length
                 ? pool : this._networkEdges.filter(e => !e.hidden);
-            const centreCoh = scoring.length
-                ? scoring.reduce((a, e) => a + (e.edge.mean || 0), 0) / scoring.length
+            // Weights, never means: the two are the same number in coherence
+            // mode and are not in power mode, and mixing them puts every edge at
+            // one rail with nothing to show for it. A null weight leaves the
+            // pool rather than counting as zero, which would drag the pivot down
+            // far enough to draw everything at maximum width.
+            const weighted = scoring.filter(e => Number.isFinite(e.edge.weight));
+            const centreCoh = weighted.length
+                ? weighted.reduce((a, e) => a + e.edge.weight, 0) / weighted.length
                 : 0.5;
 
             this._networkEdges.forEach(entry => {
                 const { line, edge, verdict } = entry;
                 line.style.display = entry.hidden ? 'none' : '';
                 if (verdict === 'real') {
-                    line.setAttribute('stroke-width', widthFor(edge.mean, centreCoh, flex));
+                    line.setAttribute('stroke-width', widthFor(edge.weight, centreCoh, flex));
                     line.removeAttribute('stroke-dasharray');
                 } else {
                     line.setAttribute('stroke-width', MIN_WIDTH);
@@ -949,8 +1105,8 @@
                 }
                 const base = entry === this._networkSelected ? 1
                     : (verdict === 'real' ? 0.85 : 0.35);
-                line.setAttribute('opacity', base * movementFade(edge));
-                entry.title.textContent = edgeTitle(entry.pairKey, edge, band);
+                line.setAttribute('opacity', base);
+                entry.title.textContent = edgeTitle(entry.pairKey, edge, band, mode, entry.alt);
             });
 
             const scope = document.getElementById('networkScope');
@@ -966,18 +1122,26 @@
             const caption = document.getElementById('networkCaption');
             if (!caption) return;
             const band_ = band ? `, periods ${band[0]}–${band[1]} s` : '';
-            caption.textContent = untestable === this._networkEdges.length
+            const all = untestable === this._networkEdges.length;
+            caption.textContent = all && mode === 'power'
+                ? 'This output carries no usable cross-wavelet power level, so no '
+                + 'edge can be tested. Switch the edges back to coherence, or '
+                + 'rebuild this study.'
+                : all
                 ? 'This output was built without a coherence null, so no edge can '
                 + 'be tested: every line below shows a value with no way to tell '
                 + 'it from chance. Set analysis.crosswavelet.mcCount in '
-                + 'config.json and rebuild.'
-                : `Coherence over ${scope ? scope.textContent : 'the recording'}${band_}.`;
+                + 'config.json and rebuild — or switch the edges to shared power, '
+                + 'which needs no Monte Carlo null.'
+                : `${modeSpec(mode).noun[0].toUpperCase()}${modeSpec(mode).noun.slice(1)}`
+                + ` over ${scope ? scope.textContent : 'the recording'}${band_}.`;
         },
     });
 
     window.DIMS.registerTab({
         id: 'network',
         label: 'Cross-effector network',
+        status: 'Click an edge for its cross-wavelet detail.',
         order: 45,
         // `true`, or an object carrying groups and a band. Both mean "on".
         gate: cfg => cfg.include_network === true
@@ -994,8 +1158,6 @@
         },
         onVideoChange(app) {
             app.networkData = null;
-            movementCache.clear();
-            movementSource = null;
         },
     });
 })();

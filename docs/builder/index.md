@@ -65,8 +65,9 @@ Which analyses to run, and on what.
 
 Switching the network on forces cross-wavelet on, because the network is a view of
 it. It also sets `mcCount` to 100 — but **only when you have not set one**; an
-existing non-zero value is left alone. The network is the only thing that reads the
-coherence null and is meaningless without it.
+existing non-zero value is left alone. The network's coherence mode is the only
+thing that reads the coherence null and is meaningless without it; its shared power
+mode does not need one.
 
 ### 5 · Build
 Validation problems first — a `series` with no CSV and a duplicated `series` are

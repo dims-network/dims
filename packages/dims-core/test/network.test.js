@@ -521,33 +521,155 @@ test('the window follows the Window Size control, not the config default', async
     'the network is still on the config default after the control moved');
 });
 
-test('movement context is reported when it can be, and never invented', async () => {
-  // Coherence is amplitude-normalised on purpose, so a thick edge can rest on
-  // almost no movement. The tab reports that as a separate channel -- and says
-  // nothing at all, rather than something wrong, when the raw signals are not
-  // there to compute it from.
+test('an edge is faint only for being at chance', async () => {
+  // Opacity carries one meaning: the verdict. It used to carry a second -- how
+  // much of the window both measures were moving for -- computed as `|value|`
+  // above a share of that measure's own 95th percentile, which assumes near-zero
+  // means "not moving" and says nothing on a channel centred on zero. A stretch
+  // where neither measure moves must now leave the picture alone.
   const w = await open_(await boot({ ...NETWORK_CONFIG, defaultWindowSize: 5 },
                                    NETWORK_FILES));
-  const tip = () => edges(w)[0].querySelector('title').textContent;
-  assert.match(tip(), /both measures active: \d+% of this window/,
-    'the series are loaded, so the figure should be there');
+  const opacities = () => edges(w).map(l => parseFloat(l.getAttribute('opacity')));
+  const before = opacities();
+  const solid = edges(w).findIndex(l => !l.getAttribute('stroke-dasharray'));
+  assert.strictEqual(before[solid], 0.85, 'an above-chance edge is drawn at full strength');
+  edges(w).forEach((l, i) => {
+    if (i !== solid) assert.strictEqual(before[i], 0.35, 'an at-chance edge is the faint one');
+  });
 
-  // A recording where neither measure moves: the value stands, the edge fades,
-  // and the tooltip says why. Nothing about the coherence changes.
+  // A recording where nothing moves at all.
   w.dimsApp.currentData = ['eff_a', 'eff_b', 'eff_c'].map(name => ({
     name, data: Array.from({ length: 200 }, (_, i) => ({ Time: i * 0.05, v: 0 })),
   }));
   w.dimsApp.updateNetwork();
-  assert.match(tip(), /both measures active: 0% of this window/);
-  assert.match(tip(), /mostly from stillness/);
-  assert.ok(parseFloat(edges(w)[0].getAttribute('opacity')) < 0.4,
-    'an edge computed entirely from stillness is not faded');
+  assert.deepStrictEqual(opacities(), before,
+    'stillness must not fade an edge: the verdict is the only thing opacity says');
+});
 
-  // And with nothing loaded at all, no claim is made either way.
-  w.dimsApp.currentData = [];
-  w.dimsApp.updateNetwork();
-  assert.doesNotMatch(tip(), /both measures active/,
-    'a movement figure was reported with no series to compute it from');
+test('power mode weighs the edges by a different measure', async () => {
+  // Coherence is amplitude-normalised, so it cannot say whether an edge rests
+  // on any movement at all. Power is |W1||W2| over its own red-noise level --
+  // the same cells, a different question -- so the two must not agree by
+  // construction.
+  const w = await open_(await boot({ ...NETWORK_CONFIG, defaultWindowSize: 5 },
+                                   NETWORK_FILES));
+  const values = () => edges(w).map(
+    l => l.querySelector('title').textContent.split('\n')[1]);
+  const sel = w.document.getElementById('networkMode');
+  assert.ok(sel, 'no mode control');
+  assert.strictEqual(sel.value, 'coherence', 'coherence is the default');
+  const before = values();
+  assert.ok(before.every(v => /^mean coherence: /.test(v)), before.join('|'));
+
+  sel.value = 'power';
+  sel.dispatchEvent(new w.Event('change'));
+  assert.notDeepStrictEqual(values(), before,
+    'switching to power changed nothing, so the mode is not applied');
+  assert.match(caption(w), /Shared power over/, caption(w));
+
+  const tip = edges(w)[0].querySelector('title').textContent;
+  assert.match(tip, /mean power \/ its 95% level: \d\.\d{3}/, tip);
+  // Both numbers, both modes: the diagnosis is the pair, and a reader should
+  // not have to flip the control to get it.
+  assert.match(tip, /for comparison, mean coherence: \d\.\d{3}/, tip);
+  assert.doesNotMatch(tip, /mcCount/,
+    'power needs no Monte Carlo null, so it must not send anyone to rebuild');
+});
+
+test('a power ratio above its level does not clip every edge to one width',
+     async () => {
+  // The trap: the ratio is unbounded where coherence is not, so feeding it
+  // straight to a scale that clamps at 1 draws every significant edge at the
+  // same width. Two edges well above the level must stay distinguishable.
+  const raw = JSON.parse(read('s2_crosswavelet_data.json'));
+  const keys = Object.keys(raw.crosswavelet_pairs);
+  keys.forEach((k, i) => {
+    const v = raw.crosswavelet_pairs[k].visualization;
+    // Drive every cell far above the level, by different amounts per pair.
+    v.signif_xwt = v.signif_xwt.map(x => x / (40 * (i + 1)));
+  });
+  const w = await open_(await boot(
+    { ...NETWORK_CONFIG, defaultWindowSize: 5, include_network: { mode: 'power' } },
+    { ...NETWORK_FILES,
+      'assets/crosswavelet/s2_crosswavelet_data.json': JSON.stringify(raw) }));
+
+  const solid = edges(w).filter(l => !l.getAttribute('stroke-dasharray'));
+  assert.ok(solid.length >= 2, `expected several edges above the level, got ${solid.length}`);
+  const widths = new Set(solid.map(l => l.getAttribute('stroke-width')));
+  assert.ok(widths.size > 1,
+    `every edge above the level was drawn at the same width: ${[...widths]}`);
+});
+
+test('power is testable where coherence is not', async () => {
+  // signif_xwt is analytic, sig95_wtc is sampled. A study that never paid for
+  // the Monte Carlo null can still be read in power mode, and saying "set
+  // mcCount and rebuild" there would be sending the reader after a field the
+  // payload already has.
+  const files = { ...FILES,
+    'assets/crosswavelet/s1_crosswavelet_data.json': read('s1_crosswavelet_no_null.json') };
+
+  const coh = await open_(await boot(BASE, files));
+  assert.match(caption(coh), /without a coherence null/);
+  assert.ok(edges(coh)[0].getAttribute('stroke-dasharray'),
+    'with no null, coherence cannot call an edge real');
+
+  const pow = await open_(await boot(
+    { ...BASE, include_network: { mode: 'power' } }, files));
+  const tip = edges(pow)[0].querySelector('title').textContent;
+  assert.doesNotMatch(tip, /cannot/, tip);
+  assert.match(tip, /above its own 95% power level in/, tip);
+});
+
+test('the solid threshold is a control, and is remembered per mode', async () => {
+  // 0.15 was chosen against coherence. The share of cells above a red-noise
+  // power level is a different distribution, so the two keep their own values.
+  const w = await open_(await boot({ ...NETWORK_CONFIG, defaultWindowSize: 5 },
+                                   NETWORK_FILES));
+  const input = w.document.getElementById('networkThreshold');
+  assert.ok(input, 'no threshold control');
+  const solid = () => edges(w).filter(l => !l.getAttribute('stroke-dasharray')).length;
+
+  assert.strictEqual(solid(), 1, 'this fixture has one coupled pair');
+  input.value = '0';
+  input.dispatchEvent(new w.Event('change'));
+  assert.strictEqual(solid(), 3, 'at a threshold of 0 every tested edge is real');
+  input.value = '1';
+  input.dispatchEvent(new w.Event('change'));
+  assert.strictEqual(solid(), 0, 'at 1 nothing can beat it');
+
+  // The other mode must not inherit that.
+  const sel = w.document.getElementById('networkMode');
+  sel.value = 'power';
+  sel.dispatchEvent(new w.Event('change'));
+  assert.strictEqual(w.document.getElementById('networkThreshold').value, '0.15',
+    'power took coherence\u2019s threshold');
+  sel.value = 'coherence';
+  sel.dispatchEvent(new w.Event('change'));
+  assert.strictEqual(w.document.getElementById('networkThreshold').value, '1.00',
+    'coherence forgot the threshold that was set on it');
+});
+
+test('a level of zero drops its cells instead of dividing by it', async () => {
+  // In power mode the level is the divisor as well as the test. A zero would
+  // give Infinity, which sails through every clamp as maximum width; a
+  // negative would invert the edge. Neither throws, both draw.
+  const raw = JSON.parse(read('s2_crosswavelet_data.json'));
+  Object.keys(raw.crosswavelet_pairs).forEach(k => {
+    const v = raw.crosswavelet_pairs[k].visualization;
+    v.signif_xwt = v.signif_xwt.map((x, i) => (i % 2 ? 0 : x));
+  });
+  const w = await open_(await boot(
+    { ...NETWORK_CONFIG, defaultWindowSize: 5, include_network: { mode: 'power' } },
+    { ...NETWORK_FILES,
+      'assets/crosswavelet/s2_crosswavelet_data.json': JSON.stringify(raw) }));
+
+  edges(w).forEach(l => {
+    const width = parseFloat(l.getAttribute('stroke-width'));
+    assert.ok(Number.isFinite(width), `width is ${width}`);
+    assert.ok(width <= 16, `a zero level reached the width scale: ${width}`);
+    const tip = l.querySelector('title').textContent;
+    assert.doesNotMatch(tip, /Infinity|NaN/, tip);
+  });
 });
 
 test('the long explanation is behind an (i) and stays how you left it', async () => {
@@ -733,10 +855,11 @@ test('two nodes on one spot are nudged apart', async () => {
   assert.notStrictEqual(ax, bx, 'head and nose are the same spot and coincided');
 });
 
-test('declaring a node does not cost it its co-activity figure', async () => {
-  // The figure is looked up in the loaded time series by exact measure name, so
+test('declaring a node does not cost it its edges', async () => {
+  // A node is matched to its cross-wavelet pairs by exact measure name, so
   // `series` has to stay a real data type and not become a display label. If it
-  // ever does, every edge silently loses this line.
+  // ever does the node resolves against no pair: it is drawn with no edges, and
+  // the real measure turns up again in the trailing `Other` group.
   const w = await open_(await boot({
     ...BASE,
     include_network: {
@@ -747,8 +870,12 @@ test('declaring a node does not cost it its co-activity figure', async () => {
       ],
     },
   }));
+  // Both effectors carry display labels; the edge exists only if `series` was
+  // what got matched against the pair.
+  assert.strictEqual(edges(w).length, 1,
+    'a declared effector with a display label should keep its edge');
   const title = edges(w)[0].querySelector('title').textContent;
-  assert.match(title, /both measures active: \d+% of this window/);
+  assert.match(title, /alpha\s+↔\s+beta/, title);
 });
 
 // --- the playhead and the detail figure --------------------------------------

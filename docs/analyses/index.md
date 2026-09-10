@@ -6,7 +6,7 @@ tab draws and a notebook can read back.
 
 | analysis | takes | asks | writes |
 |---|---|---|---|
-| [Cross-wavelet & coherence](crosswavelet.md) | a **pair** | at which timescales, and when, do two signals share energy — and do they keep a consistent timing relationship? | `assets/crosswavelet/{video}_crosswavelet_data.json` |
+| [Cross-wavelet analysis](crosswavelet.md) | a **pair** | at which timescales, and when, do two signals share energy — and do they keep a consistent timing relationship? | `assets/crosswavelet/{video}_crosswavelet_data.json` |
 | [Recurrence, RQA](rqa.md) | **one** signal | when does a signal return to a value it held before, and how structured are those returns? | `assets/rqa/{video}_rqa_data.json` |
 | [Cross-recurrence, cRQA](crqa.md) | a **pair** | when is one signal where the other has been, and how long do the two stay together? | `assets/crqa/{video}_crqa_data.json` |
 
@@ -118,7 +118,7 @@ One file per recording per analysis, always this shape:
   "video_id": "demo",
   "payload_version": 2,
   "<container key>": { /* keyed by data type, or by "{a}_vs_{b}" */ },
-  "provenance": { "core_version": "1.4.2", "...": "the settings actually used" },
+  "provenance": { "core_version": "1.4.3", "...": "the settings actually used" },
   "precision": { "significant_figures": 6, "note": "..." }
 }
 ```
