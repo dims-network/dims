@@ -185,8 +185,15 @@ function applyOpenedConfig(cfg, vis) {
   $$('input[name="vis"]').forEach((r) => { r.checked = r.value === (vis || "private"); });
 
   state.rqa = new Set(cfg.include_RQA || []);
-  state.cw = new Set((cfg.include_crosswavelet || []).map((p) => p.join("|")));
-  state.crqa = new Set((cfg.include_cRQA || []).map((p) => p.join("|")));
+  // Through pairKey, not join: a pair is unordered, but its key is not, and a
+  // study reopened from disk lists its measures alphabetically whatever order
+  // its config was written in. Joining verbatim produced keys nothing else in
+  // the wizard generates, so the pair rendered unselected, drew no line, and
+  // was written back out as nothing at all.
+  const asPairKeys = (pairs) =>
+    new Set((pairs || []).filter((p) => p && p.length === 2).map((p) => pairKey(p[0], p[1])));
+  state.cw = asPairKeys(cfg.include_crosswavelet);
+  state.crqa = asPairKeys(cfg.include_cRQA);
   state.elan = !!cfg.include_elan;
   state.network = !!cfg.include_network;
   $("#t_rqa").checked = state.rqa.size > 0;
@@ -252,11 +259,9 @@ function applyOpenedConfig(cfg, vis) {
 
 // The tab's own inference, run once at load: the group's regular expression says
 // whose it is, and a body-part token in what is left of the name says where.
-// Kept deliberately close to grouping()/nodeLabel()/bodyPart() in
-// packages/dims-tabs/network.js -- if they disagree, opening a study in the
-// wizard would silently move its nodes.
-const BODY_TOKENS = ["lefthand", "righthand", "hand", "nose", "head",
-                     "torso", "hip", "foot"];
+// The token list and the aliases are the tab's own, from figure-geometry.js --
+// they have to be, or opening a study in the wizard would silently move its
+// nodes relative to where the dashboard puts them.
 
 function placeByName(cfg) {
   const types = new Set();
@@ -267,10 +272,9 @@ function placeByName(cfg) {
     const person = state.people.find((p) => p.match && new RegExp(p.match, "i").test(name));
     if (!person) return;
     const rest = name.replace(new RegExp(person.match, "i"), "").replace(/^[_\-\s]+/, "");
-    const token = BODY_TOKENS.find((t) => rest.toLowerCase().indexOf(t) !== -1)
-      || BODY_TOKENS.find((t) => name.toLowerCase().indexOf(t) !== -1);
+    const token = FIG.bodyPart(rest) || FIG.bodyPart(name);
     if (!token) return;
-    state.effectors[name] = { group: person.label, part: SPOT_ALIASES[token] || token };
+    state.effectors[name] = { group: person.label, part: spotOf(token) };
     if (rest) state.effectors[name].label = rest;
     placed++;
   });
@@ -294,7 +298,11 @@ $("#filepick").addEventListener("change", (e) => uploadFiles(e.target.files));
 $("#btn-samples").addEventListener("click", async () => {
   const btn = $("#btn-samples");
   btn.disabled = true;
-  setMsg(2, "Loading the example study\u2026", "spinner");
+  // Nothing ships: the study is generated on first use, which is a few
+  // seconds of video encoding. A button that sits there saying "Loading" for
+  // four seconds reads as a hang, so it says what it is actually doing.
+  setMsg(2, "Preparing the example study \u2014 generated the first time, "
+            + "which takes a few seconds\u2026", "spinner");
   try {
     const r = await api("/api/samples", { method: "POST" });
     const added = r.files || [];
@@ -486,8 +494,13 @@ function alignCard(s, ffmpegOK) {
   const vDur = s.video ? s.video.duration : null;
   const dataDur = s.series.length ? Math.max(...s.series.map(seriesSpan)) : null;
   const aligned = vDur != null && dataDur != null && Math.abs(vDur - dataDur) < 0.1;
+  // What the server has actually done to this session, kept apart from what
+  // the sliders are currently proposing. The two used to be one object, so
+  // opening the trim panel seeded a proposal and the header then reported it
+  // as fact -- a card reading "192.00s longer" and "✓ aligned" at once.
+  const appliedTrim = s.video && s.video.trim ? { ...s.video.trim } : null;
   const ed = {
-    trim: s.video && s.video.trim ? { ...s.video.trim } : null,
+    trim: appliedTrim ? { ...appliedTrim } : null,
     pad: { start: 0, end: 0 },
   };
   const firstPad = s.series.find((x) => x.pad);
@@ -506,7 +519,9 @@ function alignCard(s, ffmpegOK) {
 
   // --- shared-timeline preview ------------------------------------------------
   function drawTracks() {
-    const keep = videoKeep(s, ed.trim);
+    const keep = videoKeep(s, ed.trim);            // what the sliders propose
+    const keepApplied = videoKeep(s, appliedTrim); // what is on disk
+    const pending = vDur != null && Math.abs(keep - keepApplied) > 0.005;
     const dataDur = s.series.length
       ? Math.max(...s.series.map((x) => seriesTotal(x, ed.pad))) : 0;
     const scale = Math.max(keep || 0, dataDur, 0.001);
@@ -516,7 +531,7 @@ function alignCard(s, ffmpegOK) {
       html += `<div class="track">
         <div class="track-label">🎞 video</div>
         <div class="track-lane">
-          <div class="bar bar-video" style="left:0;width:${pct(keep)}">${keep.toFixed(2)}s</div>
+          <div class="bar bar-video" style="left:0;width:${pct(keep)}">${keep.toFixed(2)}s${pending ? " proposed" : ""}</div>
         </div></div>`;
     }
     s.series.forEach((ser) => {
@@ -531,17 +546,20 @@ function alignCard(s, ffmpegOK) {
     });
     // Alignment marker at the video's end (where data should reach).
     if (vDur != null) {
-      html += `<div class="track-axis"><span style="left:${pct(keep)}">video ends ${keep.toFixed(2)}s</span></div>`;
+      html += `<div class="track-axis"><span style="left:${pct(keep)}">${pending ? "trim would end" : "video ends"} ${keep.toFixed(2)}s</span></div>`;
     }
     tracks.innerHTML = html;
 
-    const keepTxt = vDur != null ? `video ${fmt(keep)}` : "no video";
+    // The header states the session as it stands, never as it would stand if
+    // the pending trim were applied -- that is what the bars above are for.
+    const keepTxt = vDur != null ? `video ${fmt(keepApplied)}` : "no video";
     const dataTxt = s.series.length ? `data ${fmt(dataDur)}` : "no data";
-    const gap = (vDur != null && s.series.length) ? +(keep - dataDur).toFixed(2) : null;
+    const gap = (vDur != null && s.series.length) ? +(keepApplied - dataDur).toFixed(2) : null;
     durs.innerHTML = `${keepTxt} &nbsp;·&nbsp; ${dataTxt}` +
       (gap != null
         ? ` &nbsp;·&nbsp; <span class="${Math.abs(gap) < 0.05 ? "ok" : "warn"}">${Math.abs(gap) < 0.05 ? "✓ aligned" : (gap > 0 ? "+" : "") + gap + "s"}</span>`
-        : "");
+        : "") +
+      (pending ? ` &nbsp;·&nbsp; <span class="hint">trim of ${fmt(keep)} not applied yet</span>` : "");
   }
 
   // Look up + show the value of every series at time t (for the scrubber).
@@ -779,21 +797,24 @@ function allPairs() {
 // packages/dims-tabs/network.js -- the same viewBox, the same body coordinates,
 // the same node radius -- so what you arrange here is what the dashboard draws.
 const SVG_NS = "http://www.w3.org/2000/svg";
-const VIEW_W = 1000, NODE_R = 26;
-const SHOULDER_Y = 150, HIP_Y = 330, FOOT_Y = 545;
 
-// Six positions, not the tab's eight tokens: `nose` sits on `head` and `hand`
-// on `lefthand`, so two of the names are aliases for one place. The diagram
-// writes the unambiguous one and reads either.
-const SPOTS = [
-  { part: "head", label: "head", dx: 0, y: 85 },
-  { part: "righthand", label: "right hand", dx: -100, y: 300 },
-  { part: "lefthand", label: "left hand", dx: 100, y: 300 },
-  { part: "torso", label: "torso", dx: 0, y: 235 },
-  { part: "hip", label: "hip", dx: 0, y: HIP_Y },
-  { part: "foot", label: "foot", dx: 0, y: FOOT_Y },
-];
-const SPOT_ALIASES = { nose: "head", hand: "lefthand" };
+// The body — its coordinates, its six places and the aliases for them — comes
+// from packages/dims-tabs/figure-geometry.js, the same file the dashboard's
+// network tab draws from, so what you arrange here is what the dashboard draws.
+// **To move a body part, change it there.** The server hands this page that file
+// at /vendor/figure-geometry.js.
+const FIG = window.DIMS_FIGURE;
+if (!FIG) {
+  document.addEventListener("DOMContentLoaded", () => {
+    const box = $("#diagram-hint");
+    if (box) box.textContent = "The figure's geometry (figure-geometry.js) did "
+      + "not load, so the diagram cannot be drawn. It is served from the DIMS "
+      + "checkout this builder is running out of.";
+  });
+}
+const { VIEW_W, NODE_R, SPOTS, personCx, spotOf } = FIG || {
+  VIEW_W: 1000, NODE_R: 26, SPOTS: [], personCx: () => 0, spotOf: (p) => p,
+};
 const PERSON_COLORS = ["#e84393", "#00b894", "#5b8cff", "#d29922", "#a78bfa"];
 
 function svgEl(name, attrs) {
@@ -801,9 +822,6 @@ function svgEl(name, attrs) {
   Object.entries(attrs || {}).forEach(([k, v]) => node.setAttribute(k, v));
   return node;
 }
-
-const spotOf = (part) => SPOT_ALIASES[part] || part;
-const personCx = (index, total) => (VIEW_W * (index + 1)) / (total + 1);
 
 // Where each placed measure sits, so edges and nodes agree on one answer.
 function placedPositions() {
@@ -826,26 +844,9 @@ function unplacedTypes() {
   });
 }
 
-// A translucent body under the nodes, so a chart of people looks like one.
-// Copied from the tab's appendFigure(); if that geometry moves, this follows.
+// The same body the dashboard draws, from the same file.
 function appendFigure(svg, color, cx) {
-  const g = svgEl("g", {
-    opacity: 0.3, fill: color, stroke: color, "stroke-width": 10,
-    "stroke-linecap": "round", "stroke-linejoin": "round",
-  });
-  const shoulderL = cx - 60, shoulderR = cx + 60;
-  const hipL = cx - 32, hipR = cx + 32;
-  g.appendChild(svgEl("circle", { cx, cy: 85, r: 30, stroke: "none" }));
-  g.appendChild(svgEl("path", {
-    d: `M ${shoulderL} ${SHOULDER_Y} L ${shoulderR} ${SHOULDER_Y} `
-     + `L ${hipR} ${HIP_Y} L ${hipL} ${HIP_Y} Z`, stroke: "none" }));
-  [[shoulderL, SHOULDER_Y, cx + 100, 300],
-   [shoulderR, SHOULDER_Y, cx - 100, 300],
-   [hipL, HIP_Y, cx - 35, FOOT_Y],
-   [hipR, HIP_Y, cx + 35, FOOT_Y]].forEach(([x1, y1, x2, y2]) => {
-    g.appendChild(svgEl("line", { x1, y1, x2, y2, fill: "none" }));
-  });
-  svg.appendChild(g);
+  return FIG.appendFigure(svg, { cx, color, el: svgEl });
 }
 
 // Figures, then edges, then nodes. One function, because the rename path
@@ -925,7 +926,6 @@ function renderDiagram() {
   redrawDiagramOnly();
   renderDiagramHint();
   renderCwSummary();
-  renderCost();
 }
 
 // Renaming redraws on every keystroke, and rebuilding the people strip steals
@@ -970,25 +970,37 @@ function renderDiagramHint() {
       + "enough if you are comparing a single body's own effectors.";
   } else if (state.armed) {
     host.textContent = "Linking from " + state.armed + " — click another node to "
-      + "ask for the cross-wavelet between them, or click it again to cancel.";
+      + "ask for the cross-wavelet between them. Escape, or click it again, to cancel.";
   } else if (state.placedByName) {
     host.textContent = "These were placed from their names — check them, then "
-      + "click an empty circle to add one, or two placed ones to link them.";
+      + "click an empty circle to add one, or drag between two placed ones to "
+      + "link them.";
   } else {
     host.textContent = "Click an empty circle to put a time series there. "
-      + "Click two placed ones to draw a line between them.";
+      + "Drag from one placed circle to another to ask for the coupling between "
+      + "them — or click the two of them in turn.";
   }
 }
 
-// The cross-wavelet block no longer has chips of its own: a line on the diagram
-// is one cross-wavelet pair, and picking it in two places is how they drift.
+// The chips above and the lines on the diagram edit one set, and this says what
+// is in it. It also says how much of it the diagram can currently draw, because
+// a line needs both its measures placed on a body -- so a pair can be selected
+// and invisible down there, and a reader who was not told would call that a bug.
 function renderCwSummary() {
   const host = $("#cw_summary");
   if (!host) return;
-  const n = pairKeysToList(state.cw).length;
-  host.textContent = n
-    ? n + " pair" + (n === 1 ? "" : "s") + " drawn on the diagram below."
-    : "No pairs yet — draw a line between two nodes on the diagram below.";
+  const pairs = pairKeysToList(state.cw);
+  if (!pairs.length) {
+    host.textContent = "No pairs selected — pick at least one above, or draw a "
+      + "line between two nodes on the diagram below.";
+    return;
+  }
+  const drawn = pairs.filter(([a, b]) => state.effectors[a] && state.effectors[b]).length;
+  const n = pairs.length;
+  host.textContent = n + " pair" + (n === 1 ? "" : "s") + " selected"
+    + (drawn === n ? ", all drawn on the diagram below."
+       : drawn ? `, ${drawn} of them drawn on the diagram below.`
+       : "; none of them are on the diagram below, which needs both measures placed on a body.");
 }
 
 // ---- the diagram's interactions --------------------------------------------
@@ -1023,19 +1035,35 @@ function removePerson(id) {
   });
 }
 
+// Taking a measure off the diagram says where it was measured, not whether to
+// analyse it. This used to delete every cross-wavelet pair the measure was in,
+// which silently cancelled analyses that were picked somewhere else entirely --
+// and the dashboard already copes with a pair no effector declares by drawing
+// it in a trailing `Other` group. The line goes, because a line needs two
+// placed endpoints. The pair stays.
 function unplace(dt) {
   delete state.effectors[dt];
   if (state.armed === dt) state.armed = null;
-  Array.from(state.cw).forEach((key) => {
-    if (key.split("|").indexOf(dt) !== -1) state.cw.delete(key);
-  });
 }
 
 function place(dt, personId, part) {
   const person = state.people.find((p) => p.id === personId);
   if (!person) return;
   // One measure is one node, so placing it somewhere new moves it.
-  state.effectors[dt] = { ...(state.effectors[dt] || {}), group: person.label, part };
+  //
+  // The label is what gets drawn under the node, here and in the dashboard.
+  // Without one both fall back to the data type, and real measure names are
+  // long enough that neighbouring nodes overlap into an unreadable smear --
+  // `personLeftLeftHandSpeed` running into `personRightRightHandSpeed`. The
+  // spot already has a short name for itself, and the full series name stays
+  // in the node's tooltip. `series` is untouched: the tab looks the raw signal
+  // up by it, and a display name there would cost every edge its co-activity.
+  const spot = SPOTS.find((sp) => sp.part === spotOf(part));
+  const label = spot ? spot.label.replace(/^./, (c) => c.toUpperCase()) : undefined;
+  state.effectors[dt] = {
+    ...(state.effectors[dt] || {}), group: person.label, part,
+    label: (state.effectors[dt] || {}).label || label,
+  };
 }
 
 function toggleEdge(a, b) {
@@ -1043,11 +1071,21 @@ function toggleEdge(a, b) {
   const key = pairKey(a, b);
   if (state.cw.has(key)) state.cw.delete(key); else state.cw.add(key);
   $("#t_cw").checked = true;      // or include_crosswavelet collapses to []
+  renderAnalysisTypes();          // the chips above are the same list
 }
+
+// The picker's dismissal listener, held only while the picker is open so it
+// cannot pile up. Opening a menu you can only leave by choosing something is a
+// trap, and this one opens on a mis-click at an empty spot.
+let _spotMenuDismiss = null;
 
 function closeSpotMenu() {
   const menu = $("#spot-menu");
   if (menu) { menu.hidden = true; menu.innerHTML = ""; }
+  if (_spotMenuDismiss) {
+    document.removeEventListener("pointerdown", _spotMenuDismiss, true);
+    _spotMenuDismiss = null;
+  }
 }
 
 function openSpotMenu(personId, part, at) {
@@ -1065,17 +1103,136 @@ function openSpotMenu(personId, part, at) {
   menu.style.left = at.left + "px";
   menu.style.top = at.top + "px";
   menu.hidden = false;
+
+  // Anywhere outside the menu closes it, including the spot it opened from --
+  // the diagram's own click handler would otherwise reopen it immediately, so
+  // this runs in the capture phase and stops there.
+  if (_spotMenuDismiss) document.removeEventListener("pointerdown", _spotMenuDismiss, true);
+  _spotMenuDismiss = (e) => {
+    if (e.target.closest("#spot-menu")) return;
+    const sameSpot = e.target.closest("[data-spot]");
+    closeSpotMenu();
+    if (sameSpot && !sameSpot.dataset.dt) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+  document.addEventListener("pointerdown", _spotMenuDismiss, true);
+}
+
+// Data types come from filenames, so they are not guaranteed to be safe inside
+// an attribute selector.
+const cssEscape = (v) => (window.CSS && CSS.escape ? CSS.escape(v) : String(v).replace(/"/g, '\\"'));
+
+// The line that follows the pointer while a link is being made. Asking for a
+// pair used to be click one node, click another, with nothing in between but a
+// slightly thicker ring -- so the first click looked like it had done nothing,
+// and the gesture read as broken. Both gestures draw this now: drag from a node
+// and release on another, or click one and then the other.
+function rubberBandTo(x, y) {
+  const svg = $("#network-diagram");
+  if (!svg || !state.armed) return;
+  const from = placedPositions()[state.armed];
+  if (!from) return;
+  let line = svg.querySelector("#rubber-band");
+  if (!line) {
+    line = svgEl("line", { id: "rubber-band", class: "rubber" });
+    svg.appendChild(line);
+  }
+  line.setAttribute("x1", from.x);
+  line.setAttribute("y1", from.y);
+  line.setAttribute("x2", x);
+  line.setAttribute("y2", y);
+}
+
+function clearRubberBand() {
+  const line = document.getElementById("rubber-band");
+  if (line) line.remove();
+}
+
+// Pointer coordinates in the diagram's own viewBox units, which is what every
+// node position is in. Reading clientX against a scaled SVG is off by whatever
+// the browser scaled it by, and the line then trails the cursor by an inch.
+function diagramPoint(evt) {
+  const svg = $("#network-diagram");
+  const box = svg.getBoundingClientRect();
+  // The attribute, not viewBox.baseVal: the parsed form is a browser nicety
+  // that jsdom does not implement, and the string is the same two numbers.
+  const vb = (svg.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(Number);
+  const vw = vb.length === 4 && vb[2] ? vb[2] : box.width;
+  const vh = vb.length === 4 && vb[3] ? vb[3] : box.height;
+  if (!box.width || !box.height) return { x: vw / 2, y: vh / 2 };
+  return {
+    x: (evt.clientX - box.left) / box.width * vw,
+    y: (evt.clientY - box.top) / box.height * vh,
+  };
+}
+
+function cancelLink() {
+  if (!state.armed) return;
+  state.armed = null;
+  clearRubberBand();
+  renderDiagram();
 }
 
 function wireDiagram() {
   const svg = $("#network-diagram");
   if (!svg) return;
+  let dragging = null;   // the node a drag started on, once it has moved
+
+  svg.addEventListener("pointerdown", (e) => {
+    const spot = e.target.closest("[data-spot]");
+    if (!spot || !spot.dataset.dt || e.target.closest("[data-clear]")) return;
+    dragging = { dt: spot.dataset.dt, moved: false };
+  });
+
+  svg.addEventListener("pointermove", (e) => {
+    if (dragging && !dragging.moved) {
+      // A press that has travelled is a drag; one that has not is still a click.
+      //
+      // Deliberately not renderDiagram() here. Re-rendering rewrites the hint
+      // above the picture, which grows from one line to two and pushes the
+      // whole diagram down by a row -- mid-drag, out from under the pointer,
+      // so the node you were aiming at is no longer where you are pointing and
+      // the release lands on the background. Arming is a class on one element.
+      dragging.moved = true;
+      state.armed = dragging.dt;
+      const node = svg.querySelector(`[data-dt="${cssEscape(dragging.dt)}"]`);
+      if (node) node.classList.add("armed");
+    }
+    if (state.armed) {
+      const p = diagramPoint(e);
+      rubberBandTo(p.x, p.y);
+    }
+  });
+
+  svg.addEventListener("pointerup", (e) => {
+    const drag = dragging;
+    dragging = null;
+    if (!drag || !drag.moved) return;          // a click; the click handler has it
+    const spot = e.target.closest("[data-spot]");
+    const onto = spot && spot.dataset.dt;
+    clearRubberBand();
+    state.armed = null;
+    if (onto && onto !== drag.dt) toggleEdge(drag.dt, onto);
+    renderDiagram();
+  });
+
+  // Released outside the diagram entirely: nothing was asked for.
+  document.addEventListener("pointerup", (e) => {
+    if (dragging && dragging.moved && !e.target.closest("#network-diagram")) {
+      dragging = null;
+      state.armed = null;
+      clearRubberBand();
+      renderDiagram();
+    } else if (dragging) dragging = null;
+  });
 
   svg.addEventListener("click", (e) => {
     const clear = e.target.closest("[data-clear]");
     if (clear) { unplace(clear.dataset.clear); renderDiagram(); return; }
     const spot = e.target.closest("[data-spot]");
-    if (!spot) return;
+    if (!spot) { cancelLink(); return; }       // empty diagram cancels the link
     const dt = spot.dataset.dt;
     if (!dt) {
       const box = svg.getBoundingClientRect();
@@ -1090,6 +1247,7 @@ function wireDiagram() {
     if (state.armed === dt) state.armed = null;
     else if (state.armed) { toggleEdge(state.armed, dt); state.armed = null; }
     else state.armed = dt;
+    clearRubberBand();
     renderDiagram();
   });
 
@@ -1100,6 +1258,14 @@ function wireDiagram() {
     place(pick.dataset.pick, menu.dataset.person, menu.dataset.part);
     closeSpotMenu();
     renderDiagram();
+  });
+
+  // Escape gets you out of both: a half-made link, and a picker opened by
+  // mistake. A menu with no way out but choosing something is a trap.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("#spot-menu").hidden) closeSpotMenu();
+    cancelLink();
   });
 
   $("#add-person").addEventListener("click", () => { addPerson(); renderDiagram(); });
@@ -1153,7 +1319,9 @@ function renderAnalysisTypes() {
   };
 
   // Cross-wavelet / cross-RQA: one chip per pair; a type can appear in many.
-  const mkPairs = (box, setRef, disabled) => {
+  // `also` is how the cross-wavelet chips keep the diagram in step: the chips
+  // and the lines are two views of one set, so either one moving redraws both.
+  const mkPairs = (box, setRef, disabled, also) => {
     box.innerHTML = "";
     pairs.forEach((p) => {
       const c = document.createElement("span");
@@ -1163,6 +1331,7 @@ function renderAnalysisTypes() {
         if (disabled) return;
         setRef.has(p.key) ? setRef.delete(p.key) : setRef.add(p.key);
         renderAnalysisTypes();
+        if (also) also();
       });
       box.appendChild(c);
     });
@@ -1171,65 +1340,46 @@ function renderAnalysisTypes() {
   };
 
   mkTypes($("#rqa_types"), state.rqa, !$("#t_rqa").checked);
+  mkPairs($("#cw_types"), state.cw, !$("#t_cw").checked, renderDiagram);
   mkPairs($("#crqa_types"), state.crqa, !$("#t_crqa").checked);
-  renderCost();
 }
 
-// What has been asked for, in the units that decide how long step 6 takes.
-// Without this the first sign that a choice was expensive is being forty
-// minutes into a run with nothing to look at.
-function renderCost() {
-  const box = $("#cost");
-  if (!box) return;
-  const sessions = sessionIDs().length;
-  const bits = [];
-  if ($("#t_rqa").checked) bits.push(`${state.rqa.size} recurrence`);
-  if ($("#t_crqa").checked) bits.push(`${pairKeysToList(state.crqa).length} cross-recurrence`);
-  if ($("#t_cw").checked) bits.push(`${pairKeysToList(state.cw).length} cross-wavelet`);
-  if (!bits.length || !sessions) {
-    box.textContent = sessions
-      ? "Nothing switched on yet — the dashboard will show the video, the measurements and any transcript."
-      : "";
-    box.className = "note";
-    return;
-  }
-  const mc = Number($("#cw_mc").value || 0);
-  const cwRuns = $("#t_cw").checked ? pairKeysToList(state.cw).length * sessions : 0;
-  const slow = mc > 0 && cwRuns > 0;
-  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-  box.innerHTML =
-    `Across ${plural(sessions, "session", "sessions")}: ` + bits.join(", ") +
-    ` — ${plural(sessions * bits.reduce((a, b) => a + parseInt(b, 10), 0),
-                 "analysis run", "analysis runs")}. ` +
-    (slow
-      ? "<strong>" + (cwRuns === 1 ? "That run estimates" : `${cwRuns} of them estimate`) +
-        ` a chance level from ${mc} surrogates${cwRuns === 1 ? "" : " each"}</strong> — that is the slow ` +
-        "part, minutes per run on a long recording, and the reason step 6 can " +
-        "take hours. Lower the count, or set it to 0 if you are not using the " +
-        "network."
-      : "None of these estimate a chance level, so step 6 is seconds to minutes.");
-  box.className = "note" + (slow ? " warn" : "");
-}
-["cw_mc"].forEach((id) => $("#" + id).addEventListener("input", renderCost));
-
-// Turn a Set of "a|b" pair keys into a list of [a, b] pairs (only those whose
-// data types still exist).
+// Turn a Set of "a|b" pair keys into a list of [a, b] pairs.
+//
+// A pair is dropped when one of its measures is gone -- that is the honest
+// reason. It is never dropped for the order its key happens to be in: the key
+// is normalised here rather than matched against a list, because a selection
+// that disappears because two names sorted the other way is indistinguishable
+// from one nobody made, and the study is built from this list.
 function pairKeysToList(setRef) {
-  const valid = new Set(allPairs().map((p) => p.key));
-  return Array.from(setRef)
-    .filter((k) => valid.has(k))
-    .map((k) => k.split("|"));
+  const known = new Set(allDataTypes());
+  const seen = new Set();
+  const out = [];
+  Array.from(setRef).forEach((k) => {
+    const [a, b] = String(k).split("|");
+    if (!a || !b || a === b || !known.has(a) || !known.has(b)) return;
+    const key = pairKey(a, b);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(key.split("|"));
+  });
+  return out;
 }
 
-// Enabling an analysis selects everything by default (the user then deselects);
-// disabling clears the selection. RQA selects all types; cw/cRQA select all pairs.
+// Enabling an analysis selects everything by default and disabling clears the
+// selection -- except cross-wavelet, which selects nothing.
+//
+// Selecting everything is a kindness when the analysis is cheap and the list is
+// short. Cross-wavelet is neither: ten measures make 45 pairs, each one of the
+// slowest thing in the pipeline, and a default that queues all 45 is a default
+// that costs someone an afternoon before they have chosen anything. So it opens
+// empty and step 4 will not go on until a pair has been picked.
 function syncAnalysisDefaults() {
   const types = allDataTypes();
   const pairKeys = allPairs().map((p) => p.key);
   if ($("#t_rqa").checked) { if (state.rqa.size === 0) types.forEach((t) => state.rqa.add(t)); }
   else state.rqa.clear();
-  if ($("#t_cw").checked) { if (state.cw.size === 0) pairKeys.forEach((k) => state.cw.add(k)); }
-  else state.cw.clear();
+  if (!$("#t_cw").checked) state.cw.clear();
   if ($("#t_crqa").checked) { if (state.crqa.size === 0) pairKeys.forEach((k) => state.crqa.add(k)); }
   else state.crqa.clear();
 }
@@ -1247,22 +1397,14 @@ function syncAnalysisDefaults() {
 wireDiagram();
 
 // The network draws its edges from cross-wavelet output and reads the chance
-// level, so switching it on has two consequences the wizard states rather than
-// applying silently.
+// level, so switching it on switches both on. It used to explain itself in a
+// paragraph that appeared under the switch; the behaviour is the explanation.
 function reflectNetwork() {
-  const on = $("#t_network").checked;
-  const note = $("#network-note");
-  note.hidden = !on;
-  if (!on) return;
+  if (!$("#t_network").checked) return;
   if (!$("#t_cw").checked) {
     $("#t_cw").checked = true;
     syncAnalysisDefaults();
     renderAnalysisTypes();
-    note.innerHTML = "<strong>Cross-wavelet was switched on too</strong> \u2014 " +
-      "the network's edges are its coherence, so there is nothing to draw " +
-      "without it. The chance level is on as well (100 surrogates): an " +
-      "unrelated pair scores about 0.25, not 0, so without one no edge can be " +
-      "told from coincidence.";
   }
   if (!$("#cw_mc").value || Number($("#cw_mc").value) === 0) {
     $("#cw_mc").value = 100;
@@ -1278,7 +1420,6 @@ $("#t_network").addEventListener("change", () => {
     $("#cw_mc").value = "";
     delete $("#cw_mc").dataset.auto;
   }
-  renderCost();
 });
 $("#cw_mc").addEventListener("input", () => { delete $("#cw_mc").dataset.auto; });
 
@@ -1467,7 +1608,18 @@ $("#btn-precompute").addEventListener("click", async () => {
   const log = $("#precompute-log");
   log.textContent = "";
   $("#btn-precompute").disabled = true;
-  setMsg(6, "Running… this may take a few minutes.", "spinner");
+  // A running clock, because the honest answer to "is it stuck?" is how long it
+  // has been going. The cross-wavelet chance level is minutes per pair and says
+  // nothing while it works, so a still page is the normal case, not a failure.
+  const startedAt = Date.now();
+  const elapsed = () => {
+    const s = Math.round((Date.now() - startedAt) / 1000);
+    return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+  };
+  const tick = setInterval(
+    () => setMsg(6, `Running — ${elapsed()} so far. Long analyses go quiet while they work.`,
+                 "spinner"), 1000);
+  setMsg(6, "Running…", "spinner");
   try {
     const res = await fetch("/api/precompute", { method: "POST" });
     const reader = res.body.getReader();
@@ -1483,7 +1635,9 @@ $("#btn-precompute").addEventListener("click", async () => {
                             .replace(/__FAILED__:\S+\n/g, "");
       log.scrollTop = log.scrollHeight;
     }
-    setMsg(6, failed ? "Precompute finished with errors — check the log." : "Precompute complete.",
+    clearInterval(tick);
+    setMsg(6, failed ? "Precompute finished with errors — check the log."
+                     : `Precompute complete in ${elapsed()}.`,
       failed ? "error" : "ok");
     // Only open the preview/deploy step if the analyses actually ran. A
     // dashboard built on a failed precompute looks complete and is not.
@@ -1491,6 +1645,7 @@ $("#btn-precompute").addEventListener("click", async () => {
   } catch (e) {
     setMsg(6, e.message, "error");
   } finally {
+    clearInterval(tick);
     $("#btn-precompute").disabled = false;
   }
 });

@@ -23,39 +23,34 @@
     'use strict';
 
     const SVG_NS = 'http://www.w3.org/2000/svg';
-    const VIEW_W = 1000;
-    const VIEW_H = 560;
     const MIN_WIDTH = 1.5;      // px stroke at coherence 0
     const MAX_WIDTH = 16;       // px stroke at coherence 1
-    const NODE_R = 26;
 
-    // Where a body part sits on a figure centred at cx. The tokens are read out
-    // of what is left of a measure's name once its group prefix is stripped, so
-    // `teacher_righthandspeed` in a group matching `^teacher` becomes
-    // `righthandspeed` and lands on the right hand.
-    const SHOULDER_Y = 150, HIP_Y = 330, FOOT_Y = 545;
+    // The body itself — its coordinate space, its parts and how a name maps to
+    // one — lives in figure-geometry.js beside this file, because the wizard's
+    // step 4 diagram draws the same figure and the two must agree to the pixel.
+    // Change a number there, not here.
+    //
+    // Missing is reported, not thrown: throwing here would stop this file before
+    // it registers the tab, and a tab that is simply absent tells the reader
+    // nothing. FIGURE_MISSING is surfaced where the tab draws.
+    const FIG = (typeof window !== 'undefined' && window.DIMS_FIGURE) || null;
+    const FIGURE_MISSING = FIG ? null
+        : 'The network is drawn from vendor/dims-tabs/figure-geometry.js, and '
+        + 'that file did not load. Its <script> tag belongs in index.html before '
+        + 'the tabs — `dims-case sync` writes it for you.';
+    const FALLBACK = { VIEW_W: 1000, NODE_R: 26, SHOULDER_Y: 150, HIP_Y: 330,
+                       FOOT_Y: 545, BODY_TOKENS: [], positions: () => ({}),
+                       bodyPart: () => null };
+    const G = FIG || FALLBACK;
+    const { VIEW_W, NODE_R, SHOULDER_Y, HIP_Y, FOOT_Y } = G;
+    const BODY_PARTS = G.BODY_TOKENS;
+    const figurePositions = G.positions;
+    const bodyPart = G.bodyPart;
 
-    function figurePositions(cx) {
-        return {
-            head:      { x: cx,       y: 85 },
-            nose:      { x: cx,       y: 85 },
-            righthand: { x: cx - 100, y: 300 },
-            lefthand:  { x: cx + 100, y: 300 },
-            hand:      { x: cx + 100, y: 300 },
-            torso:     { x: cx,       y: 235 },
-            hip:       { x: cx,       y: HIP_Y },
-            foot:      { x: cx,       y: FOOT_Y },
-        };
-    }
-
-    // Longest token first, so `lefthand` is not swallowed by `hand`.
-    const BODY_PARTS = ['lefthand', 'righthand', 'hand', 'nose', 'head',
-                        'torso', 'hip', 'foot'];
-
-    function bodyPart(name) {
-        const n = String(name).toLowerCase();
-        return BODY_PARTS.find(part => n.includes(part)) || null;
-    }
+    // The chart's own height. Not part of the shared body: the wizard's diagram
+    // is a different shape, and only this file maps `y` fractions onto it.
+    const VIEW_H = 560;
 
     // What independence gives. An edge whose significant share sits at or below
     // this is drawn as a dashed hairline: it is a measurement, and the
@@ -454,28 +449,11 @@
         });
     }
 
-    // A translucent body under the nodes, so a chart of people looks like one.
+    // A translucent body under the nodes, drawn from the shared geometry.
     function appendFigure(svg, group, cx, theme) {
-        const g = el('g', { class: 'dims-figure', opacity: 0.3,
-                            fill: group.color || theme.trace,
-                            stroke: group.color || theme.trace,
-                            'stroke-width': 10, 'stroke-linecap': 'round',
-                            'stroke-linejoin': 'round' });
-        const spots = figurePositions(cx);
-        const shoulderL = cx - 60, shoulderR = cx + 60;
-        const hipL = cx - 32, hipR = cx + 32;
-
-        g.appendChild(el('circle', { cx, cy: spots.head.y, r: 30, stroke: 'none' }));
-        g.appendChild(el('path', {
-            d: `M ${shoulderL} ${SHOULDER_Y} L ${shoulderR} ${SHOULDER_Y} `
-             + `L ${hipR} ${HIP_Y} L ${hipL} ${HIP_Y} Z`, stroke: 'none' }));
-        [[shoulderL, SHOULDER_Y, spots.lefthand.x, spots.lefthand.y],
-         [shoulderR, SHOULDER_Y, spots.righthand.x, spots.righthand.y],
-         [hipL, HIP_Y, cx - 35, FOOT_Y],
-         [hipR, HIP_Y, cx + 35, FOOT_Y]].forEach(([x1, y1, x2, y2]) => {
-            g.appendChild(el('line', { x1, y1, x2, y2, fill: 'none' }));
+        return FIG.appendFigure(svg, {
+            cx, color: group.color || theme.trace, el,
         });
-        svg.appendChild(g);
     }
 
     // Width against the group, not against the absolute scale. Coherence sits
@@ -626,6 +604,7 @@
         },
 
         displayNetwork() {
+            if (FIGURE_MISSING) { this.showError(FIGURE_MISSING); return; }
             const container = document.getElementById('networkContainer');
             if (!container || !this.networkData) return;
             container.innerHTML = '';
@@ -937,7 +916,12 @@
                                               this._networkSelected.pair);
             }
             if (!this._networkEdges) return;
-            const half = ((this.config && this.config.defaultWindowSize) || 5) / 2;
+            // The live control, not the config default -- the detail figure
+            // below reads the control, so pinning the edges to config left the
+            // two describing different spans the moment anyone touched it.
+            const sizeEl = document.getElementById('windowSize');
+            const half = ((sizeEl && parseInt(sizeEl.value))
+                          || (this.config && this.config.defaultWindowSize) || 5) / 2;
             const centre = this.lastClickedPoint;
             const t0 = (centre === null || centre === undefined) ? null : centre - half;
             const t1 = (centre === null || centre === undefined) ? null : centre + half;

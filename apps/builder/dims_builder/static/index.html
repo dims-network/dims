@@ -84,8 +84,9 @@
 
       <div class="actions inline">
         <button id="btn-samples" class="ghost">Load the example study</button>
-        <small>Two ready-made sessions that ship with the builder — the fastest
-          way to see a finished dashboard before you have data of your own.</small>
+        <small>Two conversations with brains, hands, transcripts and video —
+          the fastest way to see a finished dashboard before you have data of
+          your own. It is generated the first time you ask for it.</small>
       </div>
 
       <div id="dropzone" class="dropzone">
@@ -173,10 +174,10 @@
       </div>
 
       <div class="analysis">
-        <label class="toggle"><input type="checkbox" id="t_cw" /> <strong>Cross-wavelet &amp; coherence</strong></label>
-        <p class="hint">Which timescales two signals share, and who leads. The
-          pairs are the lines you draw on the diagram below — one cross-wavelet
-          analysis per line.</p>
+        <label class="toggle"><input type="checkbox" id="t_cw" /> <strong>Cross-wavelet analysis</strong></label>
+        <p class="hint">Which timescales two signals share, and who leads. Pick
+          the pairs you want compared.</p>
+        <div id="cw_types" class="chips"></div>
         <div id="cw_summary" class="hint"></div>
         <details class="advanced">
           <summary>Settings</summary>
@@ -199,12 +200,12 @@
 
       <div class="analysis">
         <label class="toggle"><input type="checkbox" id="t_network" /> <strong>Cross-effector network</strong></label>
-        <p class="hint">One picture of what is coupled with what, following the
-          playhead. Put each time series where it was measured — on one person or
-          several — then draw a line between any two you want compared.</p>
-        <div class="note" id="network-note">Switching this on also switches on the
-          chance level (100 surrogates), because without it no edge can be told
-          from coincidence — an unrelated pair scores about 0.25, not 0.</div>
+        <p class="hint">One picture of what is coupled with what at the moment the
+          playhead is on, drawn on the bodies the measures came from. Put each time
+          series where it was measured — on one person or several — and draw a line
+          between two of them to ask for that coupling. <strong>Each line is a
+          cross-wavelet pair</strong>: the picture is drawn from that analysis's
+          output, so every line here is also one of the pairs above.</p>
 
         <div id="network-builder">
           <div class="people-strip">
@@ -233,8 +234,6 @@
         <p class="hint">Show what you coded in ELAN beside the signals. Needs an
           <code>.eaf</code> file per session.</p>
       </div>
-
-      <div class="note" id="cost"></div>
 
       <div class="actions">
         <button id="back-4" class="ghost">&larr; Back</button>
@@ -286,6 +285,9 @@
     </section>
   </main>
 
+  <!-- The body the step 4 diagram is drawn on, shared with the dashboard's
+       network tab. Served from the DIMS checkout; see server.py. -->
+  <script src="/vendor/figure-geometry.js"></script>
   <script src="/static/builder.js"></script>
 </body>
 </html>

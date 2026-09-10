@@ -40,6 +40,10 @@ function boot({ routes = {}, quiet = true } = {}) {
     const key = Object.keys(answers).find((k) => String(url).startsWith(k));
     return Promise.resolve({
       ok: true, status: 200,
+      // `api()` decides how to read a response from its content type, so the
+      // stub has to carry one or every call through it throws.
+      headers: { get: (h) => (String(h).toLowerCase() === 'content-type'
+        ? 'application/json' : null) },
       json: () => Promise.resolve(key ? answers[key] : {}),
       text: () => Promise.resolve(''),
     });
@@ -55,6 +59,12 @@ function boot({ routes = {}, quiet = true } = {}) {
   // is no module system and nothing needs to be global in a browser. So the
   // test seam is one appended line rather than an export in the shipped file:
   // the page stays exactly what it is, and the suite gets a handle on it.
+  // The shared figure geometry, which the page gets from the server at
+  // /vendor/figure-geometry.js. Evaluated first, as the page loads it first.
+  const geometry = path.resolve(
+    __dirname, '..', '..', '..', 'packages', 'dims-tabs', 'figure-geometry.js');
+  w.eval(fs.readFileSync(geometry, 'utf8'));
+
   const src = fs.readFileSync(path.join(STATIC, 'builder.js'), 'utf8');
   w.eval(src + `
     ;window.__page = {
@@ -62,6 +72,8 @@ function boot({ routes = {}, quiet = true } = {}) {
       collectNetwork, applyOpenedConfig, renderDiagram, redrawDiagramOnly,
       addPerson, removePerson, place, unplace, toggleEdge, pairKey,
       placedPositions, unplacedTypes, wireDiagram, pairKeysToList,
+      renderAlign, renderAnalysisTypes, syncAnalysisDefaults, allPairs,
+      cancelLink, closeSpotMenu,
     };`);
   return { window: w, page: w.__page, calls };
 }

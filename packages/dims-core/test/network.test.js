@@ -42,6 +42,7 @@ async function boot(config = BASE, files = FILES) {
       scripts: [
         'packages/dims-core/video-component.js',
         'packages/dims-core/dims-core.js',
+        'packages/dims-tabs/figure-geometry.js',
         'packages/dims-tabs/timeseries.js',
         'packages/dims-tabs/crosswavelet.js',
         'packages/dims-tabs/network.js',
@@ -470,6 +471,26 @@ test('there is a way back to the whole recording', async () => {
 
   back.dispatchEvent(new w.Event('click'));
   assert.match(w.document.getElementById('networkScope').textContent, /whole recording/);
+});
+
+test('the window follows the Window Size control, not the config default', async () => {
+  // This tab used to read config.defaultWindowSize directly, while the
+  // cross-wavelet detail figure drawn underneath it read the live control. So
+  // changing the control moved the shaded window in the detail plot and left
+  // the edges above it averaging over a different span entirely -- two
+  // pictures of two different moments, stacked, with nothing saying so.
+  const w = await open_(await boot({ ...NETWORK_CONFIG, defaultWindowSize: 5 },
+                                   NETWORK_FILES));
+  const scope = () => w.document.getElementById('networkScope').textContent;
+
+  w.dimsApp.lastClickedPoint = 4.0;
+  w.dimsApp.updateNetwork();
+  assert.match(scope(), /1\.5–6\.5/, 'the control is seeded from the config');
+
+  w.document.getElementById('windowSize').value = '3';
+  w.dimsApp.updateNetwork();
+  assert.match(scope(), /2\.5–5\.5/,
+    'the network is still on the config default after the control moved');
 });
 
 test('movement context is reported when it can be, and never invented', async () => {
