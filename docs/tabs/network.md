@@ -24,7 +24,7 @@ the moment.
 
 ## Reading an edge
 
-Four things are drawn on one line, and they answer different questions.
+Five things are drawn on one line, and they answer different questions.
 
 | channel | means |
 |---|---|
@@ -32,6 +32,13 @@ Four things are drawn on one line, and they answer different questions.
 | **solid or dashed** | solid where the coherence is above chance in more than 15 % of tested cells; dashed where it is not |
 | **fading** | how much of the window both measures were actually moving for |
 | **colour** | nothing, except the one edge you have selected |
+| **curvature** | nothing — it is there so you can tell edges apart |
+
+**Every edge is bowed, and no two by the same amount.** That is presentation only.
+Straight lines between nodes on one body are *the same line*, and cross-body edges
+all cross the middle and arrive at a node as a smear; fanning the set is what
+separates them. A large fan tightens rather than sweeping out of frame. The
+constants are in [`reference/figure-geometry.md`](../reference/figure-geometry.md).
 
 **Thickness is relative on purpose.** The width scale pivots on the mean of the
 currently visible above-chance edges, so the picture answers "which of these
@@ -268,33 +275,18 @@ warnings.
 
 ## Where the drawing lives
 
-The body — its coordinate space, its six places, the aliases for their names, and
-the lines that make a figure — is
-[`packages/dims-tabs/figure-geometry.js`](../../packages/dims-tabs/figure-geometry.js).
+The body — its coordinate space, its six places, the aliases for their names, the
+lines that make a figure, and the fan the edges are bowed along — is
+[`packages/dims-tabs/figure-geometry.js`](../../packages/dims-tabs/figure-geometry.js),
+documented at [`reference/figure-geometry.md`](../reference/figure-geometry.md).
 
-**To move a body part, change it there.** Two things draw that figure and they
-have to agree to the pixel, because what you arrange in the wizard is what the
-dashboard draws:
-
-| | reads it from |
-|---|---|
-| this tab (`network.js`) | `vendor/dims-tabs/figure-geometry.js`, beside it |
-| the wizard's step 4 diagram | the DIMS checkout, served at `/vendor/figure-geometry.js` |
-
-They used to be two copies kept identical by hand, with a comment in the wizard
-saying so — and a third copy of the body-token list elsewhere again. They agreed
-until they did not: both drew each arm to the hand on the *opposite* side, so
-every figure had its arms crossed over its chest.
-
-A study keeps the copy under its own `vendor/dims-tabs/` until `dims-case sync`,
-which refreshes both the vendored directory and the `index.html` that loads it.
-So a change here reaches the wizard at once and a built study when it syncs —
-which is what vendoring is for.
-
-The file exports one object, `window.DIMS_FIGURE`: the constants, `SPOTS`,
-`ALIASES`, `BODY_TOKENS`, `spotOf`, `bodyPart`, `spot`, `positions(cx)`,
-`personCx(index, total)` and `appendFigure(svg, {cx, color, el})` — which takes
-the caller's element-maker, because the two consumers each have one already.
+**To move a body part, change it there.** Two things draw that figure and they have
+to agree to the pixel, because what you arrange in the wizard is what the dashboard
+draws: this tab reads its own `vendor/dims-tabs/` copy, and the wizard is served
+the checkout's at `/vendor/figure-geometry.js`. A study keeps its vendored copy
+until `dims-case sync`, which refreshes both the directory and the `index.html`
+that loads it — so a change reaches the wizard at once and a built study when it
+syncs.
 
 ## The rest of the config
 

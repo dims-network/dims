@@ -26,8 +26,8 @@ the video and every chart follow.
 | **ELAN** | your own annotations, on the same timeline |
 
 Coherence is measured against a chance level estimated by simulation, not read
-off raw — two unrelated signals score around 0.25–0.6 depending on the
-timescale, not 0, so a number without that comparison cannot be interpreted. The
+off raw — unrelated signals do not score 0, so a number without that comparison
+cannot be interpreted. The
 wavelet work follows Torrence & Compo (1998); the constants taken from that
 paper are transcribed in [`examples/reference/`](examples/reference/) and
 checked on synthetic signals whose answers are known in advance. The recurrence
@@ -77,11 +77,16 @@ Read the one page for the thing you are doing. This is the map.
 
 ### Documentation
 
+**[`docs/index.md`](docs/index.md) lists every page and who it is for.** The ones
+most people need:
+
 | | |
 |---|---|
 | From data to a running dashboard | [`docs/getting-started.md`](docs/getting-started.md) |
-| What goes in `config.json` | [`docs/contracts/config.schema.json`](docs/contracts/config.schema.json) |
+| The no-code builder, step by step | [`docs/builder/index.md`](docs/builder/index.md) |
+| What goes in `config.json` | [`docs/reference/config.md`](docs/reference/config.md) |
 | Where each file belongs | [`docs/contracts/assets.md`](docs/contracts/assets.md) |
+| What each tab shows | [`docs/tabs/`](docs/tabs/) |
 | What the three analyses do | [`docs/analyses/`](docs/analyses/index.md) |
 | Working with human-subject data | [`docs/contracts/data-visibility.md`](docs/contracts/data-visibility.md) |
 | Setting up a study | [`docs/contracts/case.md`](docs/contracts/case.md) |
@@ -98,7 +103,10 @@ discovered rather than listed, so adding either changes no existing file.
 | Add or change a **tab** | [`docs/contracts/tab.md`](docs/contracts/tab.md) |
 | Add or change an **analysis** | [`docs/contracts/step.md`](docs/contracts/step.md) |
 | What an analysis result must contain | [`docs/contracts/analysis-output.md`](docs/contracts/analysis-output.md) |
+| The browser API a tab may use | [`docs/reference/dims-api.md`](docs/reference/dims-api.md) |
 | How the pieces fit | [`docs/architecture.md`](docs/architecture.md) |
+| Versions, vendoring and the pin | [`docs/versioning.md`](docs/versioning.md) |
+| Running the tests | [`docs/reference/testing.md`](docs/reference/testing.md) |
 | Check a study's data is sound | [`packages/dims-notebooks/`](packages/dims-notebooks/) |
 
 If a study needs a different parameter, it belongs in `config.json` under

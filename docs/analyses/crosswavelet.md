@@ -271,11 +271,21 @@ fit inside the record.
 
 ## The one thing to know before reading a coherence value
 
-**Coherence does not sit at zero when there is no relationship.** Two unrelated
-red-noise signals typically score around 0.25–0.6 depending on the timescale.
-So a value of 0.5 means nothing on its own, and a picture of raw coherence with
-no baseline drawn on it is unreadable — it will look like coupling everywhere,
-because it is coherent everywhere.
+**Coherence does not sit at zero when there is no relationship.** It is a ratio
+taken over a smoothing neighbourhood, so a handful of random phases still average
+to something well above zero.
+
+How far above is a property of your data, not a constant. Measured on the
+Karnatak study, two independent signals averaged about **0.25**, and the 95 %
+level came out near **0.59** — so on that data an edge of 0.27 is
+indistinguishable from no coupling at all. Treat those two numbers as an
+illustration of the size of the effect, not as thresholds to reuse: one is a mean
+and the other a 95th percentile, and both were measured on one dataset.
+
+The consequence is general even though the numbers are not. A value of 0.5 means
+nothing on its own, and a picture of raw coherence with no baseline drawn on it is
+unreadable — it will look like coupling everywhere, because it is coherent
+everywhere.
 
 Every value has to be read against `sig95_wtc`. Every one.
 
@@ -390,7 +400,7 @@ One entry per pair under `crosswavelet_pairs`, keyed `"{type1}_vs_{type2}"`:
   },
   "data_types": ["sig_a", "sig_b"],
   "config": { "…": "the step's fixed constants" },
-  "provenance": { "core_version": "1.1.0", "mc_count": 200,
+  "provenance": { "core_version": "1.4.1", "mc_count": 200,
                   "significance_level": 0.95, "wct_signif_seed": 20250906,
                   "max_time_points": 150, "max_freq_points": 48 },
   "processing_info": { "…": "" },

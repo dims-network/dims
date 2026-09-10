@@ -118,7 +118,7 @@ One file per recording per analysis, always this shape:
   "video_id": "demo",
   "payload_version": 2,
   "<container key>": { /* keyed by data type, or by "{a}_vs_{b}" */ },
-  "provenance": { "core_version": "1.1.0", "...": "the settings actually used" },
+  "provenance": { "core_version": "1.4.1", "...": "the settings actually used" },
   "precision": { "significant_figures": 6, "note": "..." }
 }
 ```
