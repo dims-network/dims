@@ -612,9 +612,7 @@ class DIMSApp {
         select.addEventListener('change', (e) => {
             this.currentPerspective = e.target.value || '';
             const t = this.lastClickedPoint ?? 0;
-            const win = parseInt(document.getElementById('windowSize').value)
-                || this.config.defaultWindowSize || 5;
-            this.updateVideos(t, win);
+            this.updateVideos(t, this.windowSize());
         });
     }
 
@@ -696,11 +694,22 @@ class DIMSApp {
         Promise.resolve(this.loadVideoData(vid)).then(() => this.switchTab(tab));
     }
 
-    async loadJSON(url) {
+    /** Fetch and parse JSON, or null.
+     *
+     * `optional: true` says the file's absence is a legitimate state of the
+     * study rather than a fault. A study with no transcripts logged a console
+     * error per recording change for a file its config never claimed, so a
+     * clean study looked broken to anyone who opened devtools -- while the
+     * panel beside it said "No transcript available" and carried on. A
+     * malformed file is still reported: not having one and having a broken one
+     * are different, and only the second is worth a reader's attention.
+     */
+    async loadJSON(url, { optional = false } = {}) {
         try {
             const response = await fetch(url);
             
             if (!response.ok) {
+                if (optional && response.status === 404) return null;
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
@@ -786,7 +795,10 @@ class DIMSApp {
         
         const [timeseriesResults, transcript] = await Promise.all([
             Promise.all(timeseriesPromises),
-            this.loadJSON(`assets/transcripts/${videoID}_transcript.json`)
+            // Optional: plenty of studies have no transcripts at all, and a
+            // study with no video usually has none either.
+            this.loadJSON(`assets/transcripts/${videoID}_transcript.json`,
+                          { optional: true })
         ]);
         
         // Keep datasets separate instead of merging
@@ -864,9 +876,21 @@ class DIMSApp {
         return slider;
     }
 
+    /** The window width the page is showing, in seconds.
+     *
+     * `defaultWindowSize` is optional in the schema, so a config without one
+     * used to reach updateVideos as `undefined` -- and `t - undefined / 2` is
+     * NaN, which is how a fresh load could label its segment
+     * "Segment (NaN s - NaN s)" before anything had been clicked.
+     */
+    windowSize() {
+        const el = document.getElementById('windowSize');
+        return parseInt(el && el.value) || this.config.defaultWindowSize || 5;
+    }
+
     handleTimeClick(time) {
         this.lastClickedPoint = time;
-        const windowSize = parseInt(document.getElementById('windowSize').value) || 5;
+        const windowSize = this.windowSize();
         
         // Update plot with highlight
         this.plotTimeseries(this.currentData, time);
@@ -1034,10 +1058,10 @@ class DIMSApp {
                     this.plotTimeseries(this.currentData);
                     
                     // Initialize videos with full video
-                    this.updateVideos(minTime, this.config.defaultWindowSize);
+                    this.updateVideos(minTime, this.windowSize());
                     
                     // Initialize transcript
-                    this.updateTranscript(minTime, this.config.defaultWindowSize);
+                    this.updateTranscript(minTime, this.windowSize());
                     
                     this.showStatus(`Loaded data for ${videoID}. Click on any point to segment video.`);
                     

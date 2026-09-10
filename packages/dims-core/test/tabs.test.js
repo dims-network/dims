@@ -170,3 +170,57 @@ test('changing recording does discard them, because the tiers were its own', asy
   assert.strictEqual(app.elanSelectedTiers, null,
     'tier names belong to a recording, so a new one starts over');
 });
+
+// --- a study that declares no window size, and one with no transcripts -------
+
+test('a config without defaultWindowSize still labels its segment', async () => {
+  // `defaultWindowSize` is optional in the schema. Without one, the initial
+  // updateVideos was handed `undefined`, and `t - undefined / 2` is NaN -- so a
+  // fresh load read "Segment (NaN s – NaN s)" before anything was clicked.
+  const { defaultWindowSize, ...noWindow } = BASE;
+  const w = await boot(noWindow);
+  const app = w.dimsApp;
+
+  assert.ok(Number.isFinite(app.windowSize()),
+    `windowSize() returned ${app.windowSize()} for a config that declares none`);
+
+  // The label is a prop on the React component, which the harness stubs -- so
+  // it never reaches the DOM and cannot be read off the page. Capture it where
+  // it is built instead.
+  const titles = [];
+  const realCreate = w.React.createElement;
+  w.React.createElement = (type, props, ...rest) => {
+    if (props && typeof props.title === 'string') titles.push(props.title);
+    return realCreate(type, props, ...rest);
+  };
+  try {
+    app.updateVideos(0, app.windowSize());
+  } finally {
+    w.React.createElement = realCreate;
+  }
+
+  assert.ok(titles.length, 'updateVideos rendered no titled component');
+  for (const title of titles) {
+    assert.ok(!title.includes('NaN'),
+      `a video panel is labelled "${title}" for a config with no defaultWindowSize`);
+  }
+});
+
+test('an absent optional file is not reported as a failure', async () => {
+  // A study with no transcripts logged a console error per recording change
+  // for a file its config never claimed. The panel already handles absence.
+  const errors = [];
+  const w = await boot(BASE);
+  const app = w.dimsApp;
+  const saved = w.console.error;
+  w.console.error = (...a) => errors.push(a.join(' '));
+  try {
+    const got = await app.loadJSON('assets/transcripts/nope_transcript.json',
+                                   { optional: true });
+    assert.strictEqual(got, null, 'an absent optional file must still read as null');
+  } finally {
+    w.console.error = saved;
+  }
+  assert.deepStrictEqual(errors, [],
+    `an absent optional file was reported as an error: ${errors.join(' | ')}`);
+});
