@@ -209,7 +209,7 @@ One entry per data type under `rqa_data`:
       }
     }
   },
-  "provenance": { "core_version": "1.4.2", "target_recurrence": 0.07,
+  "provenance": { "core_version": "1.4.3", "target_recurrence": 0.07,
                   "max_points_drawn": 500 },
   "precision": { "significant_figures": 6 }
 }

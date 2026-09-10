@@ -12,7 +12,7 @@ than by memory.
 {
   "case": "karnatak",
   "visibility": "private",
-  "dimsCore": "1.4.2",
+  "dimsCore": "1.4.3",
   "publishable": [],
   "restricted": [
     "assets/videos",

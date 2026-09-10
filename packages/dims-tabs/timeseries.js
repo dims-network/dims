@@ -159,6 +159,7 @@
     window.DIMS.registerTab({
         id: 'timeseries',
         label: 'Time series',
+        status: 'Click on any point to segment the video.',
         order: 10,
         containerId: 'plotContainer',   // kept: other code and tests use this id
         gate: () => true,

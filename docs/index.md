@@ -69,7 +69,7 @@ numbers without over-reading them.
 | [Overview](analyses/index.md) | the three analyses compared, and the payload format they share |
 | [RQA](analyses/rqa.md) | recurrence quantification. **Read the note on time-delay embedding** |
 | [Cross-RQA](analyses/crqa.md) | cross-recurrence between a pair |
-| [Cross-wavelet](analyses/crosswavelet.md) | the transform, and the four different significance levels |
+| [Cross-wavelet analysis](analyses/crosswavelet.md) | the transform, and the four different significance levels |
 
 ## Reference
 

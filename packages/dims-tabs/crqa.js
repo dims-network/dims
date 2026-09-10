@@ -98,7 +98,7 @@
                         if (el) el.innerHTML = `<div style="color: red; padding: 20px;">Error creating plot: ${error.message}</div>`;
                     }
                 });
-                this.showStatus('Cross-RQA plots loaded.');
+                this.showTabStatus();
             }, 100);
         },
 
@@ -174,6 +174,7 @@
     window.DIMS.registerTab({
         id: 'crqa',
         label: 'Cross-RQA',
+        status: 'Click on any plot to select a time point.',
         order: 40,
         gate: cfg => Array.isArray(cfg.include_cRQA) && cfg.include_cRQA.length > 0,
         async onActivate(app, container) {

@@ -125,8 +125,9 @@ samples, `maxFreqPoints` scales, `mcCount` a count, `targetRecurrence` a fractio
 twelve-recording study. `0` skips the null entirely.
 
 The default is neither: **`100` when `include_network` is set, and `0` otherwise**,
-because the network is the only thing that reads the null. The analysis prints
-which way it went and why.
+because the network's coherence mode is the only thing that reads the grid. The
+analysis prints which way it went and why. The network's shared power mode reads
+an analytic level instead, so it works either way.
 
 Without a null, coherence cannot be interpreted — unrelated signals do not score
 0 — so the cross-wavelet tab says the chance level was not computed rather than
@@ -141,6 +142,8 @@ Either `true` — meaning "on, with everything inferred" — or an object:
 | `groups` | `label`, an optional `color`, and a `match` regex when you are not declaring effectors |
 | `effectors` | `series`, `label`, `group`, `part`, or explicit `x`/`y` as fractions of the chart |
 | `band` | period band `[low, high]` in seconds to average each edge over. **This changes the answer**, not its presentation |
+| `mode` | `coherence` (default) or `power` — which measure the edges start on |
+| `threshold` | `{"coherence": 0.15, "power": 0.15}`, the share of tested cells that must beat the 95 % level for a solid edge |
 | `layout` | `columns` (default) or `figure` |
 
 `part` is one of `head`, `nose`, `lefthand`, `righthand`, `hand`, `torso`, `hip`,

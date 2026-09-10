@@ -109,7 +109,7 @@
                     }
                 });
 
-                this.showStatus('RQA plots loaded. Click on any plot to select a time point.');
+                this.showTabStatus();
             }, 100); // Give DOM time to update
         },
 
@@ -160,6 +160,7 @@
     window.DIMS.registerTab({
         id: 'rqa',
         label: 'RQA Plots',
+        status: 'Click on any plot to select a time point.',
         order: 20,
         gate: cfg => Array.isArray(cfg.include_RQA) && cfg.include_RQA.length > 0,
         async onActivate(app, container) {

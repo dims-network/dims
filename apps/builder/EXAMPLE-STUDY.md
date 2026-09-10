@@ -65,9 +65,9 @@ says, which is the one property a tutorial dataset needs. Hands move when their
 owner is speaking, at roughly fifty times the resting rate, and `rtpjSync` rises
 at the moments the conversation turns.
 
-The hand speeds are non-negative and fall to a fidget in the silences. That is
-not decoration: the network tab's co-activity figure assumes near-zero means
-*not moving*, and on a signal centred on zero it would mean nothing.
+The hand speeds are non-negative and fall to a fidget in the silences, so a flat
+stretch on the plot reads as *this person went still* rather than as a signal
+crossing zero on its way somewhere.
 
 ## The files
 

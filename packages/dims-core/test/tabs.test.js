@@ -62,6 +62,52 @@ test('each include_* key adds exactly its own tab', async () => {
   assert.ok(labels(w).includes('ELAN Annotations'), `labels were ${JSON.stringify(labels(w))}`);
 });
 
+test('the status line belongs to the tab you are looking at', async () => {
+  // One element is shared by every tab, and a tab is activated once. So the
+  // line kept whatever the tab you just left had written -- telling you to
+  // click plots that are no longer on screen -- and on a second visit nothing
+  // rewrote it, because onActivate does not run twice.
+  const w = await boot({
+    ...BASE,
+    include_RQA: ['a'],
+    include_crosswavelet: [['a', 'b']],
+  });
+  const status = () => w.document.getElementById('status').textContent;
+  const go = async (id) => {
+    w.document.querySelector(`.tab-button[data-tab="${id}"]`).click();
+    await new Promise(r => setTimeout(r, 60));
+  };
+
+  await go('crosswavelet');
+  const onCw = status();
+  await go('timeseries');
+  assert.notStrictEqual(status(), onCw,
+    'the time series tab is showing the cross-wavelet tab\u2019s instructions');
+  assert.match(status(), /segment the video/);
+
+  // The second visit is the one that used to keep the other tab's message:
+  // the tab is already activated, so nothing of its own runs.
+  await go('crosswavelet');
+  assert.match(status(), /select a time point/, status());
+});
+
+test('a tab that says nothing does not inherit the last tab that did', async () => {
+  const w = await boot({ ...BASE, include_RQA: ['a'] });
+  const go = async (id) => {
+    w.document.querySelector(`.tab-button[data-tab="${id}"]`).click();
+    await new Promise(r => setTimeout(r, 60));
+  };
+  // Activate it once first: the case is the *return* visit, where onActivate
+  // does not run and nothing of the tab's own would write the line.
+  await go('rqa');
+  w.dimsApp.tabs.find(t => t.id === 'rqa').status = '';
+  await go('timeseries');
+  assert.match(w.document.getElementById('status').textContent, /segment the video/);
+  await go('rqa');
+  assert.strictEqual(w.document.getElementById('status').textContent, '',
+    'a tab with no message of its own kept someone else\u2019s');
+});
+
 test('RQA alone does not bring cross-wavelet or ELAN with it', async () => {
   const w = await boot({ ...BASE, include_RQA: ['a'] });
   assert.deepStrictEqual(ids(w), ['timeseries', 'rqa']);

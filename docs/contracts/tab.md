@@ -30,6 +30,11 @@ in the same commit, so it cannot rot unnoticed.
     id:    'trajectory',               // also names the pane: #trajectoryContainer
     label: 'Trajectories',             // the button text
     order: 50,                         // sort order; built-ins use 10..50
+    status: 'Click a point to seek.',  // optional: the one-line hint shown
+                                       // above the panes while your tab is
+                                       // visible. The host writes it on every
+                                       // switch, so it survives return visits
+                                       // and cannot leak to another tab.
 
     // Shown only when this returns true. Read config, nothing else.
     gate(config) {
@@ -57,6 +62,13 @@ in the same commit, so it cannot rot unnoticed.
 ```
 
 Only `id`, `label` and `onActivate` are required.
+
+**The status line is the host's, not yours.** It is one element shared by every
+tab. Declare `status` and the host shows it whenever your tab is the visible one;
+call `app.showTabStatus()` to return to it after your own transient message, such
+as one shown while loading. Writing `app.showStatus(...)` directly is for those
+transient messages only — anything you leave there is what the reader sees on
+whatever tab they open next.
 
 ## What you may use from `app`
 

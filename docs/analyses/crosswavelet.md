@@ -1,4 +1,4 @@
-# Cross-wavelet and wavelet coherence
+# Cross-wavelet analysis
 
 Two people move. Do they move *together*? The question hides a second one —
 together at what timescale? A pair can share a slow sway and share nothing at
@@ -36,7 +36,7 @@ in the power plot and is unremarkable in the coherence plot, because the two
 signals oscillate there at 1.20 s and 1.45 s — nearly the same energy at nearly
 the same time, with a relationship that drifts. The 4-second band is the reverse:
 modest power, coherence close to 1 for the whole record, and phase arrows that
-all lean the same way.
+all point the same way.
 
 That is the entire argument for computing both.
 
@@ -163,8 +163,10 @@ Two guards sit on the result:
 
 Two notes on `mcCount`. **300 is the number to publish with**, and it is what
 the schema recommends, but it is not what you get by default — the default is
-100 when the network tab is enabled and 0 otherwise, because the network is the
-only thing that reads the null. And it is the expensive part of a rebuild: cost
+100 when the network tab is enabled and 0 otherwise, because the network's
+coherence mode is the only thing that reads the grid — the cross-wavelet title
+reads two numbers derived from it in every study, which is why that line reports
+the level as not computed rather than going quiet. And it is the expensive part of a rebuild: cost
 follows pairs × recordings × scale count, not minutes of video, and 300
 surrogates over a twelve-recording study is measured in hours.
 
@@ -206,9 +208,35 @@ rather than an error.
 | `scale_avg_signif` | one scalar | the **band-averaged** power | "is the average over this band unusual?" |
 | `sig95_wtc` | per scale | **coherence** against unrelated red noise | "is the timing relationship stronger than chance?" |
 
+Where each one lives, and what it draws:
+
+| field | in the payload | drawn as |
+|---|---|---|
+| `signif_xwt` | `visualization` | the heatmap's contour, the gate on the phase arrows, and the network tab's **shared power** mode |
+| `global_signif` | `statistics` (and, at the stored resolution, `visualization`) | the dashed level beside the global spectrum, panel C |
+| `scale_avg_signif` | `statistics` only | the flat dashed level on the band-averaged series, panel D |
+| `sig95_wtc` | `visualization` | the network tab's **coherence** mode, and the cross-wavelet title's chance-level line |
+
+**Three are computed and one is sampled.** `signif_xwt`, `global_signif` and
+`scale_avg_signif` come out of Torrence & Compo's formulae for a red-noise
+background: they cost nothing and are in every payload. `sig95_wtc` is a Monte
+Carlo null — `mcCount` pairs of surrogate series — so it costs the time it costs
+and is `null` in a study that did not ask for one. That difference is why the
+network tab's shared power mode works in a study built with `mcCount: 0` while
+its coherence mode cannot, and why the two report different fixes when an edge
+cannot be tested.
+
 **`signif_xwt` is not a test of coupling.** Two people moving vigorously at the
 same time have joint energy whether or not their movements are related. If the
 question is whether they are coordinated, the field is `sig95_wtc`.
+
+**A level can be absent, and absent is not zero.** `sig95_wtc` is `null` when no
+null was computed, and individual scales are `null` where the scale lies entirely
+inside the cone of influence. `signif_xwt` can reduce to a null or non-positive
+value on a scale, and `scale_avg_signif` is `0` when the band selected no scale
+at all. Every reader in the dashboard drops those cells rather than treating the
+level as passed or failed — a scale with no level contributes no contour, no
+arrow, and no cell to a network edge's average.
 
 Because the levels are per scale and the grids are period × time, the
 comparison is one index deep:
@@ -400,7 +428,7 @@ One entry per pair under `crosswavelet_pairs`, keyed `"{type1}_vs_{type2}"`:
   },
   "data_types": ["sig_a", "sig_b"],
   "config": { "…": "the step's fixed constants" },
-  "provenance": { "core_version": "1.4.2", "mc_count": 200,
+  "provenance": { "core_version": "1.4.3", "mc_count": 200,
                   "significance_level": 0.95, "wct_signif_seed": 20250906,
                   "max_time_points": 150, "max_freq_points": 48 },
   "processing_info": { "…": "" },

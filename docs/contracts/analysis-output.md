@@ -232,8 +232,9 @@ follows from what the study contains.**
   wants to display or work with coherence elsewhere turns it on; nothing about
   the pipeline has to change for them.
 - **Default 100** when the config enables something that reads `sig95_wtc` —
-  today that is `include_network`. **Default 0 otherwise**, skipping the
-  simulation entirely.
+  today that is `include_network`, whose coherence mode is its only reader. Its
+  shared power mode reads `signif_xwt`, which is analytic and always present.
+  **Default 0 otherwise**, skipping the simulation entirely.
 - An explicit `mcCount` always wins, in both directions.
 - The step **says which it chose and why**, and records the choice in the
   payload per A6, so it is visible after the fact and not only in a log nobody

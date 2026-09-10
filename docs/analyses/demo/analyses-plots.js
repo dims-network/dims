@@ -70,14 +70,6 @@
   var FONT = { family: "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif",
                size: 12, color: C.text };
 
-  /* Sequential, light-to-dark, for power and coherence. Perceptually ordered so
-     "more" reads as "darker" in greyscale too, which a printed page needs. */
-  var SEQ = [[0, "#f7fbfc"], [0.25, "#bfe3e0"], [0.5, "#5fbfb6"],
-             [0.75, "#0d9488"], [1, "#134e4a"]];
-  /* Cyclic, for phase: -pi and +pi are the same angle and must be the same colour. */
-  var CYCLIC = [[0, "#7c3aed"], [0.25, "#0d9488"], [0.5, "#f0f6f6"],
-                [0.75, "#9a6700"], [1, "#7c3aed"]];
-
   function layout(extra) {
     var base = {
       font: FONT,
@@ -118,25 +110,74 @@
 
   /* ---------- shared trace builders ----------------------------------------- */
 
-  /* The cone of influence, drawn where the analysis actually applies it.
+  /* The period axis, laid out the way the dashboard's cross-wavelet tab lays it
+     out, so that a reader who follows this page and then opens a real study is
+     looking at the same picture: a linear axis carrying log2(period), ticked at
+     the octaves and labelled in seconds. Long periods are at the top.
 
-     The step masks a cell when `scale > coi[t]`, and these axes are in period,
-     so the boundary is coi scaled by the same period/scale ratio the transform
-     used. Drawing raw `coi` on a period axis would put the line in the wrong
-     place by 3.3% -- small, but wrong in the direction that matters. */
-  function coiTrace(time, coi, period, scales, yTop) {
-    var ratio = period[0] / scales[0];
-    var x = [time[0]].concat(time, [time[time.length - 1]]);
-    var y = [yTop].concat(coi.map(function (c) { return c * ratio; }), [yTop]);
+     Not `type: "log"` with a reversed autorange, which is the other convention
+     and puts the same data upside down. */
+  function log2Period(period) {
+    return period.map(function (p) { return Math.log2(p); });
+  }
+
+  function periodAxis(period) {
+    var lo = Math.ceil(Math.log2(Math.min.apply(null, period)));
+    var hi = Math.floor(Math.log2(Math.max.apply(null, period)));
+    var vals = [], text = [], i, p;
+    for (i = lo; i <= hi; i++) {
+      p = Math.pow(2, i);
+      vals.push(i);
+      text.push(p < 1 ? p.toFixed(1) : p.toFixed(0));
+    }
     return {
-      x: x, y: y, type: "scatter", mode: "lines", fill: "toself",
-      fillcolor: "rgba(31,35,40,0.13)", line: { color: C.text, width: 1, dash: "dot" },
-      hoverinfo: "skip", name: "cone of influence"
+      title: { text: "Period (s)" }, tickmode: "array",
+      tickvals: vals, ticktext: text,
+      gridcolor: C.line, zeroline: false, linecolor: C.line
     };
   }
 
+  /* A grid of the real period per cell, so the hover can name a period the
+     reader recognises while the axis carries its logarithm. `z` is 2-D, so a
+     1-D customdata cannot be indexed against it. */
+  function periodGrid(z, period) {
+    return z.map(function (row, i) {
+      return row.map(function () { return period[i]; });
+    });
+  }
+
+  /* The cone of influence: a shaded region plus its boundary, as the tab draws
+     it.
+
+     Where it departs from the tab: the step masks a cell when `scale > coi[t]`,
+     and these axes are in period, so the boundary is coi scaled by the same
+     period/scale ratio the transform used. Drawing raw `coi` on a period axis --
+     which the tab does -- puts the line in the wrong place by 3.3%, small but
+     wrong in the direction that flatters the result. */
+  function coiTraces(time, coi, period, scales) {
+    var ratio = period[0] / scales[0];
+    var top = Math.log2(Math.max.apply(null, period));
+    var floorP = period[0];
+    var y = coi.map(function (c) { return Math.log2(Math.max(c * ratio, floorP)); });
+    return [
+      { x: time.concat([time[time.length - 1], time[0]]),
+        y: y.concat([top, top]),
+        type: "scatter", mode: "none", fill: "toself",
+        fillcolor: "rgba(0, 0, 0, 0.08)", line: { width: 0 },
+        hoverinfo: "skip", showlegend: false, name: "COI" },
+      { x: time, y: y, type: "scatter", mode: "lines",
+        line: { color: C.text, width: 2, dash: "dash" },
+        customdata: coi, showlegend: false, name: "cone of influence",
+        hovertemplate: "Time: %{x:.1f}s<br>COI period: %{customdata:.2f}s<extra></extra>" }
+    ];
+  }
+
   /* The 95% boundary as a contour of ratio == 1, which is how the payload asks
-     to be read: `power / signif_xwt`, `coherence / sig95_wtc`. */
+     to be read: `power / signif_xwt`, `coherence / sig95_wtc`.
+
+     Where it departs from the tab: the tab asks for contours from 0.95 to 1.5
+     every 0.5, which draws two lines, at 0.95 and 1.45. One line at the level
+     the text describes is what a figure explaining the level should show. */
   function ratioContour(x, y, z, level) {
     var ratio = z.map(function (row, i) {
       return row.map(function (v) {
@@ -147,22 +188,43 @@
       x: x, y: y, z: ratio, type: "contour", showscale: false,
       autocontour: false,
       contours: { start: 1, end: 1, size: 1, coloring: "none", showlabels: false },
-      line: { color: "#111827", width: 1.4 }, hoverinfo: "skip"
+      line: { color: "black", width: 2 }, hoverinfo: "skip"
     };
   }
 
   function heat(x, y, z, opts) {
     return merge({
-      x: x, y: y, z: z, type: "heatmap", colorscale: SEQ,
-      colorbar: { thickness: 11, outlinewidth: 0, len: 0.92, tickfont: { size: 10 } },
-      hovertemplate: "%{x:.1f} s · %{y:.2f} s<br>%{z:.3f}<extra></extra>"
+      x: x, y: y, z: z, type: "heatmap", colorscale: "Viridis",
+      colorbar: { titleside: "top", thickness: 10, outlinewidth: 0,
+                  tickfont: { size: 9 } }
     }, opts || {});
   }
 
-  var PERIOD_AXIS = {
-    type: "log", autorange: "reversed", title: { text: "period (s)" },
-    gridcolor: C.line, zeroline: false, linecolor: C.line
-  };
+  /* Phase as one of eight glyphs, binned as the tab bins it. Right is in phase,
+     and the angle turns anticlockwise from there. */
+  var GLYPHS = ["→", "↗", "↑", "↖", "←", "↙", "↓", "↘"];
+
+  function phaseGlyph(deg) {
+    return GLYPHS[Math.floor(((deg + 22.5) % 360) / 45)];
+  }
+
+  /* The glyph trace itself: a dark disc under white text, because the glyphs sit
+     on the pale end of Viridis as often as the dark end and neither a light nor
+     a dark ink is readable on both. */
+  function glyphTrace(x, y, text, customdata) {
+    return {
+      x: x, y: y, text: text, customdata: customdata,
+      type: "scatter", mode: "markers+text",
+      marker: { size: 15, color: "rgba(0,0,0,0.45)" },
+      textfont: {
+        // Arial has no U+2196-2199, so the diagonals would arrive as tofu.
+        family: "Segoe UI Symbol, Apple Symbols, DejaVu Sans, sans-serif",
+        size: 14, color: "#ffffff"
+      },
+      textposition: "middle center", showlegend: false,
+      hovertemplate: "%{customdata}<extra></extra>"
+    };
+  }
 
   /* ---------- data, fetched once each ---------------------------------------- */
 
@@ -212,17 +274,19 @@
       return load("demo_crosswavelet.json").then(function (d) {
         var p = xwtPair(d), v = p.visualization;
         var z = decodeF32(v.power);
+        var y = log2Period(v.period);
         draw(el, [
-          heat(v.time, v.period, z, {
-            colorbar: { title: { text: "|W<sup>XY</sup>|", side: "right" },
-                        thickness: 11, outlinewidth: 0, len: 0.92,
-                        tickfont: { size: 10 } } }),
-          ratioContour(v.time, v.period, z, v.signif_xwt),
-          coiTrace(v.time, v.coi, v.period, v.scales,
-                   v.period[v.period.length - 1])
-        ], {
-          xaxis: { title: { text: "time (s)" }, range: [v.time[0], v.time[v.time.length - 1]] },
-          yaxis: PERIOD_AXIS
+          heat(v.time, y, z, {
+            colorbar: { title: "Power" },
+            customdata: periodGrid(z, v.period),
+            hovertemplate: "Time: %{x:.1f}s<br>Period: %{customdata:.2f}s<br>" +
+                           "Power: %{z:.4f}<extra></extra>"
+          }),
+          ratioContour(v.time, y, z, v.signif_xwt)
+        ].concat(coiTraces(v.time, v.coi, v.period, v.scales)), {
+          plot_bgcolor: C.panel,
+          xaxis: { title: { text: "Time (s)" }, range: [v.time[0], v.time[v.time.length - 1]] },
+          yaxis: periodAxis(v.period)
         }, 380);
         caption(el, "Cross-wavelet power, <code>visualization.power</code> — a " +
           "<code>f32-b64</code> grid of " + v.power.shape[0] + " periods × " +
@@ -237,47 +301,55 @@
       return load("demo_crosswavelet.json").then(function (d) {
         var p = xwtPair(d), v = p.visualization;
         var z = decodeF32(v.coherence), phase = decodeF32(v.phase);
-        var ratio = v.period[0] / v.scales[0];
+        var y = log2Period(v.period);
 
-        /* Arrows only where the relationship is above chance and outside the
-           cone: a phase read off a cell that means nothing is a decoration. */
-        var arrows = [];
-        for (var i = 0; i < v.period.length; i += 3) {
-          for (var j = 4; j < v.time.length; j += 10) {
+        /* Glyphs only where the relationship is above chance and outside the
+           cone: a phase read off a cell that means nothing is a decoration.
+
+           Where this departs from the tab: the tab gates its glyphs on *power*
+           significance. Phase is only readable where the timing is consistent,
+           which is what coherence measures, so the gate here is `sig95_wtc`. */
+        var gx = [], gy = [], gt = [], gd = [];
+        var skipT = Math.max(1, Math.floor(v.time.length / 20));
+        var skipF = Math.max(1, Math.floor(v.period.length / 12));
+        for (var i = 0; i < v.period.length; i += skipF) {
+          for (var j = 0; j < v.time.length; j += skipT) {
             var c = z[i][j], lvl = v.sig95_wtc ? v.sig95_wtc[i] : null;
             if (c === null || lvl === null || c <= lvl) { continue; }
             if (v.scales[i] > v.coi[j]) { continue; }
             var a = phase[i][j];
             if (a === null) { continue; }
-            arrows.push({
-              x: v.time[j], y: v.period[i], xref: "x", yref: "y",
-              ax: -9 * Math.cos(a), ay: 9 * Math.sin(a),
-              axref: "pixel", ayref: "pixel",
-              showarrow: true, arrowhead: 2, arrowsize: 1, arrowwidth: 1.1,
-              arrowcolor: "rgba(17,24,39,0.75)"
-            });
+            var deg = (a * 180 / Math.PI + 360) % 360;
+            gx.push(v.time[j]);
+            gy.push(y[i]);
+            gt.push(phaseGlyph(deg));
+            gd.push("Time: " + v.time[j].toFixed(1) + "s | Period: " +
+                    v.period[i].toFixed(2) + "s<br>Phase: " + deg.toFixed(0) +
+                    "°<br>Coherence: " + c.toFixed(3));
           }
         }
 
         draw(el, [
-          heat(v.time, v.period, z, {
+          heat(v.time, y, z, {
             zmin: 0, zmax: 1,
-            colorbar: { title: { text: "R²", side: "right" }, thickness: 11,
-                        outlinewidth: 0, len: 0.92, tickfont: { size: 10 } } }),
-          ratioContour(v.time, v.period, z, v.sig95_wtc),
-          coiTrace(v.time, v.coi, v.period, v.scales,
-                   v.period[v.period.length - 1])
-        ], {
-          xaxis: { title: { text: "time (s)" }, range: [v.time[0], v.time[v.time.length - 1]] },
-          yaxis: PERIOD_AXIS,
-          annotations: arrows
+            colorbar: { title: "Coherence" },
+            customdata: periodGrid(z, v.period),
+            hovertemplate: "Time: %{x:.1f}s<br>Period: %{customdata:.2f}s<br>" +
+                           "Coherence: %{z:.4f}<extra></extra>"
+          }),
+          ratioContour(v.time, y, z, v.sig95_wtc)
+        ].concat(coiTraces(v.time, v.coi, v.period, v.scales),
+                 [glyphTrace(gx, gy, gt, gd)]), {
+          plot_bgcolor: C.panel,
+          xaxis: { title: { text: "Time (s)" }, range: [v.time[0], v.time[v.time.length - 1]] },
+          yaxis: periodAxis(v.period)
         }, 380);
 
         var frac = p.statistics.wtc_signif_fraction;
         caption(el, "Wavelet coherence, with the same cone and the 95% " +
-          "<code>sig95_wtc</code> boundary. Arrows are <code>phase</code>, drawn " +
-          "only on above-chance cells outside the cone: right means in phase, " +
-          "and here they lean consistently at the 4 s band, where " +
+          "<code>sig95_wtc</code> boundary. The glyphs are <code>phase</code>, " +
+          "drawn only on above-chance cells outside the cone: → means in phase, " +
+          "and here they point consistently at the 4 s band, where " +
           "<code>sig_b</code> lags by 0.7&nbsp;s. The burst at 20–35&nbsp;s is " +
           "bright in power and <em>not</em> here. " +
           (100 * frac).toFixed(1) + "% of usable cells are above chance, against " +
@@ -288,16 +360,24 @@
     "fig-xwt-global": function (el) {
       return load("demo_crosswavelet.json").then(function (d) {
         var v = xwtPair(d).visualization;
+        var y = log2Period(v.period);
+        /* The visualization copies, not the `statistics` ones: those are written
+           at full resolution and would be a different length from this axis. */
         draw(el, [
-          { x: v.global_power, y: v.period, type: "scatter", mode: "lines",
-            name: "global power", line: { color: C.teal, width: 2 } },
-          { x: v.global_signif, y: v.period, type: "scatter", mode: "lines",
-            name: "95% level", line: { color: C.amber, width: 1.6, dash: "dash" } }
+          { x: v.global_power, y: y, type: "scatter", mode: "lines",
+            name: "global power", line: { color: C.text, width: 2 },
+            customdata: v.period,
+            hovertemplate: "Power: %{x:.4f}<br>Period: %{customdata:.2f}s<extra></extra>" },
+          { x: v.global_signif, y: y, type: "scatter", mode: "lines",
+            name: "95% level", line: { color: C.text, width: 1, dash: "dash" },
+            customdata: v.period,
+            hovertemplate: "95% level: %{x:.4f}<br>Period: %{customdata:.2f}s<extra></extra>" }
         ], {
+          plot_bgcolor: C.panel,
           showlegend: true, legend: { orientation: "h", y: 1.14, x: 0 },
           margin: { t: 34 },
-          xaxis: { title: { text: "time-averaged |W<sup>XY</sup>|" } },
-          yaxis: PERIOD_AXIS
+          xaxis: { title: { text: "Power" } },
+          yaxis: periodAxis(v.period)
         }, 340);
         caption(el, "<code>global_power</code> against <code>global_signif</code>: " +
           "the whole record averaged over time, tested with the degrees of freedom " +
@@ -311,18 +391,23 @@
       return load("demo_crosswavelet.json").then(function (d) {
         var p = xwtPair(d), v = p.visualization;
         var lvl = p.statistics.scale_avg_signif;
+        var band = p.scale_avg_band;
         draw(el, [
           { x: v.time, y: v.scale_avg_power, type: "scatter", mode: "lines",
-            fill: "tozeroy", fillcolor: "rgba(13,148,136,0.16)",
-            line: { color: C.teal, width: 1.6 }, name: "scale-averaged power" },
+            line: { color: C.text, width: 2 }, name: "scale-averaged power",
+            hovertemplate: "Time: %{x:.1f}s<br>Power: %{y:.4f}<extra></extra>" },
           { x: [v.time[0], v.time[v.time.length - 1]], y: [lvl, lvl],
             type: "scatter", mode: "lines", name: "95% level",
-            line: { color: C.amber, width: 1.5, dash: "dash" } }
+            line: { color: C.text, width: 1, dash: "dash" },
+            hovertemplate: "95% level: %{y:.4f}<extra></extra>" }
         ], {
+          plot_bgcolor: C.panel,
           showlegend: true, legend: { orientation: "h", y: 1.14, x: 0 },
           margin: { t: 34 },
-          xaxis: { title: { text: "time (s)" } },
-          yaxis: { title: { text: "scale-averaged power" } }
+          xaxis: { title: { text: "Time (s)" } },
+          yaxis: { title: { text: band
+            ? band[0].toFixed(1) + "–" + band[1].toFixed(1) + "s avg"
+            : "scale-averaged power" } }
         }, 280);
         caption(el, "<code>scale_avg_power</code> over the band in " +
           "<code>scale_avg_band</code>, one number per time point, against the " +

@@ -66,7 +66,7 @@
 
                 this.elanData = { tiers };
                 this.displayELANTab();
-                this.showStatus('ELAN annotations loaded.');
+                this.showTabStatus();
             } catch (e) {
                 console.error('Error loading ELAN data:', e);
                 this.showError(`Failed to load ELAN data: ${e.message}`);
@@ -245,6 +245,7 @@
     window.DIMS.registerTab({
         id: 'elan',
         label: 'ELAN Annotations',
+        status: 'Click an annotation to jump to it.',
         order: 50,
         gate: cfg => !!cfg.include_elan,
         async onActivate(app, container) {

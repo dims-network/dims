@@ -10,7 +10,7 @@ different significance levels mean, and how to avoid over-reading any of it is o
 [the analysis page](../analyses/crosswavelet.md) — read that one before trusting
 a figure here.
 
-- Tab id `crosswavelet`, label **Cross-Wavelet**, order 30.
+- Tab id `crosswavelet`, label **Cross-wavelet analysis**, order 30.
 - Draws into `crossWaveletContainer`, named explicitly rather than derived, because
   other code and tests already used the id.
 - Reads `assets/crosswavelet/{videoID}_crosswavelet_data.json`, container key
@@ -31,6 +31,11 @@ Array.isArray(v) && v.length > 0 && (Array.isArray(v[0]) || v.length >= 2)
 So `["a"]` switches the tab off, and `[["a","b"]]` switches it on. This is the one
 place where the flat form is genuinely supported; `include_cRQA` looks similar and
 is **not** expanded the same way — see [the cross-RQA tab](crqa.md).
+
+**The three dashed lines are named behind the (i) beside the heading** — panel C's
+95 % level, panel D's flat one, and the cone-of-influence boundary. They are all
+drawn in the body text colour beside solid curves in the same colour, so the
+panel says which is which rather than leaving it to be inferred.
 
 ## The four panels
 
@@ -68,7 +73,8 @@ spurious one.
 ### Phase arrows — read the caveat
 
 Roughly 20 arrows across time by 12 down the period axis, drawn only where the
-ratio above exceeds 1. Each is one of eight Unicode arrows binned from the phase
+ratio above exceeds 1. They are white on a dark disc, because they sit on a
+Viridis heatmap and appear only where power is high — which is its pale end. Each is one of eight Unicode arrows binned from the phase
 angle in 45° steps, and the figure's own subtitle carries the full legend:
 
 - **→** in phase · **←** anti-phase
@@ -110,7 +116,9 @@ Above every figure: mean and maximum coherence, the two AR(1) coefficients α₁
   `analysis.crosswavelet.mcCount` in config.json and rebuild."**
 
 The second is the default for a study that does not switch on the network tab,
-because the null is expensive and nothing else reads it. It is not an error. But
+because the null is expensive and only that tab's coherence mode reads the grid
+itself. This title line is its other reader, which is why it can tell you the
+level is missing. It is not an error. But
 **a coherence value without it cannot be interpreted**: coherence does not sit at
 zero when there is no relationship. Measured on one of the project's own studies,
 independent signals averaged about 0.25 and the 95 % level came out near 0.59 — so
