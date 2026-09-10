@@ -13,7 +13,17 @@ import socket
 import threading
 import webbrowser
 
-from dims_builder.server import create_app
+try:
+    from dims_builder.server import create_app
+except ModuleNotFoundError as exc:              # pragma: no cover - install
+    # The wizard's dependencies are an extra, so `pip install -e ./dims`
+    # installs a `dims-builder` that cannot start. Say which install fixes it:
+    # this is the first command a reader of the no-code tutorial runs, and a
+    # bare ModuleNotFoundError gives them nothing to search for.
+    raise SystemExit(
+        f"The builder needs its extra ({exc.name} is missing). "
+        "Install it with: pip install 'dims-network[builder]'"
+    ) from exc
 
 
 def _find_free_port(preferred=5000):
