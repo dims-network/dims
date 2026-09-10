@@ -395,3 +395,31 @@ test('clicking the global spectrum does not seek to a power value', async () => 
   assert.strictEqual(app.lastClickedPoint, 3.25,
     'clicking a time panel no longer seeks');
 });
+
+// --- a study with no video ---------------------------------------------------
+
+test('a study with no video still draws every analysis tab', async () => {
+  // The core is driven by timestamps, not by a recording. Nothing in the docs
+  // said so until v1.4.2, and it is what opens DIMS to insole sensing,
+  // audio-only corpora, motion capture, EMG and de-identified video.
+  //
+  // Note the fixtures above serve no .mp4 at all, so this was already true --
+  // it just had no test naming it, which is how a guarantee gets broken by
+  // someone who did not know it was one.
+  const w = await boot();
+
+  const ids = [...w.document.querySelectorAll('.tab-button')].map(b => b.dataset.tab);
+  for (const want of ['timeseries', 'rqa', 'crqa', 'crosswavelet']) {
+    assert.ok(ids.includes(want),
+      `no ${want} tab without a video: ids were ${JSON.stringify(ids)}`);
+  }
+
+  // And the timeline still exists, because it comes from the series.
+  assert.ok(w.dimsApp.timeSlider, 'no time slider without a video');
+
+  for (const id of ['rqa', 'crqa', 'crosswavelet']) {
+    const mine = (await open_(w, id))
+      .filter(p => String(p.el).startsWith(OWN_FIGURE[id]));
+    assert.ok(mine.length > 0, `${id} drew nothing without a video`);
+  }
+});

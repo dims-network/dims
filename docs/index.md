@@ -12,6 +12,14 @@ statistical pattern back to the raw record that produced it.
 signals, estimate synchrony, or align clocks. It displays what you give it, which
 means it displays a misaligned signal faithfully as a misaligned signal.
 
+**The video is optional.** The core is driven by timestamps, not by a recording —
+a study with no `.mp4` anywhere still gets the time series, RQA, cross-RQA,
+cross-wavelet and ELAN tabs, all on the same timeline. That covers foot-pressure
+and other insole sensing, audio-only corpora, motion capture, EMG, eye-tracking,
+and any study whose video was stripped for de-identification. What you lose is the
+video panel and the ability to click from a peak to the moment on screen; nothing
+else changes.
+
 Every page below is written for one kind of reader. If you are new, start at the
 tutorial and come back here.
 

@@ -3,6 +3,12 @@
 This page goes end to end once, with the commands that actually work. It
 assumes nothing beyond a terminal, Python 3.10–3.12 and git.
 
+**You do not need a video.** This page uses one because clicking from a signal to
+the moment that produced it is what DIMS is for — but the core works from
+timestamps, not from a recording. Leave `assets/videos/` empty and everything
+below still runs: the analyses, the tabs, the shared timeline. Skip the video
+steps and the rest is unchanged.
+
 If you would rather not use a terminal at all, the no-code builder does the
 same job through a browser — see the bottom of this page.
 
