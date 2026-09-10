@@ -67,8 +67,28 @@ def test_the_source_agrees_with_the_packaging():
 
 
 def test_the_changelog_describes_the_version_being_shipped():
+    """And describes it FIRST, which is what makes it the version being shipped.
+
+    This asked only whether the declared version had *a* heading somewhere in
+    the file. Every past release leaves one behind, so once v1.0.0 was written
+    the check could never fail again -- and it did not: v1.4.0 was tagged while
+    pyproject.toml and both __version__ strings still said 1.3.0, and this test
+    passed on the v1.3.0 heading four releases down the page.
+
+    The changelog is strictly newest-first, so the first `## v...` heading is
+    the release being shipped. Comparing against that one is the difference
+    between checking that a version was described once and checking that it is
+    the version this tree is.
+    """
     version = next(iter(declared_versions().values()))
     changelog = open(os.path.join(ROOT, "CHANGELOG.md")).read()
-    assert re.search(rf"^## v{re.escape(version)}$", changelog, re.M), (
-        f"CHANGELOG.md has no entry for v{version}. A study takes a fix by "
-        "bumping its pin, so it needs to know what the bump contains.")
+    headings = re.findall(r"^## v(\S+)$", changelog, re.M)
+
+    assert headings, (
+        "CHANGELOG.md has no `## vX.Y.Z` headings at all, so nothing here "
+        "describes any release.")
+    assert headings[0] == version, (
+        f"this tree declares {version}, but the newest entry in CHANGELOG.md "
+        f"is v{headings[0]}. Either the release was not written up, or the "
+        f"version literals were not bumped -- the second is how v1.4.0 shipped "
+        f"declaring 1.3.0.")

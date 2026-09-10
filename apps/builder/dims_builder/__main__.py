@@ -13,7 +13,38 @@ import socket
 import threading
 import webbrowser
 
-from dims_builder.server import create_app
+#: The modules the `builder` extra installs, by import name. `imageio-ffmpeg`
+#: is spelled with an underscore once imported.
+EXTRA_MODULES = ("flask", "imageio_ffmpeg", "jsonschema")
+
+
+def missing_extra(exc):
+    """The install message for a missing extra, or None if it is not one.
+
+    The wizard's dependencies are an extra, so `pip install -e ./dims` installs
+    a `dims-builder` that cannot start. This is the first command a reader of
+    the no-code path runs, and a bare ModuleNotFoundError gives them nothing to
+    search for.
+
+    Only the extra's own modules get that message. A typo'd import inside the
+    package is also a ModuleNotFoundError, and telling someone to reinstall
+    would send them to fix an install that is fine -- so that one is left to
+    raise as itself.
+    """
+    root = (exc.name or "").split(".")[0]
+    if root not in EXTRA_MODULES:
+        return None
+    return (f"The builder needs its extra ({exc.name} is missing). "
+            "Install it with: pip install 'dims-network[builder]'")
+
+
+try:
+    from dims_builder.server import create_app
+except ModuleNotFoundError as exc:              # pragma: no cover - install
+    _message = missing_extra(exc)
+    if _message is None:
+        raise
+    raise SystemExit(_message) from exc
 
 
 def _find_free_port(preferred=5000):

@@ -91,7 +91,7 @@ It only reports. It deletes nothing.
 ## `sync` — take a new core
 
 ```sh
-dims-case sync ./case-my-study --version v1.4.1
+dims-case sync ./case-my-study --version v1.4.2
 ```
 
 With no `--version`, the version is read from the core checkout with
@@ -104,7 +104,7 @@ look. A study that kept whatever CI it was created with is how five repositories
 ended up with five drifted copies; and a fix to a privacy hook has to reach
 studies that already exist, which a bump is the only route for.
 
-It prints the transition (`my-study: 1.4.0 -> 1.4.1`) and then any notes about
+It prints the transition (`my-study: 1.4.1 -> 1.4.2`) and then any notes about
 shadowed tabs or stale assets — **at bump time, which is when the owner is
 deciding what to do about it**, rather than at check time when they have moved on.
 
@@ -140,7 +140,7 @@ alone is not evidence that a study is running unmodified core code.**
   `git config core.hooksPath .githooks`, and forgetting is silent — which is the
   one thing a guard may not be. CI still stops data, but only after a push.
 
-On success it says which comparison passed: `vendored core matches core 1.4.1` —
+On success it says which comparison passed: `vendored core matches core 1.4.2` —
 the recorded `dimsCore`, which is stored without the leading `v` — or
 `vendored core matches the recorded pin`.
 

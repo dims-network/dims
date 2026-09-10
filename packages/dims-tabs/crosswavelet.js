@@ -663,8 +663,15 @@ if (arrowData.x.length > 0) {
             document.getElementById(containerId).on('plotly_click', (data) => {
                 if (data.points && data.points.length > 0) {
                     const point = data.points[0];
-                    
-                    // Get clicked time (works for all three time-based panels)
+
+                    // Three of the four panels have time on x. Panel C is the
+                    // global spectrum, whose x is POWER -- clicking it used to
+                    // seek the whole dashboard to a power value read as
+                    // seconds. Note the axis excluded here is x2; the
+                    // recurrence figures exclude x3, which in this figure is
+                    // the scale-averaged panel and is a real time axis.
+                    if (point.xaxis && point.xaxis._id === 'x2') return;
+
                     const clickedTime = point.x;
                     
                     // Update video and timeseries

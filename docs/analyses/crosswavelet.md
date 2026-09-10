@@ -400,7 +400,7 @@ One entry per pair under `crosswavelet_pairs`, keyed `"{type1}_vs_{type2}"`:
   },
   "data_types": ["sig_a", "sig_b"],
   "config": { "…": "the step's fixed constants" },
-  "provenance": { "core_version": "1.4.1", "mc_count": 200,
+  "provenance": { "core_version": "1.4.2", "mc_count": 200,
                   "significance_level": 0.95, "wct_signif_seed": 20250906,
                   "max_time_points": 150, "max_freq_points": 48 },
   "processing_info": { "…": "" },

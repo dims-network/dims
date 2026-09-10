@@ -4,6 +4,39 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.4.2
+
+**The cross-RQA plot was drawn transposed.** Its axes said x was the first
+series; the matrix put it on y. An off-diagonal band names which measure led, so
+the tab named the wrong one. **If you read a lead or lag off that tab before this
+release, reverse it.** Nothing stored changes — the tab transposes on read, so a
+study renders correctly without being rebuilt.
+
+- The ELAN tier selection survives a theme change, as its own comment always said
+  it must.
+- The ELAN time axis spans the recording rather than the annotated span.
+- Clicking the cross-wavelet global spectrum no longer seeks to a power value read
+  as seconds.
+- The cross-RQA pair heading is readable in the light theme.
+- A study with no `defaultWindowSize` no longer labels its segment `NaN`.
+- A study with no transcripts no longer logs a 404 per recording change.
+- The video is optional, and the docs now say so.
+
+Guards, because in each case one existed and did not fire:
+
+- `reference-study` had failed at its install step since v1.1.0 — four releases
+  with no check that the analyses give correct numbers.
+- The changelog check accepted *any* heading, which is how v1.4.0 shipped
+  declaring 1.3.0. It now requires the newest.
+- `PAYLOAD_VERSION` is compared across the two languages that declare it.
+- The lag test matched by `|offset|` and was blind to the direction it exists to
+  check.
+- The ELAN theme test asserted before the code under test had run.
+
+With #18, #19 and #20 from @GAIT-attempt: the builder names the install that fixes
+it, the window warning no longer fires on sample-grid rounding, and the time-series
+title comes from the study instead of one study's construct.
+
 ## v1.4.1
 
 The documentation is re-derived from the code. Every tab, every command, the

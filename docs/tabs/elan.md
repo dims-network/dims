@@ -69,12 +69,10 @@ is held on the host as `app.elanSelectedTiers`.
 - **Switching tab keeps it.**
 - **Switching recording clears it**, because tier names belong to the recording and
   need not carry over.
-- **Switching theme also clears it — and should not.** The host's cache reset
-  deliberately spares the tier selection, and a comment in the core says in as many
-  words that a re-render for a theme change must not throw away which tiers someone
-  asked to see. It does anyway: a theme change re-enters the data load for the same
-  recording, which clears the selection on its way past. Expect to re-tick your
-  tiers after switching theme. Filed as a defect.
+- **Switching theme keeps it.** A theme change re-renders everything, which means
+  re-entering the data load for the same recording — and that used to clear the
+  selection on its way past, until v1.4.2. It now clears only when the recording
+  actually changes.
 
 Deselecting every tier collapses the plot to zero height: the y-axis range
 becomes `[0, 0]` and the playhead's band and line are drawn with no height to
@@ -97,19 +95,17 @@ annotations this is the more expensive of the two strategies the tabs use — th
 cross-wavelet tab moves shapes instead — but it keeps the tier filter and the
 highlight in one code path.
 
-## A known limitation of the time axis
+## The time axis
 
-**The x-axis spans the annotations, not the recording.** The tab asks the host for
-a full-recording extent to scale against, and the field it asks for
-(`this.mergedData`) is never set by the host — so the request always fails and
-Plotly autoscales to the annotation data instead.
+The x-axis spans **the recording**, from 0 to the last sample in any loaded
+series — the same extent the time slider uses — so the lanes line up with every
+other tab and an unannotated head or tail of the recording is visible as empty
+space rather than cropped away.
 
-In practice: if your first annotation starts at 40 s and your last ends at 120 s,
-the tab draws a timeline from about 40 to 120, not from 0 to the end of the video.
-Annotations still sit at their true times and clicking still seeks correctly, so
-nothing is *wrong*; but the lane widths are not comparable with the other tabs,
-and an unannotated head or tail of the recording is invisible here. Filed as a
-defect.
+Until v1.4.2 it did not. The tab asked the host for a field the host has never
+set, so the request always failed and Plotly autoscaled to the annotated span:
+annotations sat at their true times, but a file whose first annotation began at
+40 s drew a timeline starting near 40 s.
 
 ## Where it lives
 

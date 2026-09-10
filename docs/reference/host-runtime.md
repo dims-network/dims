@@ -135,19 +135,21 @@ you want and is worth knowing when a video silently resolves to the wrong path.
 ### What a video switch clears, and what it does not
 
 `_resetTabCaches()` nulls `rqaData`, `crossWaveletData`, `crqaData` and
-`elanData`. **`elanSelectedTiers` is deliberately not in it**, and a comment there
-explains why: which tiers someone asked to see is a choice they made, not data
-fetched from a payload, so a re-render for a theme change must not discard it.
+`elanData`. **`elanSelectedTiers` is deliberately not in it**: which tiers someone
+asked to see is a choice they made, not data fetched from a payload, so a re-render
+for a theme change must not discard it.
 
-**That intent is not achieved.** `loadVideoData` clears `elanSelectedTiers`
-unconditionally, a couple of lines after calling `_resetTabCaches`, and a theme
-change reaches it — `applyTheme` calls `rerenderAll`, which calls `loadVideoData`
-for the *same* recording. So the selection is lost on a theme switch, exactly as
-the comment says it must not be. The unit test that covers this asserts
-synchronously immediately after `rerenderAll()`, before the `await` inside
-`loadVideoData` resolves, so it passes without exercising the behaviour. Filed as
-a defect; documented from the user's side on
-[the ELAN tab page](../tabs/elan.md).
+`loadVideoData` therefore clears it **only when the recording actually changes**.
+It compares the id it was given against `currentVideoID` before overwriting it —
+`rerenderAll` re-enters with the *same* id, and a re-render of the recording already
+open is not a new recording.
+
+Until v1.4.2 that clear was unconditional, so a theme switch discarded the
+selection the reset had just been careful to spare. The unit test covering it
+asserted synchronously after `rerenderAll()` — which is not async, and returns
+before the `await` inside `loadVideoData` — so it read the value the test had set
+and passed without reaching the code. It now yields a turn first, and a companion
+test pins the other half: changing recording must still clear.
 
 ## Figures in hidden panes
 

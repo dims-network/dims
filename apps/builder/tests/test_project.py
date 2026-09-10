@@ -218,3 +218,38 @@ def test_an_unknown_body_part_is_refused_before_the_study_is_written(tmp_path):
     out.mkdir()
     with pytest.raises(project.ProjectError):
         project.write_config(str(out), cfg)
+
+
+# --- the launcher's install message ------------------------------------------
+
+def test_a_missing_extra_names_the_install_that_fixes_it():
+    """`pip install -e ./dims` gives a dims-builder that cannot start.
+
+    The first command a reader of the no-code path runs, so the message has to
+    carry the fix. From dims-network/dims#18.
+    """
+    from dims_builder.__main__ import missing_extra
+
+    for module in ("flask", "imageio_ffmpeg", "jsonschema"):
+        message = missing_extra(ModuleNotFoundError(name=module))
+        assert message is not None, module
+        assert "dims-network[builder]" in message
+        assert module in message
+
+
+def test_a_missing_extra_submodule_still_names_the_extra():
+    """`flask.helpers` is flask, as far as the reader is concerned."""
+    from dims_builder.__main__ import missing_extra
+
+    assert missing_extra(ModuleNotFoundError(name="flask.helpers")) is not None
+
+
+def test_an_unrelated_import_error_is_not_blamed_on_the_install():
+    """A typo'd import inside the package is not a missing extra.
+
+    Advising a reinstall there sends someone to fix an install that is fine.
+    """
+    from dims_builder.__main__ import missing_extra
+
+    assert missing_extra(ModuleNotFoundError(name="dims_builder.typo")) is None
+    assert missing_extra(ModuleNotFoundError(name="numpy")) is None

@@ -103,9 +103,13 @@ jobs:
       - name: OpenCL runtime for pyrqa
         run: sudo apt-get update -qq && sudo apt-get install -y -qq pocl-opencl-icd
 
+      # The root distribution, like every other job: `packages/dims-analysis`
+      # has carried no pyproject.toml since the monorepo became one
+      # distribution, so installing that path failed before a single test ran
+      # -- and this job stayed red, and ignored, for four releases.
       - name: Install
         run: |
-          python -m pip install -q -e packages/dims-analysis
+          python -m pip install -q -e .
           python -m pip install -q pytest pyrqa
 
       # The pyrqa tests are `importorskip`ed, so a runner without it stays green
