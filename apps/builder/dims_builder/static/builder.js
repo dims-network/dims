@@ -812,8 +812,10 @@ if (!FIG) {
       + "checkout this builder is running out of.";
   });
 }
-const { VIEW_W, NODE_R, SPOTS, personCx, spotOf } = FIG || {
+const { VIEW_W, NODE_R, SPOTS, personCx, spotOf,
+        bowRanks, bowStep, edgePath } = FIG || {
   VIEW_W: 1000, NODE_R: 26, SPOTS: [], personCx: () => 0, spotOf: (p) => p,
+  bowRanks: () => [], bowStep: () => 30, edgePath: () => "",
 };
 const PERSON_COLORS = ["#e84393", "#00b894", "#5b8cff", "#d29922", "#a78bfa"];
 
@@ -859,16 +861,23 @@ function drawInto(svg) {
 
   state.people.forEach((person, i) => appendFigure(svg, person.color, personCx(i, total)));
 
-  // Edges under the nodes, dashed: on this diagram a line is a request for an
-  // analysis, not a result. The dashboard decides how it is finally drawn.
-  Array.from(state.cw).forEach((key) => {
+  // Edges under the nodes, dashed and all one width: on this diagram a line is
+  // a request for an analysis, not a result. The dashboard decides how thick it
+  // ends up. The *shape* is the dashboard's, though — same fan, from the same
+  // file — so two lines you draw here are two lines there, rather than a pair
+  // that looks single until the study is built.
+  const linked = Array.from(state.cw).filter((key) => {
     const [a, b] = key.split("|");
-    const pa = positions[a], pb = positions[b];
-    if (!pa || !pb) return;
-    svg.appendChild(svgEl("line", {
-      x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y, class: "diagram-edge",
-      stroke: "#9aa3b2", "stroke-width": 3, "stroke-dasharray": "8 8",
-      "data-edge": key,
+    return positions[a] && positions[b];
+  });
+  const ranks = bowRanks(linked.length);
+  const step = bowStep(linked.length);
+  linked.forEach((key, i) => {
+    const [a, b] = key.split("|");
+    svg.appendChild(svgEl("path", {
+      d: edgePath(positions[a], positions[b], ranks[i], step), fill: "none",
+      class: "diagram-edge", stroke: "#9aa3b2", "stroke-width": 3,
+      "stroke-dasharray": "8 8", "stroke-linecap": "round", "data-edge": key,
     }));
   });
 

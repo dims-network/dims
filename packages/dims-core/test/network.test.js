@@ -302,6 +302,34 @@ test('no two edges are drawn on top of each other', async () => {
     + geometry.join(' | '));
 });
 
+// The signed distance the curve's control point sits off its own chord: how
+// hard, and which way, this edge is bowed. Read back off the drawn path,
+// because the drawn path is the thing that was wrong.
+function bowOf(d) {
+  const n = d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+  const [x1, y1, cx, cy, x2, y2] = n;
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  return ((cx - (x1 + x2) / 2) * (-dy / len)) + ((cy - (y1 + y2) / 2) * (dx / len));
+}
+
+test('edges sharing one node fan apart, not just edges sharing both', async () => {
+  // The narrower fault under the same screenshot, and the reason this tab was
+  // rebuilt from the older one: ranking only the edges whose *endpoints match*
+  // separated the collinear bars and left everything else at the minimum bow.
+  // Three edges leaving one node by 22 px each leave it in near enough the same
+  // direction, so they arrive as one smear -- distinct `d` strings, one visible
+  // line. Every edge on screen gets its own rank, so the whole set spreads.
+  const w = await open_(await boot({ ...NETWORK_CONFIG, defaultWindowSize: 5 },
+                                   NETWORK_FILES));
+  const bows = paths(w).map(p => bowOf(p.getAttribute('d')));
+  assert.strictEqual(bows.length, 3, 'expected three edges');
+  assert.strictEqual(new Set(bows).size, bows.length,
+    `two edges are bowed by the same amount: ${bows.join(', ')}`);
+  assert.ok(Math.max(...bows) - Math.min(...bows) >= 30,
+    `the edges are not fanned, they all sit at the floor: ${bows.join(', ')}`);
+});
+
 test('a figure layout draws a body per group, not a column of dots', async () => {
   const w = await open_(await boot({
     ...NETWORK_CONFIG,

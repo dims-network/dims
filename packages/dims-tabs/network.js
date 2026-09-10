@@ -39,11 +39,16 @@
         : 'The network is drawn from vendor/dims-tabs/figure-geometry.js, and '
         + 'that file did not load. Its <script> tag belongs in index.html before '
         + 'the tabs — `dims-case sync` writes it for you.';
-    const FALLBACK = { VIEW_W: 1000, NODE_R: 26, SHOULDER_Y: 150, HIP_Y: 330,
-                       FOOT_Y: 545, BODY_TOKENS: [], positions: () => ({}),
-                       bodyPart: () => null };
+    const FALLBACK = { VIEW_W: 1000, NODE_R: 26, TAB_NODE_R: 12, SHOULDER_Y: 150,
+                       HIP_Y: 330, FOOT_Y: 545, BODY_TOKENS: [],
+                       positions: () => ({}), bodyPart: () => null,
+                       bowRanks: () => [], bowStep: () => 30,
+                       edgePath: () => '' };
     const G = FIG || FALLBACK;
-    const { VIEW_W, NODE_R, SHOULDER_Y, HIP_Y, FOOT_Y } = G;
+    const { VIEW_W, NODE_R, TAB_NODE_R, SHOULDER_Y, HIP_Y, FOOT_Y } = G;
+    // The fan, and the curve it spaces. Shared with the wizard's diagram — see
+    // figure-geometry.js for why an edge is bowed at all.
+    const { bowRanks, bowStep, edgePath } = G;
     const BODY_PARTS = G.BODY_TOKENS;
     const figurePositions = G.positions;
     const bodyPart = G.bodyPart;
@@ -397,7 +402,10 @@
     // both loses a node to a coincidence it never declared.
     //
     // Nudged apart horizontally, least-recently-placed to the right, which
-    // keeps them on the body part they belong to and visibly distinct.
+    // keeps them on the body part they belong to and visibly distinct. The step
+    // is the wizard's NODE_R, not the tab's smaller one: this is a distance
+    // between two places on a body, and it should not move when the dot drawn
+    // at one of them changes size.
     function separate(positions) {
         const seen = new Map();
         Object.keys(positions).forEach(name => {
@@ -417,36 +425,15 @@
         return node;
     }
 
-    // A quadratic curve between two nodes, bowed perpendicular to its chord by
-    // an amount unique to this edge. Straight lines between collinear nodes are
-    // *the same line*: three within-group edges drew one thick bar, and the
-    // reader had no way to tell one from three. Bowing fans them out, and it
-    // untangles the cross-group edges too, which otherwise all cross the middle.
-    function edgePath(p1, p2, bowRank) {
-        const dx = p2.x - p1.x, dy = p2.y - p1.y;
-        const len = Math.hypot(dx, dy) || 1;
-        const ox = -dy / len, oy = dx / len;          // unit perpendicular
-        // A floor of 22 so even rank 0 curves a little: two nodes joined by a
-        // single straight line look like structure rather than a measurement.
-        const amt = (bowRank || 0) * 30 + (bowRank >= 0 ? 22 : -22);
-        return `M ${p1.x} ${p1.y} Q ${(p1.x + p2.x) / 2 + ox * amt} `
-             + `${(p1.y + p2.y) / 2 + oy * amt} ${p2.x} ${p2.y}`;
-    }
-
-    // Edges within one group share endpoints and directions, so they need
-    // distinct ranks or they land on top of each other again. Ranks alternate
-    // around zero so a pair fans symmetrically rather than drifting one way.
-    function assignBowRanks(edges, positions) {
-        const seen = new Map();
-        edges.forEach(e => {
-            const a = positions[e.pair.data_type1], b = positions[e.pair.data_type2];
-            if (!a || !b) return;
-            // Same key = same drawn line, which is what has to be separated.
-            const key = [a.x, a.y, b.x, b.y].map(Math.round).sort().join(",");
-            const n = seen.get(key) || 0;
-            seen.set(key, n + 1);
-            e.bowRank = n % 2 ? Math.ceil(n / 2) : -Math.ceil(n / 2);
-        });
+    // Every edge on screen gets its own rank, so the whole set fans and no two
+    // lines are drawn on top of each other. Ranking only the edges that *share
+    // endpoints* is not enough and was the bug this replaces: it left every
+    // other edge at the floor, so the ones merely converging on a node — which
+    // is all of the cross-group ones — arrived as a single smear.
+    function assignBowRanks(edges) {
+        const ranks = bowRanks(edges.length);
+        edges.forEach((e, i) => { e.bowRank = ranks[i]; });
+        return bowStep(edges.length);
     }
 
     // A translucent body under the nodes, drawn from the shared geometry.
@@ -700,14 +687,16 @@
             const drawable = Object.entries(pairs)
                 .map(([pairKey, pair]) => ({ pairKey, pair }))
                 .filter(e => positions[e.pair.data_type1] && positions[e.pair.data_type2]);
-            assignBowRanks(drawable, positions);
+            // Ranked after the filter, so a pair whose measures are not on the
+            // body does not take a place in the fan and skew it.
+            const step = assignBowRanks(drawable);
 
             this._networkEdges = [];
             drawable.forEach(entry => {
                 const a = positions[entry.pair.data_type1];
                 const b = positions[entry.pair.data_type2];
                 const line = el('path', {
-                    d: edgePath(a, b, entry.bowRank), fill: 'none',
+                    d: edgePath(a, b, entry.bowRank, step), fill: 'none',
                     stroke: theme.trace, 'stroke-linecap': 'round',
                     'stroke-width': MIN_WIDTH, opacity: 0.5,
                 });
@@ -726,13 +715,13 @@
                 group.members.forEach(name => {
                     const p = positions[name];
                     const node = el('circle', {
-                        cx: p.x, cy: p.y, r: NODE_R, 'data-measure': name,
+                        cx: p.x, cy: p.y, r: TAB_NODE_R, 'data-measure': name,
                         fill: group.color || theme.trace, opacity: 0.9,
                     });
                     node.appendChild(el('title', {})).textContent = name;
                     svg.appendChild(node);
                     const label = el('text', {
-                        x: p.x, y: p.y + NODE_R + 16, 'text-anchor': 'middle',
+                        x: p.x, y: p.y + TAB_NODE_R + 16, 'text-anchor': 'middle',
                         fill: theme.font, 'font-size': 13,
                     });
                     label.textContent = p.label || nodeLabel(name, group);

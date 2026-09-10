@@ -23,7 +23,14 @@
     // The coordinate space. Everything below is in viewBox units, so it scales
     // with the picture rather than with the window.
     const VIEW_W = 1000;        // the diagram's viewBox width
-    const NODE_R = 26;          // a measure's circle
+    // Two radii for what looks like one circle, because it is doing two jobs.
+    // In the wizard the circle is a drop target: it has to be comfortably
+    // clickable, and an empty one has to read as a place where something could
+    // go. On the dashboard it is a dot at the end of a line, and the line is the
+    // measurement — a node the size of the wizard's swallows the width channel,
+    // since the heaviest edge the tab can draw is 16 px against a 52 px circle.
+    const NODE_R = 26;          // the wizard's drop target
+    const TAB_NODE_R = 12;      // the dashboard's dot at the end of an edge
     const HEAD_Y = 85, HEAD_R = 30;
     const SHOULDER_Y = 150, SHOULDER_DX = 60;
     const TORSO_Y = 235;
@@ -125,10 +132,60 @@
         return g;
     }
 
+    // --- the lines between the nodes -----------------------------------------
+    //
+    // Every edge is bowed perpendicular to its chord, and no two by the same
+    // amount. Straight lines between collinear nodes are *the same line*: three
+    // within-body edges drew one thick bar and the reader had no way to tell one
+    // from three. Lines that merely share an endpoint are nearly as bad — every
+    // cross-body edge crosses the middle, and they arrive at a node as a single
+    // smear. Fanning the whole set is what separates them.
+    //
+    // The fan lives here rather than in the tab because the wizard draws the
+    // same lines, and a request for an analysis should be the same shape as the
+    // result that comes back.
+    const BOW_FLOOR = 22;   // even a lone edge curves a little
+    const BOW_STEP = 30;    // between neighbours in the fan
+    const BOW_MAX = 240;    // the widest arc, so a large fan stays in frame
+
+    /** A rank per edge, symmetrical about zero: the fan's spread. */
+    function bowRanks(count) {
+        const out = [];
+        for (let i = 0; i < count; i++) out.push(i - (count - 1) / 2);
+        return out;
+    }
+
+    /**
+     * How far apart to space the fan. BOW_STEP until the outermost arc would
+     * leave the picture, then whatever fits — a study with twenty edges gets a
+     * tighter fan rather than arcs sweeping off the top of the viewBox.
+     */
+    function bowStep(count) {
+        const outer = Math.max(1, (count - 1) / 2);
+        return Math.min(BOW_STEP, (BOW_MAX - BOW_FLOOR) / outer);
+    }
+
+    /** A quadratic curve between two points, bowed by this edge's rank. */
+    function edgePath(p1, p2, rank, step) {
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const ox = -dy / len, oy = dx / len;          // unit perpendicular
+        const r = rank || 0;
+        // The floor is signed with the rank so the fan stays symmetrical, and it
+        // is there so even rank 0 curves: two nodes joined by a single straight
+        // line look like structure rather than like a measurement.
+        const amt = r * (step === undefined || step === null ? BOW_STEP : step)
+                  + (r >= 0 ? BOW_FLOOR : -BOW_FLOOR);
+        return `M ${p1.x} ${p1.y} Q ${(p1.x + p2.x) / 2 + ox * amt} `
+             + `${(p1.y + p2.y) / 2 + oy * amt} ${p2.x} ${p2.y}`;
+    }
+
     global.DIMS_FIGURE = {
-        VIEW_W, NODE_R, HEAD_Y, HEAD_R, SHOULDER_Y, SHOULDER_DX, TORSO_Y,
-        HIP_Y, HIP_DX, HAND_Y, HAND_DX, FOOT_Y, FOOT_DX,
+        VIEW_W, NODE_R, TAB_NODE_R, HEAD_Y, HEAD_R, SHOULDER_Y, SHOULDER_DX,
+        TORSO_Y, HIP_Y, HIP_DX, HAND_Y, HAND_DX, FOOT_Y, FOOT_DX,
         SPOTS, ALIASES, BODY_TOKENS,
+        BOW_FLOOR, BOW_STEP, BOW_MAX,
         spotOf, bodyPart, spot, positions, personCx, appendFigure,
+        bowRanks, bowStep, edgePath,
     };
 })(typeof window !== 'undefined' ? window : globalThis);

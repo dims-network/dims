@@ -55,7 +55,19 @@ period band it was averaged over, the share of tested cells above chance and how
 many cells that was, and what independence would have given (about 5 %).
 
 The widths themselves run from `MIN_WIDTH = 1.5` px at the bottom of the visible
-range to `MAX_WIDTH = 16` px at the top.
+range to `MAX_WIDTH = 16` px at the top. The node they end at is deliberately
+small — `TAB_NODE_R` in `figure-geometry.js`, half the radius the wizard uses for
+the same body — because the wizard's circle is a drop target and this one is the
+end of a line, and a big dot eats the width channel.
+
+**Every edge is a curve, and no two curve alike.** Ranks are handed out across
+the whole set on screen and each edge bows perpendicular to its chord by its own
+amount (`bowRanks`, `bowStep` and `edgePath`, all in `figure-geometry.js`, which
+the wizard's diagram draws from too). Straight lines between nodes in a column
+are *the same line* — three edges drawing one bar — and edges that merely meet at
+a node arrive as a smear. Separating only the edges whose endpoints match is not
+enough; it leaves every other edge at the minimum bow. Past about sixteen edges
+the fan tightens rather than sweeping arcs out of the frame.
 
 ### The controls above the picture
 
