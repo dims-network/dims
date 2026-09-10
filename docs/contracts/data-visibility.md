@@ -12,7 +12,7 @@ than by memory.
 {
   "case": "karnatak",
   "visibility": "private",
-  "dimsCore": "1.3.1",
+  "dimsCore": "1.4.1",
   "publishable": [],
   "restricted": [
     "assets/videos",
@@ -44,6 +44,7 @@ Three independent guards, ordered by how early they catch the mistake:
 3. **CI** — fails if any *tracked* file matches a restricted path, and fails if
    `"visibility": "private"` while the GitHub repo is public. That last check
    catches the case nobody plans for: someone flipping visibility months later.
+
 Enable the hooks once per clone:
 
 ```sh

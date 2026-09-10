@@ -4,6 +4,27 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.4.1
+
+The documentation is re-derived from the code. Every tab, every command, the
+browser API, the shared analysis machinery and the test layout now have a page
+written from what the source does at this release, and `docs/` has an index
+saying which reader each page is for. No code behaviour changes.
+
+Two documented figures were wrong and are corrected: the payload examples said
+`core_version: "1.1.0"`, and the README described unrelated signals as scoring
+"0.25-0.6 depending on the timescale" -- which merged a mean with a 95th
+percentile and generalised one study's measurement into a range. The README no
+longer quotes a number; the cross-wavelet page keeps them, labelled as one
+measurement on the Karnatak data.
+
+**The version literals are corrected here too.** v1.4.0 was tagged while
+`pyproject.toml` and both `__version__` strings still declared 1.3.0, so a study
+created against that tag recorded `dimsCore: 1.4.0` while its payloads recorded
+`core_version: 1.3.0`. `tests/test_release.py` did not catch it: it asks whether
+the declared version has *a* heading in this file, not whether it is the current
+one.
+
 ## v1.4.0
 
 The wizard and the dashboard draw the same body, from the same file, and the

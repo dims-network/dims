@@ -60,20 +60,19 @@ not a silent fork. It is also why a case can be archived as it stands — the
 analysis code that produced its results is inside it, at the version that
 produced them.
 
-It is **not** self-contained in the browser. `index.html` loads React, Plotly,
-PapaParse and lodash from a CDN, so a dashboard opened without a network shows
-an empty page. Vendoring those too is
-[dims#12](https://github.com/dims-network/dims/issues/12); until then, "runs
-locally" means `serve.py` on a machine with a network, not on a plane.
+It is **not** self-contained in the browser — `index.html` loads four libraries
+from a CDN, so a dashboard opened without a network shows an empty page. That
+caveat, and the issue tracking it, are on
+[`architecture.md`](../architecture.md#why-no-build-step).
 
 **Never edit `vendor/`.** Fix it in the monorepo and bump the pin.
 
 ## Creating one
 
 ```sh
-tools/dims-case new ortho --visibility public                  # -> ./case-ortho
-tools/dims-case new ortho --visibility public --dir path/to/it # somewhere else
-tools/dims-case adopt path/ --name ortho --visibility public   # an existing one
+dims-case new ortho --visibility public                  # -> ./case-ortho
+dims-case new ortho --visibility public --dir path/to/it # somewhere else
+dims-case adopt path/ --name ortho --visibility public   # an existing one
 ```
 
 `new` takes a **name**, not a path; `--dir` is how you choose where it lands.
