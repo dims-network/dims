@@ -55,26 +55,19 @@ faults below.
   missing `visualization.time`, `.matrix_size`, `.matrix`, `.data_x` or `.data_y`
   shows an error in its own block; the pair key goes to the browser console.
 
-## Two faults to be aware of
+## Reading a lag off this tab
 
-**The axes appear to be transposed.** The analysis builds the matrix as distances
-from series 1 to series 2, which makes **rows** series 1 — so on the heatmap the
-y-axis indexes series 1 and the x-axis indexes series 2. The labels say the
-opposite, and both marginal traces are attached to the axis for the other measure.
-Everything is consistently swapped, so the picture is a valid cross-recurrence plot
-of the pair; but **it is the transpose of what the axis labels claim**, which
-reverses the direction you would read a lead or lag from. Until this is settled,
-do not read "which one led" off this tab — take it from the cross-wavelet phase
-instead. Filed as a defect.
+The band's **offset from the diagonal is the lag**, and its **side tells you which
+measure led**. Both axes are time, x is the first-named series and y the second, so
+a band above the diagonal means the second series repeated the first's states later.
 
-**The pair heading is invisible in the light theme.** It is drawn with a hardcoded
-white text colour, and hardcoded grey for the statistics beside it, instead of the
-theme's. The default theme has a white panel behind it. Little is actually lost —
-the figure immediately below carries its own title with the same pair names, rate
-and threshold, in the correct colour — so the symptom is a duplicate heading
-vanishing rather than information going missing. It is a breach of the rule in
-[`contracts/tab.md`](../contracts/tab.md) that a tab styles its own DOM with the
-theme's custom properties. Filed as a defect.
+That direction was wrong until v1.4.2. The analysis writes the matrix with its rows
+indexing the first series, and Plotly draws rows on y — so the figure was the
+transpose of what its own labels claimed, and the side a lag fell on named the
+wrong measure. The tab now transposes on read, which changes nothing in any stored
+payload: a study built before the fix renders correctly without being rebuilt.
+
+If you took a lead/lag reading from this tab before v1.4.2, reverse it.
 
 ## Where it lives
 

@@ -296,3 +296,67 @@ test('a payload at the current version is drawn without complaint', async () => 
   assert.ok(!/older core|newer core|payload version/.test(text),
     'a current payload was reported as unreadable');
 });
+
+// --- the orientation of the cross-recurrence figure ---------------------------
+//
+// The analysis writes cdist(series 1, series 2), so the matrix's ROWS index
+// series 1. Plotly draws z[row][col] at (x[col], y[row]). The tab labels x as
+// series 1, hangs the top marginal (data_x, series 1) on x and the left
+// marginal (data_y, series 2) on y -- so the payload and the labels disagree
+// about which axis is which, and the tab has to transpose to settle it.
+//
+// Untransposed the picture is a valid cross-recurrence plot of the pair and
+// the transpose of what its own axes claim, which reverses the direction a
+// lead or lag reads. tests/reference/test_crqa.py cannot catch that: it
+// matches the lag by |offset|, so it is blind to the sign.
+
+test('the drawn cross-recurrence matrix is the transpose of the payload', async () => {
+  const w = await boot();
+  const made = await open_(w, 'crqa');
+  const fig = made.find(p => String(p.el).startsWith('crqa-plot-'));
+  assert.ok(fig, 'the crqa tab drew no figure of its own');
+
+  const heat = fig.data.find(t => t.type === 'heatmap');
+  assert.ok(heat, 'no heatmap trace in the cross-recurrence figure');
+
+  const payload = JSON.parse(read('s1_crqa_data.json'));
+  const entry = Object.values(payload.crqa_data)[0];
+  const asWritten = w.DIMS.decodeArray(entry.visualization.matrix);
+
+  // The fixture must be able to tell the two apart, or this proves nothing.
+  const symmetric = asWritten.every((row, i) => row.every((v, j) => v === asWritten[j][i]));
+  assert.ok(!symmetric,
+    'the fixture matrix is symmetric, so it cannot detect an orientation error');
+
+  const drawn = heat.z;
+  assert.strictEqual(drawn.length, asWritten.length);
+  for (let i = 0; i < drawn.length; i++) {
+    for (let j = 0; j < drawn.length; j++) {
+      assert.strictEqual(drawn[i][j], asWritten[j][i],
+        `cell (${i},${j}) is not the transpose of the payload: the figure is ` +
+        `drawn in the orientation its own axis labels deny`);
+    }
+  }
+});
+
+test('the axis a series is labelled on is the axis it is drawn on', async () => {
+  const w = await boot();
+  const made = await open_(w, 'crqa');
+  const fig = made.find(p => String(p.el).startsWith('crqa-plot-'));
+  const entry = Object.values(JSON.parse(read('s1_crqa_data.json')).crqa_data)[0];
+  const [first, second] = entry.series_names;
+
+  // y carries the second series, and after the transpose above the matrix rows
+  // do too. The left marginal is drawn against that same y.
+  assert.ok(String(fig.layout.yaxis.title).includes(second),
+    `y is labelled "${fig.layout.yaxis.title}", expected the second series ${second}`);
+
+  const left = fig.data.find(t => t.xaxis === 'x3');
+  assert.ok(left, 'no rotated left marginal');
+  // Array.from: the trace was built inside the jsdom realm, so its array has a
+  // different Array.prototype and deepStrictEqual compares prototypes before
+  // contents. Copying it into this realm compares the numbers, which is what
+  // is being asserted.
+  assert.deepStrictEqual(Array.from(left.x), entry.visualization.data_y,
+    'the left marginal must be the series its axis is labelled with');
+});

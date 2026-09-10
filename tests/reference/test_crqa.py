@@ -61,3 +61,35 @@ def test_each_pair_records_the_rate_asked_for_and_the_rate_reached(recurrence):
         assert bool(e["recurrence_rate_warning"]) == missed, (
             f"{name}: achieved {e['achieved_recurrence']:.4f} against "
             f"{TARGET_RATE}, warning={e['recurrence_rate_warning']!r}")
+
+
+# --- the sign of the lag, which nothing checked ------------------------------
+
+def test_the_lag_falls_on_the_side_the_orientation_implies(recurrence):
+    """K3 matches the lag by |offset|, so it cannot see the direction.
+
+    Which is the half that says *which measure led*. The matrix is
+    `cdist(series 1, series 2)`, so cell (i, j) is recurrent where
+    `series1[i] ~ series2[j]`. Here `sine_lagged[j] = sine[j - LAG]`, so
+    `i ~ j - LAG`, so the line sits at `k = j - i = +LAG`. Positive, and
+    positive is a fact about the orientation the analysis writes.
+
+    The tab reads that orientation and transposes it to match its own axis
+    labels (packages/dims-tabs/crqa.js). If the analysis is ever flipped, the
+    tab's transpose becomes wrong in the same silent way it was before: the
+    picture stays a valid cross-recurrence plot and starts naming the other
+    measure as leading. This is what would fail first.
+    """
+    study, _ = recurrence
+    vis = entry(study, "crqa", "crqa_data", "sine_vs_sine_lagged")["visualization"]
+    factor = vis["reduction"]["factor"]
+    expected = LAG_SAMPLES / factor
+
+    offsets = diagonal_offsets(dense(vis))
+    nearest = min(offsets, key=lambda k: abs(abs(k) - expected))
+    assert nearest > 0, (
+        f"the lag line is at offset {nearest}; cdist(series 1, series 2) with "
+        f"series 2 delayed puts it at +{expected:.0f}. A negative offset means "
+        f"the matrix is transposed relative to what it was, and every reader of "
+        f"a lead/lag from the cross-RQA tab now has it backwards. "
+        f"Offsets found: {offsets[:12]}")
