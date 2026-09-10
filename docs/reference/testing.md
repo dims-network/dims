@@ -88,26 +88,29 @@ test agree with the code by construction, which is the one thing a reference tes
 may not do. The same applies to the Torrence & Compo figures: the wavelet reference
 test restates 2.182 and 3.999 rather than importing the constants that hold them.
 
-## The release coherence check has a hole
+## What the release check covers
 
 `tests/test_release.py` asserts that every package declares the same version, that
-the source `__version__` agrees with packaging, and that `CHANGELOG.md` contains a
-`## v<version>` heading.
+the source `__version__` agrees with packaging, and that `CHANGELOG.md`'s **newest**
+entry is the version this tree declares.
 
-The first of those is currently vacuous: it walks the tree for `pyproject.toml`
-files and the repository has exactly one, so a set of one cannot disagree. The
-`__version__` check does compare two real files.
+That last one used to ask only whether the declared version had *a* `## v…` heading
+somewhere in the file. Every past release leaves one behind, so once v1.0.0 was
+written the check could not fail again — and it did not: **v1.4.0 was tagged while
+the code still declared 1.3.0**, and the test passed on the v1.3.0 heading four
+releases down the page. It now compares against the first heading, which is the
+release being shipped, because the changelog is strictly newest-first.
 
-**That last check passes over a forgotten bump.** It asks whether the declared
-version has *a* heading somewhere in the changelog — not whether it is the current
-one. So a repository tagged `vX.Y.Z` whose code still declares an older version
-passes, because that older version's heading is still in the file.
+One part is still weaker than it reads: "every package declares the same version"
+walks the tree for `pyproject.toml` files, and the repository has exactly one, so a
+set of one cannot disagree. The `__version__` check beside it does compare two real
+files.
 
-This is not hypothetical: it is exactly how `v1.4.0` came to be tagged while
-`pyproject.toml` and both `__version__` strings still said `1.3.0`, which the
-suite did not notice. The literals were corrected in v1.4.1; **the hole in the
-check was not.** Tightening it means asserting the declared version matches the
-*first* `## v…` heading rather than any of them.
+`tests/test_contracts.py` covers the other version that can drift silently — the
+payload format, declared independently in `common/arrays.py` and `dims-core.js`.
+Nothing compared those until v1.4.2. A bump on one side alone does not fail a test;
+it fails in a browser, as every analysis panel going blank behind a message naming
+the wrong fix.
 
 ## Before opening a pull request
 

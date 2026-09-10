@@ -136,3 +136,33 @@ def test_the_figure_layout_vocabulary_is_the_same_in_every_file_that_names_it():
     assert from_validate == from_schema, (
         f"validate.py knows {sorted(from_validate)}, schema accepts "
         f"{sorted(from_schema)}")
+
+
+def test_the_payload_version_is_the_same_number_in_both_languages():
+    """The analyses write it; the browser refuses anything else. Two files.
+
+    `common/arrays.py` decides what a payload is stamped with and
+    `dims-core.js` decides what a dashboard will read. Nothing compared them,
+    so a bump on one side alone would not fail here -- it would fail in a
+    browser, as every analysis panel in every study going blank behind
+    "rebuild the study's assets", which is not the cause and would send the
+    reader to rebuild assets that were already correct.
+
+    `dims_case/core.py` holds a third copy and already imports the Python one
+    when it can, so it is not the drift this guards.
+    """
+    from dims_analysis.common.arrays import PAYLOAD_VERSION as from_python
+
+    core = open(os.path.join(ROOT, "packages/dims-core/dims-core.js")).read()
+    match = re.search(r"PAYLOAD_VERSION:\s*(\d+)", core)
+    assert match, (
+        "dims-core.js declares no PAYLOAD_VERSION. The browser has to know "
+        "which payload format it can read; without it every stale asset is "
+        "drawn as though it were current.")
+    from_js = int(match.group(1))
+
+    assert from_js == from_python, (
+        f"dims-core.js reads payload version {from_js} and the analyses write "
+        f"{from_python}. One of them was bumped without the other, and the "
+        f"symptom is every analysis panel blank with a message naming the "
+        f"wrong fix.")
