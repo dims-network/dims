@@ -83,6 +83,10 @@
     "subtitle": {
       "type": "string"
     },
+    "timeseriesTitle": {
+      "type": "string",
+      "description": "Figure title for the time-series tab. `{videoID}` is substituted. Defaults to the study `title` followed by the recording id."
+    },
     "authors": {
       "type": "string"
     },
