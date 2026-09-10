@@ -28,10 +28,16 @@ index up by name and fall back to a fixed colour when they cannot find it.
 The figure is a fixed 800 px tall regardless of how many measures there are, so
 with many measures each strip gets thin.
 
-The figure's title reads **"ROI Synchrony Over Time for Video `{videoID}`"**. That
-wording is a leftover from the fNIRS study the tab was first written for and is
-wrong for a tab that plots any measure at all; it is hardcoded, and the only thing
-in it that comes from your study is the recording id. Ignore it.
+The figure's title defaults to your study's `title` followed by the recording id.
+Set **`timeseriesTitle`** in `config.json` to override it; `{videoID}` is
+substituted:
+
+```json
+{ "timeseriesTitle": "Ground reaction force — {videoID}" }
+```
+
+It used to read "ROI Synchrony Over Time for Video `{videoID}`" for every study,
+a leftover from the fNIRS work the tab was first written for.
 
 ### A multi-column CSV becomes one averaged trace
 
