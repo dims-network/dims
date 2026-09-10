@@ -69,12 +69,10 @@ is held on the host as `app.elanSelectedTiers`.
 - **Switching tab keeps it.**
 - **Switching recording clears it**, because tier names belong to the recording and
   need not carry over.
-- **Switching theme also clears it — and should not.** The host's cache reset
-  deliberately spares the tier selection, and a comment in the core says in as many
-  words that a re-render for a theme change must not throw away which tiers someone
-  asked to see. It does anyway: a theme change re-enters the data load for the same
-  recording, which clears the selection on its way past. Expect to re-tick your
-  tiers after switching theme. Filed as a defect.
+- **Switching theme keeps it.** A theme change re-renders everything, which means
+  re-entering the data load for the same recording — and that used to clear the
+  selection on its way past, until v1.4.2. It now clears only when the recording
+  actually changes.
 
 Deselecting every tier collapses the plot to zero height: the y-axis range
 becomes `[0, 0]` and the playhead's band and line are drawn with no height to

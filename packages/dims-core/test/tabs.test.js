@@ -146,7 +146,27 @@ test('a re-render keeps the ELAN tiers the viewer chose', async () => {
     'the tier selection is a choice the viewer made, not a fetched payload');
 
   // ...nor must a whole re-render, which is what a theme switch triggers.
+  //
+  // `rerenderAll` is not async: it schedules `loadVideoData` and returns, and
+  // the clear it has to survive sits after an `await` inside that. Asserting
+  // here without yielding reads the value this test set two lines up and never
+  // reaches the code under test -- which is what it did, so it passed while the
+  // behaviour was broken.
   app.rerenderAll();
+  await new Promise(r => setTimeout(r, 0));
+  await new Promise(r => setTimeout(r, 60));
   assert.deepStrictEqual(app.elanSelectedTiers, ['gaze', 'speech'],
     'switching theme must not discard the tier selection');
+});
+
+test('changing recording does discard them, because the tiers were its own', async () => {
+  // The other half of the asymmetry. A fix for the test above that simply
+  // stopped clearing would pass it and break this.
+  const w = await boot({ ...BASE, videoIDs: ['s1', 's2'], include_elan: true });
+  const app = w.dimsApp;
+  app.elanSelectedTiers = ['gaze', 'speech'];
+
+  await app.loadVideoData('s2');
+  assert.strictEqual(app.elanSelectedTiers, null,
+    'tier names belong to a recording, so a new one starts over');
 });

@@ -997,14 +997,22 @@ class DIMSApp {
         
         this.showStatus('Loading data...');
         
+        // Which recording we were on before this call. A theme change re-enters
+        // here with the SAME id (rerenderAll passes currentVideoID), and the
+        // tier selection has to survive that -- see the note on
+        // _resetTabCaches, which spares it for exactly this reason and was
+        // being undone two lines later.
+        const sameRecording = this.currentVideoID === videoID;
+
         try {
             const data = await this.loadDataForVideoID(videoID);
             this.currentData = data.timeseries;
             this.currentTranscript = data.transcript;
             this.currentVideoID = videoID;
             this._resetTabCaches();
-            // The tiers belong to the recording, so a new one starts over.
-            this.elanSelectedTiers = null;
+            // The tiers belong to the recording, so a NEW one starts over. A
+            // re-render of the one already open is not a new one.
+            if (!sameRecording) this.elanSelectedTiers = null;
             
             if (this.currentData && this.currentData.length > 0) {
                 // Create time slider - find min/max across all datasets
