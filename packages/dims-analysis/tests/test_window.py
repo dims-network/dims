@@ -13,6 +13,8 @@ this reason; `test_the_plan_is_the_same_at_two_sampling_rates` is that pair,
 made cheap.
 """
 import numpy as np
+import re
+
 import pytest
 
 from dims_analysis.common import window as win
@@ -165,3 +167,45 @@ def test_the_report_is_rounded_but_not_truncated():
     """Six decimal places, so a step of 0.0333333... does not print as 0.03."""
     plan = win.plan(n=1000, dt=0.01, window_sec=5.0, step_sec=1 / 3)
     assert plan.report()["step_requested_sec"] == pytest.approx(1 / 3, abs=1e-6)
+
+
+def test_rounding_onto_the_sample_grid_is_not_a_shortening():
+    """A window is a whole number of samples, so it rarely lands exactly.
+
+    At dt = 0.03 s a 20 s window is 666.67 samples, so the plan uses 667 of
+    them: 20.01 s, 10 ms long. Real case that prompted this: a 121.2 s
+    foot-pressure recording windowed at 20 s came out 1.5 ms short and was
+    reported as a shortening that made DET and LAM incomparable.
+    """
+    plan = win.plan(n=5000, dt=0.03, window_sec=20.0, step_sec=1.0)
+    report = plan.report()
+
+    assert report["length_used_sec"] != report["length_requested_sec"]
+    assert abs(report["length_used_sec"] - 20.0) <= plan.dt / 2
+    assert "warning" not in report, report.get("warning")
+
+
+def test_a_real_shortening_still_warns():
+    """The tolerance must not swallow the case the warning exists for."""
+    report = win.plan(n=1000, dt=0.01, window_sec=60.0, step_sec=1.0).report()
+    assert "warning" in report
+    assert "shortened" in report["warning"]
+
+
+def test_the_warning_never_says_a_value_changed_to_itself():
+    """Two numbers a sentence calls different must not print the same.
+
+    `{requested:g}` and `{used:.4g}` both render 20.0 and 19.9985 as "20",
+    producing "the 20 s window was shortened to 20 s".
+    """
+    for n, dt, window_sec in [(39997, 0.001, 20.0),   # renders "20" both sides
+                              (1000, 0.01, 60.0),
+                              (2000, 0.02, 33.0),
+                              (777, 1 / 3, 90.0)]:
+        warning = win.plan(n=n, dt=dt, window_sec=window_sec,
+                           step_sec=1.0).report().get("warning")
+        if warning is None:
+            continue
+        match = re.search(r"the (\S+) s window was shortened to (\S+) s", warning)
+        assert match, warning
+        assert match.group(1) != match.group(2), warning

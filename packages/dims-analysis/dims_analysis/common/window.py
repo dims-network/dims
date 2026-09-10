@@ -129,28 +129,53 @@ def plan(n: int, dt: float, window_sec: float, step_sec: float,
 
     used = (length_sec, step_used)
     return WindowPlan(starts, length, dt, requested, used,
-                      _warning(requested, used, len(starts), span))
+                      _warning(requested, used, len(starts), span, dt))
 
 
-def _warning(requested, used, n_windows, span):
+def _distinct(requested, used):
+    """`(requested, used)` formatted so the two cannot render identically.
+
+    A warning that says a value "was shortened to" the same number it started
+    at reads as a bug in the analysis. Widen the precision until the strings
+    differ, rather than trusting one fixed format to separate every pair.
+    """
+    for precision in range(4, 13):
+        left, right = f"{requested:.{precision}g}", f"{used:.{precision}g}"
+        if left != right:
+            return left, right
+    return f"{requested!r}", f"{used!r}"
+
+
+def _warning(requested, used, n_windows, span, dt):
     """Why the windows are not the ones that were asked for, or None.
 
     Worth a sentence rather than a flag: a reader comparing two studies needs
     to know that the metrics differ partly because the windows do, and DET and
     LAM are not comparable across window lengths any more than across
     recurrence rates.
+
+    Which makes a spurious one expensive. A window is a whole number of
+    samples, so a requested length almost never lands exactly on the sample
+    grid, and rounding to the nearest sample moves it by up to `dt / 2`. That
+    is quantisation, not shortening: reporting it told a reader their DET and
+    LAM were incomparable over a difference of a millisecond, and a channel
+    that cries wolf is one people learn to skip -- including when it carries
+    the recurrence-rate warnings, which matter.
     """
-    length_moved = abs(used[0] - requested[0]) > 1e-9
-    step_moved = abs(used[1] - requested[1]) > 1e-9
+    # Half a sample is the most that rounding onto the grid can move a length.
+    # Anything within it was not shortened; it was rounded.
+    tolerance = dt / 2.0 + 1e-9
+    length_moved = abs(used[0] - requested[0]) > tolerance
+    step_moved = abs(used[1] - requested[1]) > tolerance
     if not (length_moved or step_moved):
         return None
     parts = []
     if length_moved:
-        parts.append(f"the {requested[0]:g} s window was shortened to "
-                     f"{used[0]:.4g} s")
+        asked, got = _distinct(requested[0], used[0])
+        parts.append(f"the {asked} s window was shortened to {got} s")
     if step_moved:
-        parts.append(f"the {requested[1]:g} s step was shortened to "
-                     f"{used[1]:.4g} s")
+        asked, got = _distinct(requested[1], used[1])
+        parts.append(f"the {asked} s step was shortened to {got} s")
     return (f"{' and '.join(parts)}, because a {span:.4g} s recording cannot "
             f"hold {MIN_WINDOWS} of the requested windows. DET and LAM depend "
             f"on the window length, so these are not comparable with an "
