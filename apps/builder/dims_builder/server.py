@@ -11,16 +11,15 @@ import uuid
 
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
-from . import media, precompute, project, validate
+from . import example_study, media, precompute, project, validate
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
 STAGING_DIR = os.path.join(HERE, "_staging")
 
-# Two complete sessions that ship with the builder, so someone can see a working
-# dashboard before they have data of their own -- and so a bug report can say
-# "with the samples" and mean one specific thing.
-SAMPLES_DIR = os.path.join(os.path.dirname(HERE), "samples")
+# apps/builder/dims_builder -> the monorepo root, for files shared with the
+# dashboard that are not part of this package.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 
 # Infer the asset role from a filename.
 TRANSCRIPT_SUFFIX = "_transcript.json"
@@ -147,27 +146,52 @@ def create_app():
                        config=_assemble_config(),
                        files=[_public(e) for e in state["staged"].values()])
 
+    @app.get("/vendor/figure-geometry.js")
+    def api_figure_geometry():
+        """The body the network diagram is drawn on, shared with the dashboard.
+
+        Served from the monorepo rather than copied into static/: the wizard and
+        the dashboard's network tab have to draw the same figure, and a copy is
+        how they drifted before. The builder already requires the checkout --
+        step 6 installs the analyses from it -- so reading it from there costs
+        nothing that was not already true.
+        """
+        path = os.path.join(REPO_ROOT, "packages", "dims-tabs", "figure-geometry.js")
+        if not os.path.exists(path):
+            return Response(
+                "/* figure-geometry.js not found at %s */" % path,
+                mimetype="application/javascript", status=404)
+        return send_file(path, mimetype="application/javascript")
+
     @app.post("/api/samples")
     def api_samples():
-        """Stage the sample sessions that ship with the builder.
+        """Stage the example study, generating it the first time.
 
-        Copied into staging and pushed through the same inference, splitting and
-        validation an upload takes -- so the button exercises the real path
-        rather than a shortcut around it, and `session2.csv` still demonstrates
-        the auto-split into three measures.
+        Nothing is shipped: `example_study` writes ConvoConnect-Mini into a
+        cache on first use, which costs a few seconds once and no repository
+        space ever. What comes back is staged through the same inference,
+        splitting and validation an upload takes, so the button exercises the
+        real path rather than a shortcut around it.
         """
-        if not os.path.isdir(SAMPLES_DIR):
-            return jsonify(error="The sample data is missing from this install "
-                                 f"(expected at {SAMPLES_DIR})."), 400
-        names = sorted(n for n in os.listdir(SAMPLES_DIR)
-                       if not n.startswith(".") and not n.endswith(".md")
-                       and os.path.isfile(os.path.join(SAMPLES_DIR, n)))
-        if not names:
-            return jsonify(error="The sample folder is empty."), 400
+        try:
+            root = example_study.ensure()
+        except Exception as exc:  # noqa: BLE001 — ffmpeg, disk, anything
+            return jsonify(error=f"Could not generate the example study: {exc}"), 500
+        # One folder per dyad, which is how the data sits on a researcher's
+        # disk -- so walk, rather than listing the top level.
+        paths = []
+        for cur, dirs, files in os.walk(root):
+            dirs.sort()
+            for name in sorted(files):
+                if name.startswith("."):
+                    continue
+                paths.append(os.path.join(cur, name))
+        if not paths:
+            return jsonify(error="The example study came out empty."), 500
         added = []
-        for name in names:
-            with open(os.path.join(SAMPLES_DIR, name), "rb") as fh:
-                added.extend(_stage_stream(fh, name))
+        for path in paths:
+            with open(path, "rb") as fh:
+                added.extend(_stage_stream(fh, os.path.basename(path)))
         return jsonify(files=added, count=len(added))
 
     @app.post("/api/upload")

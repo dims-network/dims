@@ -36,8 +36,11 @@ def main():
     app = create_app()
 
     # Open the browser shortly after the server starts. Guard against the
-    # Werkzeug reloader double-launch via the WERKZEUG_RUN_MAIN sentinel.
-    if not os.environ.get("WERKZEUG_RUN_MAIN"):
+    # Werkzeug reloader double-launch via the WERKZEUG_RUN_MAIN sentinel, and
+    # against DIMS_BUILDER_NO_BROWSER, which the end-to-end test sets: a test
+    # run should not take over the screen of whoever is running it.
+    if not os.environ.get("WERKZEUG_RUN_MAIN") \
+            and not os.environ.get("DIMS_BUILDER_NO_BROWSER"):
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
     print(f"\n  DIMS Dashboard Builder running at {url}\n  (Ctrl+C to stop)\n")
