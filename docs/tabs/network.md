@@ -4,7 +4,7 @@ One picture of who is coupled with whom, following the playhead. Each **node** i
 a measure; each **edge** is how strongly two measures went together over the
 window around the current moment. Move the playhead and the picture changes.
 
-**An edge answers one of two questions, and you choose which.** *Coherence* asks
+**An edge can answers one of two questions, and you choose which.** *Coherence* asks
 whether the two held a steady phase relationship. *Shared power* asks whether
 both were moving at all at that timescale. They are different questions and they
 disagree in the case that matters most — see [the two modes](#the-two-modes).
@@ -12,8 +12,7 @@ disagree in the case that matters most — see [the two modes](#the-two-modes).
 It is a view of the cross-wavelet analysis, not a separate one. Everything it
 draws comes from `assets/crosswavelet/{video}_crosswavelet_data.json`, so an
 edge exists only where [`include_crosswavelet`](../analyses/crosswavelet.md) asked
-for that pair. **A pair you did not ask for is a missing edge, and nothing says
-so** — the two nodes are still drawn, with nothing between them.
+for that pair. 
 
 <figure class="shot" markdown="0">
   <img src="../../images/walkthrough/opt-network-tab.png"
