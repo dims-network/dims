@@ -234,3 +234,12 @@ body{
   .md-typeset h1{font-size:1.9rem}
   .md-typeset .path{padding:18px 16px 6px}
 }
+
+/* ---- the header wordmark ---------------------------------------------- */
+
+/* The logo is "DIMS Dashboard" spelled out, so Material's site title beside it
+   would say the name twice. Only the first topic is hidden: the second is the
+   page title, which slides in when the page scrolls and is worth keeping. */
+.md-header__topic:first-child{display:none}
+.md-header__button.md-logo{padding-right:.4rem}
+.md-header__button.md-logo img{height:1.4rem;width:auto}
