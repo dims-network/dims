@@ -1,0 +1,2887 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Recordings and the time series taken from them, on one timeline, with the analyses that say how two signals relate.">
+      
+      
+      
+        <link rel="canonical" href="https://dims-network.github.io/dims/1.5/analyses/crosswavelet/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../rqa/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Cross-wavelet analysis - DIMS</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/dims.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cross-wavelet-analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="DIMS" class="md-header__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DIMS
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Cross-wavelet analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="DIMS" class="md-nav__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    DIMS
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start here
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start here
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The no-code builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyses
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analyses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet analysis
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-looks-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it looks like
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preparing-the-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preparing the signals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The transform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The transform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cross-wavelet-power-and-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-wavelet power and phase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coherence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set-in-the-studys-configjson-under-analysiscrosswavelet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set in the study's config.json, under analysis.crosswavelet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-in-the-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed in the step
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#four-significance-levels-and-which-one-answers-your-question" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four significance levels, and which one answers your question
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Four significance levels, and which one answers your question">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-the-power-levels-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the power levels come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-the-coherence-level-comes-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the coherence level comes from
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-one-thing-to-know-before-reading-a-coherence-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The one thing to know before reading a coherence value
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The one thing to know before reading a coherence value">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-method-assumes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the method assumes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-cone-of-influence-is-a-different-thing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The cone of influence is a different thing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-defects-worth-checking-older-output-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three defects worth checking older output for
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-a-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading a result
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading a result">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-more-views-the-payload-gives-you-for-free" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two more views the payload gives you for free
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-writes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it writes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What it writes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visualization--the-grids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualization — the grids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#statistics--the-summary-numbers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        statistics — the summary numbers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-things-in-the-payload-that-are-less-informative-than-they-look" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two things in the payload that are less informative than they look
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recurrence (RQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-recurrence (cRQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tabs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/timeseries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time series
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-effector network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/elan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ELAN annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asset layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/analysis-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/data-visibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public and private data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-case
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending DIMS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extending DIMS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/tab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a tab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing an analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A study repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/dims-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    window.DIMS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/host-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The host runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/figure-geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    figure-geometry.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/analysis-common/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims_analysis.common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The builder's HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versions, vendoring and the pin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-looks-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it looks like
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preparing-the-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preparing the signals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The transform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The transform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cross-wavelet-power-and-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-wavelet power and phase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coherence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set-in-the-studys-configjson-under-analysiscrosswavelet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set in the study's config.json, under analysis.crosswavelet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed-in-the-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed in the step
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#four-significance-levels-and-which-one-answers-your-question" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four significance levels, and which one answers your question
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Four significance levels, and which one answers your question">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-the-power-levels-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the power levels come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-the-coherence-level-comes-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the coherence level comes from
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-one-thing-to-know-before-reading-a-coherence-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The one thing to know before reading a coherence value
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The one thing to know before reading a coherence value">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-method-assumes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the method assumes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-cone-of-influence-is-a-different-thing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The cone of influence is a different thing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-defects-worth-checking-older-output-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three defects worth checking older output for
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-a-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading a result
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading a result">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-more-views-the-payload-gives-you-for-free" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two more views the payload gives you for free
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-writes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it writes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What it writes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visualization--the-grids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        visualization — the grids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#statistics--the-summary-numbers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        statistics — the summary numbers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-things-in-the-payload-that-are-less-informative-than-they-look" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two things in the payload that are less informative than they look
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/dims-network/dims/edit/main/docs/analyses/crosswavelet.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="cross-wavelet-analysis">Cross-wavelet analysis<a class="headerlink" href="#cross-wavelet-analysis" title="Permanent link">&para;</a></h1>
+<p>Two people move. Do they move <em>together</em>? The question hides a second one —
+together at what timescale? A pair can share a slow sway and share nothing at
+all in their fast adjustments, and a single correlation coefficient will average
+those into one number that describes neither.</p>
+<p>The wavelet transform answers timescale by timescale, moment by moment. The
+cross-wavelet transform asks where two signals have <strong>energy at the same
+timescale at the same time</strong>, and coherence asks whether, where they do, they
+keep a <strong>consistent timing relationship</strong>.</p>
+<p>Those are different questions, they have different answers, and confusing them
+is the most common way to over-read this analysis. The rest of this page is
+mostly about telling them apart.</p>
+<ul>
+<li>Step id <code>crosswavelet</code>, gated by <code>include_crosswavelet</code>, a list of pairs.</li>
+<li>Writes <code>assets/crosswavelet/{video}_crosswavelet_data.json</code>, and — unless you
+  turn it off — <code>{video}_crosswavelet_full.json</code> beside it.</li>
+<li>Built on <a href="https://github.com/regeirk/pycwt">pycwt</a>, pinned at <code>0.5.0b0</code>, with
+  the significance levels re-derived in-house from Torrence &amp; Compo (1998).</li>
+</ul>
+<h2 id="what-it-looks-like">What it looks like<a class="headerlink" href="#what-it-looks-like" title="Permanent link">&para;</a></h2>
+<p>Both figures below are the payload from
+<a href="../demo/demo_crosswavelet.json"><code>demo_crosswavelet.json</code></a>, which
+<a href="../demo/make_demo_data.py"><code>make_demo_data.py</code></a> produced by running the step over
+the two synthetic signals from the <a href="../">overview</a>.</p>
+<div class="figure" id="fig-xwt-power"></div>
+
+<div class="figure" id="fig-xwt-coherence"></div>
+
+<p>Read those two together. The burst between 20 s and 35 s is the brightest thing
+in the power plot and is unremarkable in the coherence plot, because the two
+signals oscillate there at 1.20 s and 1.45 s — nearly the same energy at nearly
+the same time, with a relationship that drifts. The 4-second band is the reverse:
+modest power, coherence close to 1 for the whole record, and phase arrows that
+all point the same way.</p>
+<p>That is the entire argument for computing both.</p>
+<h2 id="preparing-the-signals">Preparing the signals<a class="headerlink" href="#preparing-the-signals" title="Permanent link">&para;</a></h2>
+<p>Before anything is transformed, each series is cleaned and each pair is put on
+one clock.</p>
+<ol>
+<li><strong>Read and clean.</strong> The <code>Time</code> column is matched under any casing, rows with
+   missing values are dropped. Fewer than <strong>50 samples</strong> and the pair is skipped.</li>
+<li><strong>Detrend.</strong> A first-order polynomial is fitted against time and subtracted.
+   Not just the mean: a linear drift puts power at the longest periods, which is
+   exactly where the cone of influence already makes the answer weakest.</li>
+<li><strong>Normalise.</strong> Divide by the standard deviation, so the series is unit
+   variance. Power is therefore in units of <em>normalised signal squared</em>, and is
+   not comparable to a physical quantity.</li>
+<li><strong>Align.</strong> The pair is cut to the overlap of the two time ranges, and both
+   are linearly interpolated onto a uniform grid at <code>min(Δt₁, Δt₂)</code>, the finer
+   of the two. The overlap must be at least <strong>50 % of the longer of the two
+   recordings</strong> — <code>(t_end − t_start) / max(span₁, span₂)</code> — or the pair is
+   skipped. Note which way round that is: a 10 s series overlapping a 60 s one
+   completely is still refused.</li>
+<li><strong>Taper.</strong> A Tukey window with α = 0.05 is applied to both. This softens the
+   first and last 2.5 % of the record so the ends do not ring; it does not
+   replace the cone of influence, which is about the same problem from the other
+   side.</li>
+</ol>
+<h2 id="the-transform">The transform<a class="headerlink" href="#the-transform" title="Permanent link">&para;</a></h2>
+<p>The mother wavelet is <strong>Morlet with ω₀ = 6</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ψ₀(η) = π^(−1/4) · e^(iω₀η) · e^(−η²/2)
+</code></pre></div>
+<p>ω₀ = 6 is the usual choice because it is the smallest value for which the
+wavelet is (near enough) admissible without a correction term, and it puts the
+wavelet scale and the Fourier period within a few percent of each other:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>period = 1.03 · s          (Morlet, ω₀ = 6)
+</code></pre></div>
+<p>so a "scale" and a "period in seconds" can be read as almost the same number.
+Almost — the payload stores both <code>scales</code> and <code>period</code>, and the difference
+matters in exactly one place, noted under the cone of influence below.</p>
+<p>Scales are laid out as powers of two, <code>sⱼ = s₀ · 2^(jδj)</code>:</p>
+<table>
+<thead>
+<tr>
+<th>quantity</th>
+<th>value</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s0</code></td>
+<td><code>2Δt</code></td>
+<td>the smallest resolvable scale — two samples</td>
+</tr>
+<tr>
+<td><code>dj</code></td>
+<td><code>1/12</code></td>
+<td>twelve sub-octaves per octave, fine enough that the scale axis looks continuous</td>
+</tr>
+<tr>
+<td><code>J</code></td>
+<td><code>log₂(NΔt / s₀) / δj</code></td>
+<td>enough octaves to reach the length of the record, unless <code>maxPeriod</code> caps it</td>
+</tr>
+</tbody>
+</table>
+<p>The transform itself is <code>pycwt.cwt</code>, which pads the series to the next power of
+two internally and removes the padding afterwards.</p>
+<h3 id="cross-wavelet-power-and-phase">Cross-wavelet power and phase<a class="headerlink" href="#cross-wavelet-power-and-phase" title="Permanent link">&para;</a></h3>
+<p>With <code>W^X</code> and <code>W^Y</code> the transforms of the two prepared signals, the
+cross-wavelet transform is</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>W^XY(s, t) = W^X(s, t) · conj(W^Y(s, t))
+</code></pre></div>
+<p>and the payload stores its modulus and its argument:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>power = |W^XY|          phase = arg(W^XY)  ∈ (−π, π]
+</code></pre></div>
+<p>Note that <code>power</code> is the <strong>modulus, not the modulus squared</strong>. That is not a
+stylistic choice: Torrence &amp; Compo's eq. 31 states its significance level for
+<code>|W^X W^Y*|</code>, and storing the square beside a level derived for the modulus is
+how a plot ends up with an unfalsifiable amount of significance in it.</p>
+<p><code>phase</code> is the lead–lag, read as an angle: 0 means in phase, and a phase of φ at
+period <em>T</em> corresponds to a delay of <code>φT / 2π</code> seconds. In the figure above, the
+4 s band sits at roughly 1.1 rad, which is the 0.7 s delay the signals were
+built with.</p>
+<h3 id="coherence">Coherence<a class="headerlink" href="#coherence" title="Permanent link">&para;</a></h3>
+<p>Coherence is the cross-spectrum normalised by the two auto-spectra, each
+smoothed first in time and in scale (Torrence &amp; Webster 1999):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>              | S( s⁻¹ · W^XY ) |²
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    R²(s,t) = ─────────────────────────────────────
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>              S( s⁻¹|W^X|² ) · S( s⁻¹|W^Y|² )
+</code></pre></div>
+<p>The smoothing operator <code>S</code> is pycwt's <code>mother.smooth()</code> — the wavelet's own time
+and scale kernels — and <strong>it is applied to the complex cross-spectrum</strong>. That
+detail is the whole mechanism: coherence works by letting mismatched timing
+cancel during smoothing. Smooth the magnitude instead and nothing can ever
+cancel, and the answer is near 1 everywhere. See the defects section below;
+this project shipped that bug.</p>
+<p>Two guards sit on the result:</p>
+<ul>
+<li>Where the denominator is at or below a floor of 1e-10 × its own median — that
+  is, where neither signal has meaningful energy — the cell is <strong>NaN</strong>, not 1.0.
+  Stillness is not perfect synchrony, and capping it at the maximum is how a
+  recording of two people sitting still comes out looking perfectly coupled.</li>
+<li>Values above 1 by more than 1e-6 are treated as undefined rather than clipped,
+  because a coherence above 1 means the arithmetic went wrong, not that the
+  coupling was unusually good.</li>
+</ul>
+<h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
+<h3 id="set-in-the-studys-configjson-under-analysiscrosswavelet">Set in the study's <code>config.json</code>, under <code>analysis.crosswavelet</code><a class="headerlink" href="#set-in-the-studys-configjson-under-analysiscrosswavelet" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>type</th>
+<th>default</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mcCount</code></td>
+<td>integer ≥ 0</td>
+<td><strong>100</strong> if <code>include_network</code> is set, otherwise <strong>0</strong></td>
+<td>surrogate pairs behind the coherence chance level. <code>0</code> skips it, and <code>sig95_wtc</code> is then <code>null</code> in the payload</td>
+</tr>
+<tr>
+<td><code>maxPeriod</code></td>
+<td>seconds or <code>null</code></td>
+<td><code>null</code></td>
+<td>longest period computed. Caps <code>J</code>; the usual reason to set it is compute time</td>
+</tr>
+<tr>
+<td><code>scaleAvgBand</code></td>
+<td><code>[min, max]</code> seconds</td>
+<td><code>[2Δt, min(8Δt, longest period / 2)]</code></td>
+<td>the band <code>scale_avg_power</code> averages over</td>
+</tr>
+<tr>
+<td><code>maxTimePoints</code></td>
+<td>integer ≥ 1</td>
+<td>500</td>
+<td>width of the <strong>stored picture</strong>, in samples. The analysis always runs at full resolution</td>
+</tr>
+<tr>
+<td><code>maxFreqPoints</code></td>
+<td>integer ≥ 1</td>
+<td>100</td>
+<td>height of the stored picture, in scales</td>
+</tr>
+<tr>
+<td><code>saveFullResolution</code></td>
+<td>boolean</td>
+<td><code>true</code></td>
+<td>also write <code>{video}_crosswavelet_full.json</code>, the grids at the resolution they were computed at</td>
+</tr>
+</tbody>
+</table>
+<p>Two notes on <code>mcCount</code>. <strong>300 is the number to publish with</strong>, and it is what
+the schema recommends, but it is not what you get by default — the default is
+100 when the network tab is enabled and 0 otherwise, because the network's
+coherence mode is the only thing that reads the grid — the cross-wavelet title
+reads two numbers derived from it in every study, which is why that line reports
+the level as not computed rather than going quiet. And it is the expensive part of a rebuild: cost
+follows pairs × recordings × scale count, not minutes of video, and 300
+surrogates over a twelve-recording study is measured in hours.</p>
+<h3 id="fixed-in-the-step">Fixed in the step<a class="headerlink" href="#fixed-in-the-step" title="Permanent link">&para;</a></h3>
+<p>Changing any of these means editing <code>steps/crosswavelet.py</code>. They are listed
+because a method section has to state them, not because they are options.</p>
+<table>
+<thead>
+<tr>
+<th>constant</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mother wavelet, ω₀</td>
+<td>Morlet, 6</td>
+</tr>
+<tr>
+<td><code>dj</code>, <code>s0</code></td>
+<td>1/12, 2Δt</td>
+</tr>
+<tr>
+<td>detrending</td>
+<td>first-order polynomial</td>
+</tr>
+<tr>
+<td>taper</td>
+<td>Tukey, α = 0.05</td>
+</tr>
+<tr>
+<td>significance level</td>
+<td>0.95</td>
+</tr>
+<tr>
+<td>"high coherence" for the summary statistics</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td>AR(1) coefficient clamp</td>
+<td>0.01 … 0.95</td>
+</tr>
+<tr>
+<td>minimum samples</td>
+<td>50</td>
+</tr>
+<tr>
+<td>minimum overlap</td>
+<td>50 % of the longer recording</td>
+</tr>
+<tr>
+<td>Monte Carlo seed</td>
+<td>20250906</td>
+</tr>
+</tbody>
+</table>
+<p>The AR(1) clamp is worth knowing about when you read <code>alpha1</code> and <code>alpha2</code> in
+the payload: human movement is very red, values of 0.96–0.98 are normal, and
+anything above 0.95 is recorded as 0.95. The clamp exists because pycwt's red
+noise generator calls a NumPy function removed in NumPy 2 when the coefficient
+reaches 0, and because the estimate stops being meaningful as it approaches a
+random walk.</p>
+<h2 id="four-significance-levels-and-which-one-answers-your-question">Four significance levels, and which one answers your question<a class="headerlink" href="#four-significance-levels-and-which-one-answers-your-question" title="Permanent link">&para;</a></h2>
+<p>This is the part to get right. The payload carries four different levels, all
+of them arrays of plausible shape, and using the wrong one produces a picture
+rather than an error.</p>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>shape</th>
+<th>tests</th>
+<th>answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>signif_xwt</code></td>
+<td>per scale</td>
+<td>cross-wavelet <strong>power</strong> against red noise</td>
+<td>"is there unusually much joint energy here?"</td>
+</tr>
+<tr>
+<td><code>global_signif</code></td>
+<td>per scale</td>
+<td>the <strong>time-averaged</strong> power</td>
+<td>"over the whole record, is this timescale unusual?"</td>
+</tr>
+<tr>
+<td><code>scale_avg_signif</code></td>
+<td>one scalar</td>
+<td>the <strong>band-averaged</strong> power</td>
+<td>"is the average over this band unusual?"</td>
+</tr>
+<tr>
+<td><code>sig95_wtc</code></td>
+<td>per scale</td>
+<td><strong>coherence</strong> against unrelated red noise</td>
+<td>"is the timing relationship stronger than chance?"</td>
+</tr>
+</tbody>
+</table>
+<p>Where each one lives, and what it draws:</p>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>in the payload</th>
+<th>drawn as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>signif_xwt</code></td>
+<td><code>visualization</code></td>
+<td>the heatmap's contour, the gate on the phase arrows, and the network tab's <strong>shared power</strong> mode</td>
+</tr>
+<tr>
+<td><code>global_signif</code></td>
+<td><code>statistics</code> (and, at the stored resolution, <code>visualization</code>)</td>
+<td>the dashed level beside the global spectrum, panel C</td>
+</tr>
+<tr>
+<td><code>scale_avg_signif</code></td>
+<td><code>statistics</code> only</td>
+<td>the flat dashed level on the band-averaged series, panel D</td>
+</tr>
+<tr>
+<td><code>sig95_wtc</code></td>
+<td><code>visualization</code></td>
+<td>the network tab's <strong>coherence</strong> mode, and the cross-wavelet title's chance-level line</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Three are computed and one is sampled.</strong> <code>signif_xwt</code>, <code>global_signif</code> and
+<code>scale_avg_signif</code> come out of Torrence &amp; Compo's formulae for a red-noise
+background: they cost nothing and are in every payload. <code>sig95_wtc</code> is a Monte
+Carlo null — <code>mcCount</code> pairs of surrogate series — so it costs the time it costs
+and is <code>null</code> in a study that did not ask for one. That difference is why the
+network tab's shared power mode works in a study built with <code>mcCount: 0</code> while
+its coherence mode cannot, and why the two report different fixes when an edge
+cannot be tested.</p>
+<p><strong><code>signif_xwt</code> is not a test of coupling.</strong> Two people moving vigorously at the
+same time have joint energy whether or not their movements are related. If the
+question is whether they are coordinated, the field is <code>sig95_wtc</code>.</p>
+<p><strong>A level can be absent, and absent is not zero.</strong> <code>sig95_wtc</code> is <code>null</code> when no
+null was computed, and individual scales are <code>null</code> where the scale lies entirely
+inside the cone of influence. <code>signif_xwt</code> can reduce to a null or non-positive
+value on a scale, and <code>scale_avg_signif</code> is <code>0</code> when the band selected no scale
+at all. Every reader in the dashboard drops those cells rather than treating the
+level as passed or failed — a scale with no level contributes no contour, no
+arrow, and no cell to a network edge's average.</p>
+<p>Because the levels are per scale and the grids are period × time, the
+comparison is one index deep:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kd">const</span><span class="w"> </span><span class="nx">above</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">coherence</span><span class="p">[</span><span class="nx">j</span><span class="p">][</span><span class="nx">t</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">sig95_wtc</span><span class="p">[</span><span class="nx">j</span><span class="p">];</span><span class="w">       </span><span class="c1">// j indexes period</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kd">const</span><span class="w"> </span><span class="nx">strong</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">power</span><span class="p">[</span><span class="nx">j</span><span class="p">][</span><span class="nx">t</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">signif_xwt</span><span class="p">[</span><span class="nx">j</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">1</span><span class="p">;</span><span class="w">     </span><span class="c1">// the ratio the plot contours</span>
+</code></pre></div>
+<p><code>sig95_xwt</code> is deliberately <strong>not</strong> stored. It would be <code>power / signif_xwt</code>,
+and a payload that carries a quotient of two fields it already carries is a
+payload with two ways to be inconsistent.</p>
+<h3 id="where-the-power-levels-come-from">Where the power levels come from<a class="headerlink" href="#where-the-power-levels-come-from" title="Permanent link">&para;</a></h3>
+<p>All three power levels are computed in <code>common/tc98.py</code> from Torrence &amp; Compo
+(1998) rather than taken from a chi-square. The cross-wavelet spectrum is the
+<strong>square root of a product of two chi-squares</strong> (eq. 30), not a chi-square
+(eq. 18), and the difference is not small: measured on this project's own
+earlier code, the level came out <strong>1.50× too high</strong> with matched AR(1)
+coefficients and <strong>2.39× too high</strong> at α = (0.95, 0.20). Too high, so the error
+hid real structure rather than inventing it — which is why it survived so
+long.</p>
+<p>The distribution of <code>|W^X W^Y*|</code> under two independent red-noise processes is
+eq. 30, and inverting it numerically gives the constants the paper publishes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Z₁(95%) = 2.18195     (published 2.182)
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>Z₂(95%) = 3.99852     (published 3.999)
+</code></pre></div>
+<ul>
+<li><strong>Local</strong> (<code>signif_xwt</code>), eq. 31 with ν = 2: <code>Z₂/2 · √(P^X_k · P^Y_k)</code>, where
+  <code>P_k</code> is the AR(1) background spectrum of eq. 16.</li>
+<li><strong>Time-averaged</strong> (<code>global_signif</code>), eq. 23: the degrees of freedom grow with
+  the number of independent points averaged, <code>N − s</code>, which is why the level
+  falls as you average more.</li>
+<li><strong>Scale-averaged</strong> (<code>scale_avg_signif</code>), eqs. 25–28, with eq. 30's <code>Z_ν</code> in
+  place of chi-square.</li>
+</ul>
+<h3 id="where-the-coherence-level-comes-from">Where the coherence level comes from<a class="headerlink" href="#where-the-coherence-level-comes-from" title="Permanent link">&para;</a></h3>
+<p>For coherence no closed form is available, so the level is estimated by
+simulation, following Grinsted, Moore &amp; Jevrejeva (2004):</p>
+<ol>
+<li>Estimate the lag-1 autocorrelation of each prepared signal.</li>
+<li>Generate <code>mcCount</code> pairs of <strong>independent</strong> red-noise series with those
+   autocorrelations.</li>
+<li>Compute the coherence of each pair, and take the 95th percentile at each
+   timescale.</li>
+</ol>
+<p>That percentile is <code>sig95_wtc</code>. It answers one question: <em>how coherent would two
+unrelated signals with this much redness look, here?</em> The generator is seeded
+and the result is cached, so a rerun reproduces the same level. Scales that lie
+entirely inside the cone of influence come back as <code>null</code>.</p>
+<p>The level is not flat. It sits around 0.58–0.60 through the middle of a band and
+rises at both ends — above 0.7 at the extremes — where fewer independent cycles
+fit inside the record.</p>
+<h2 id="the-one-thing-to-know-before-reading-a-coherence-value">The one thing to know before reading a coherence value<a class="headerlink" href="#the-one-thing-to-know-before-reading-a-coherence-value" title="Permanent link">&para;</a></h2>
+<p><strong>Coherence does not sit at zero when there is no relationship.</strong> It is a ratio
+taken over a smoothing neighbourhood, so a handful of random phases still average
+to something well above zero.</p>
+<p>How far above is a property of your data, not a constant. Measured on the
+Karnatak study, two independent signals averaged about <strong>0.25</strong>, and the 95 %
+level came out near <strong>0.59</strong> — so on that data an edge of 0.27 is
+indistinguishable from no coupling at all. Treat those two numbers as an
+illustration of the size of the effect, not as thresholds to reuse: one is a mean
+and the other a 95th percentile, and both were measured on one dataset.</p>
+<p>The consequence is general even though the numbers are not. A value of 0.5 means
+nothing on its own, and a picture of raw coherence with no baseline drawn on it is
+unreadable — it will look like coupling everywhere, because it is coherent
+everywhere.</p>
+<p>Every value has to be read against <code>sig95_wtc</code>. Every one.</p>
+<h3 id="what-the-method-assumes">What the method assumes<a class="headerlink" href="#what-the-method-assumes" title="Permanent link">&para;</a></h3>
+<p>Five assumptions, each of which is a judgement rather than a measurement:</p>
+<ol>
+<li><strong>The surrogate count.</strong> 300 pairs is the number to publish with. Estimating
+   a 95th percentile from 100 samples is noisy: with an unseeded generator,
+   repeated runs on identical data disagreed by up to 0.04 on the level. Seeding
+   makes it reproducible, which is not the same as accurate.</li>
+<li><strong>AR(1) is a model.</strong> Whether a first-order autoregressive process describes
+   the signal at hand is a choice, not a fact about the data.</li>
+<li><strong>The null is stationary; a recording is not.</strong> One level per timescale is
+   applied across a record that may contain both rest and vigorous movement.</li>
+<li><strong>Every cell is tested at 95 %, so 5 % exceed by construction.</strong> Treat a
+   single bright cell as noise. What means something is the <em>fraction</em> of usable
+   cells above the level, read against a 0.05 baseline — which is what
+   <code>statistics.wtc_signif_fraction</code> is.</li>
+<li><strong>The surrogates are independent; two measurements of the same scene may not
+   be.</strong> When both signals come from one video, their jitter has shared
+   sources — camera motion, lighting, the tracker's own instability. Shared
+   measurement noise produces genuine coherence, and AR(1) surrogates cannot
+   tell that the correlation came from the camera rather than from the people.
+   If that is a live concern, the answer is a stronger null: surrogates that
+   preserve each signal's amplitude envelope and randomise only the timing.
+   That has not been built.</li>
+</ol>
+<h2 id="the-cone-of-influence-is-a-different-thing">The cone of influence is a different thing<a class="headerlink" href="#the-cone-of-influence-is-a-different-thing" title="Permanent link">&para;</a></h2>
+<p>The cone of influence marks where a wavelet coefficient is contaminated by the
+edges of the record — the transform has run off the end of the data. It is about
+<strong>which cells exist</strong>, and applies to power and coherence alike.</p>
+<p>Significance is about <strong>which existing cells mean something</strong>. Cells inside the
+cone are excluded from the statistics entirely; they are not "insignificant",
+they are unavailable. Conflating the two is easy because both end up drawn as
+hatching or transparency.</p>
+<p>Two practical points about the stored <code>coi</code> array:</p>
+<ul>
+<li><strong>The grids are not masked.</strong> <code>coi</code> is an axis, like <code>time</code> and <code>period</code>, and
+  applying it is the reader's job. The summary statistics do apply it.</li>
+<li><strong>The comparison is against <code>scales</code>, not <code>period</code>.</strong> A cell is unusable when
+  <code>scales[j] &gt; coi[t]</code>. Since <code>period = 1.03 · s</code>, drawing <code>coi</code> straight onto a
+  period axis puts the boundary 3 % out — small, and in the direction that
+  flatters the result.</li>
+</ul>
+<h2 id="three-defects-worth-checking-older-output-for">Three defects worth checking older output for<a class="headerlink" href="#three-defects-worth-checking-older-output-for" title="Permanent link">&para;</a></h2>
+<p>All three were found in this project's own analyses, all are fixed, and any of
+them can be present in output produced elsewhere by similar code.</p>
+<p><strong>Discarding phase before it can cancel.</strong> Smoothing the <em>magnitude</em> of the
+cross-spectrum instead of the complex value removes the timing before it can
+cancel, so nothing ever cancels. The symptom is unmistakable once looked for: a
+large share of cells sitting at exactly 1.0 — in the case that prompted this,
+56.7 % of them — and coherence correlating with signal power at +0.87.
+Corrected, the same recording had no cells at 1.0 and a power correlation of
+−0.02.</p>
+<p><strong>Reporting silence as perfect coupling.</strong> Where neither signal moves, the
+calculation divides almost-nothing by almost-nothing and the result is
+numerically capped at the maximum. Cells with no meaningful energy in either
+signal must be left blank, not capped.</p>
+<p><strong>No baseline at all.</strong> Without <code>sig95_wtc</code> there is nothing to read a value
+against, and every edge looks strong.</p>
+<p>A quick check on any existing output: the share of cells at exactly 1.0, and the
+correlation between coherence and log power. Both should be near zero.
+<code>dims_checks.coherence</code> in the notebooks package runs exactly these.</p>
+<h2 id="reading-a-result">Reading a result<a class="headerlink" href="#reading-a-result" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Compare <code>statistics.wtc_signif_fraction</code> with <strong>0.05</strong>, not with zero.</li>
+<li><strong>"Not detectable" is not "absent".</strong> A null result is a statement about one
+  recording, over one band of timescales, against one kind of null.</li>
+<li>Analyse <code>_full.json</code>, not the reduced payload. That one is reduced in time and
+  rounded to six significant figures; it is a picture, not the analysis.</li>
+<li>A within-person pair scoring far above chance while between-person pairs sit
+  at chance is the expected shape of a healthy analysis, not a disappointment.
+  One body is one motor system, and it is the strongest coupling most recordings
+  contain.</li>
+</ul>
+<h3 id="two-more-views-the-payload-gives-you-for-free">Two more views the payload gives you for free<a class="headerlink" href="#two-more-views-the-payload-gives-you-for-free" title="Permanent link">&para;</a></h3>
+<div class="figure" id="fig-xwt-global"></div>
+
+<div class="figure" id="fig-xwt-scaleavg"></div>
+
+<h2 id="what-it-writes">What it writes<a class="headerlink" href="#what-it-writes" title="Permanent link">&para;</a></h2>
+<p>One entry per pair under <code>crosswavelet_pairs</code>, keyed <code>"{type1}_vs_{type2}"</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>{
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  "video_id": "demo",
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  "payload_version": 2,
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  "crosswavelet_pairs": {
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    "sig_a_vs_sig_b": {
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>      "data_type1": "sig_a", "data_type2": "sig_b",
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>      "dt": 0.1, "n_samples": 599, "time_range": [0.0, 59.9],
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>      "mother_wavelet": "morlet", "omega0": 6,
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>      "dj": 0.0833333, "s0": 0.2, "J": 79.0,
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>      "alpha1": 0.944406, "alpha2": 0.95,
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>      "scale_avg_band": [0.2, 0.8],
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>      "statistics": { "…": "summary numbers, below" },
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>      "metadata":   { "…": "the preparation settings used" },
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>      "visualization": { "…": "the grids, below" }
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    }
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>  },
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>  "data_types": ["sig_a", "sig_b"],
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>  "config": { "…": "the step's fixed constants" },
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>  "provenance": { "core_version": "1.4.3", "mc_count": 200,
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>                  "significance_level": 0.95, "wct_signif_seed": 20250906,
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>                  "max_time_points": 150, "max_freq_points": 48 },
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>  "processing_info": { "…": "" },
+<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>  "precision": { "significant_figures": 6 }
+<a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>}
+</code></pre></div>
+<h3 id="visualization--the-grids"><code>visualization</code> — the grids<a class="headerlink" href="#visualization--the-grids" title="Permanent link">&para;</a></h3>
+<p><code>P</code> is the number of periods and <code>T</code> the number of time points after reduction.
+Every 2-D field is <strong>period × time</strong>, in that order.</p>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>encoding</th>
+<th>shape</th>
+<th>units</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>time</code></td>
+<td>JSON list</td>
+<td><code>T</code></td>
+<td>seconds</td>
+</tr>
+<tr>
+<td><code>period</code></td>
+<td>JSON list</td>
+<td><code>P</code></td>
+<td>seconds</td>
+</tr>
+<tr>
+<td><code>scales</code></td>
+<td>JSON list</td>
+<td><code>P</code></td>
+<td>wavelet scale, seconds</td>
+</tr>
+<tr>
+<td><code>freqs</code></td>
+<td>JSON list</td>
+<td><code>P</code></td>
+<td>Hz</td>
+</tr>
+<tr>
+<td><code>power</code></td>
+<td><code>f32-b64</code></td>
+<td><code>P × T</code></td>
+<td>|W^XY|, normalised-signal²</td>
+</tr>
+<tr>
+<td><code>phase</code></td>
+<td><code>f32-b64</code></td>
+<td><code>P × T</code></td>
+<td>radians, (−π, π]</td>
+</tr>
+<tr>
+<td><code>coherence</code></td>
+<td><code>f32-b64</code></td>
+<td><code>P × T</code></td>
+<td>0…1, <code>null</code> where undefined</td>
+</tr>
+<tr>
+<td><code>coi</code></td>
+<td>JSON list</td>
+<td><code>T</code></td>
+<td>period, seconds — compare against <code>scales</code></td>
+</tr>
+<tr>
+<td><code>signif_xwt</code></td>
+<td>JSON list</td>
+<td><code>P</code></td>
+<td>same units as <code>power</code></td>
+</tr>
+<tr>
+<td><code>sig95_wtc</code></td>
+<td>JSON list or <code>null</code></td>
+<td><code>P</code></td>
+<td>coherence units; <code>null</code> when <code>mcCount</code> is 0</td>
+</tr>
+<tr>
+<td><code>global_power</code>, <code>global_signif</code></td>
+<td>JSON list</td>
+<td><code>P</code></td>
+<td>time-averaged power and its level</td>
+</tr>
+<tr>
+<td><code>scale_avg_power</code></td>
+<td>JSON list</td>
+<td><code>T</code></td>
+<td>band-averaged power per time point</td>
+</tr>
+<tr>
+<td><code>downsampling_factors</code></td>
+<td>object</td>
+<td>—</td>
+<td><code>{time_factor, freq_factor}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="statistics--the-summary-numbers"><code>statistics</code> — the summary numbers<a class="headerlink" href="#statistics--the-summary-numbers" title="Permanent link">&para;</a></h3>
+<p><code>wtc_signif_fraction</code> is the one to read: the share of finite, outside-the-cone
+cells whose coherence exceeds <code>sig95_wtc</code>, against a 0.05 baseline. Also here:
+<code>max_coherence</code>, <code>mean_coherence</code>, <code>high_coherence_fraction</code> (share above 0.8),
+<code>mean_phase_by_freq</code> (a <strong>circular</strong> mean, <code>arg(mean(e^{iφ}))</code>, because the
+arithmetic mean of two angles either side of ±π is meaningless),
+<code>scale_avg_power_mean</code> and <code>scale_avg_signif</code>.</p>
+<h3 id="two-things-in-the-payload-that-are-less-informative-than-they-look">Two things in the payload that are less informative than they look<a class="headerlink" href="#two-things-in-the-payload-that-are-less-informative-than-they-look" title="Permanent link">&para;</a></h3>
+<p><code>processing_info.visualization_resolution</code> and the top-level <code>config</code> block
+report the step's <strong>module constants</strong>, not what this study asked for. The
+settings actually used are in <code>provenance</code>. If you want to know the grid this
+payload was reduced to, read <code>provenance.max_time_points</code> — or the shape of
+<code>visualization.power</code>, which cannot be wrong.</p>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Torrence, C., &amp; Compo, G. P. (1998). A practical guide to wavelet analysis.
+  <em>Bulletin of the American Meteorological Society</em>, <strong>79</strong>(1), 61–78.
+  <a href="https://doi.org/10.1175/1520-0477(1998)079%3C0061:APGTWA%3E2.0.CO;2">doi:10.1175/1520-0477(1998)079&lt;0061:APGTWA&gt;2.0.CO;2</a>
+  — the source of the scale layout, the AR(1) background spectrum, and all three
+  power significance levels used here. The authors' companion page, with the
+  original code and the worked NIÑO3 example, is at
+  <a href="https://atoc.colorado.edu/research/wavelets/">https://atoc.colorado.edu/research/wavelets/</a>. The constants transcribed from
+  it are in <a href="https://github.com/dims-network/dims/blob/v1.5.0/examples/reference/TORRENCE_COMPO.md"><code>examples/reference/TORRENCE_COMPO.md</code></a>.</li>
+<li>Torrence, C., &amp; Webster, P. J. (1999). Interdecadal changes in the ENSO monsoon
+  system. <em>Journal of Climate</em>, <strong>12</strong>(8), 2679–2690. — the smoothed coherence
+  formula.</li>
+<li>Grinsted, A., Moore, J. C., &amp; Jevrejeva, S. (2004). Application of the cross
+  wavelet transform and wavelet coherence to geophysical time series.
+  <em>Nonlinear Processes in Geophysics</em>, <strong>11</strong>, 561–566.
+  <a href="https://doi.org/10.5194/npg-11-561-2004">doi:10.5194/npg-11-561-2004</a>
+  — the Monte Carlo coherence null.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      MIT-licensed. Built from the markdown in dims-network/dims.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js"></script>
+      
+        <script src="../demo/analyses-plots.js"></script>
+      
+        <script src="../../javascripts/shot-placeholders.js"></script>
+      
+    
+  </body>
+</html>

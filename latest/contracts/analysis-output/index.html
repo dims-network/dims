@@ -1,0 +1,2232 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Recordings and the time series taken from them, on one timeline, with the analyses that say how two signals relate.">
+      
+      
+      
+        <link rel="canonical" href="https://dims-network.github.io/dims/1.5/contracts/analysis-output/">
+      
+      
+        <link rel="prev" href="../assets/">
+      
+      
+        <link rel="next" href="../data-visibility/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Analysis output - DIMS</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/dims.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#contract-what-an-analysis-output-is" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="DIMS" class="md-header__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DIMS
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Analysis output
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="DIMS" class="md-nav__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    DIMS
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start here
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start here
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The no-code builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../analyses/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyses
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analyses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recurrence (RQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-recurrence (cRQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tabs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/timeseries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time series
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-effector network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/elan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ELAN annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asset layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis output
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a1--stated-input-bounds-refused-before-allocating" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A1 — Stated input bounds, refused before allocating
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2--one-file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A2 — One file format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a3--two-resolutions-and-only-where-the-second-has-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A3 — Two resolutions, and only where the second has content
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a4--reduction-is-recorded-and-a-cap-is-a-cap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A4 — Reduction is recorded, and a cap is a cap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a5--the-window-is-a-parameter-of-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A5 — The window is a parameter of the result
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a6--asked-for-and-achieved-are-both-recorded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A6 — Asked-for and achieved are both recorded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a7--a-stated-compute-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A7 — A stated compute budget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a8--what-is-computed-is-shown-or-it-is-not-computed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A8 — What is computed is shown, or it is not computed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a9--significance-levels-are-the-published-ones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A9 — Significance levels are the published ones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acceptance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acceptance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-visibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public and private data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-case
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending DIMS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extending DIMS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a tab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing an analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A study repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/dims-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    window.DIMS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/host-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The host runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/figure-geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    figure-geometry.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/analysis-common/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims_analysis.common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The builder's HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versions, vendoring and the pin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a1--stated-input-bounds-refused-before-allocating" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A1 — Stated input bounds, refused before allocating
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2--one-file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A2 — One file format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a3--two-resolutions-and-only-where-the-second-has-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A3 — Two resolutions, and only where the second has content
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a4--reduction-is-recorded-and-a-cap-is-a-cap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A4 — Reduction is recorded, and a cap is a cap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a5--the-window-is-a-parameter-of-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A5 — The window is a parameter of the result
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a6--asked-for-and-achieved-are-both-recorded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A6 — Asked-for and achieved are both recorded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a7--a-stated-compute-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A7 — A stated compute budget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a8--what-is-computed-is-shown-or-it-is-not-computed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A8 — What is computed is shown, or it is not computed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a9--significance-levels-are-the-published-ones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A9 — Significance levels are the published ones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acceptance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Acceptance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/dims-network/dims/edit/main/docs/contracts/analysis-output.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="contract-what-an-analysis-output-is">Contract: what an analysis output is<a class="headerlink" href="#contract-what-an-analysis-output-is" title="Permanent link">&para;</a></h1>
+<p><a href="../assets/">Asset layout</a> says where a result goes and what it is called. This
+says what has to be <strong>in</strong> it, and why each requirement exists.</p>
+<p>It exists because nine defects were found in these outputs one at a time, each
+by accident, and they were not nine unrelated bugs: nothing stated what an
+output was supposed to be, so every check could only ask "did it crash?". Every
+requirement below is stated once and tested against
+<a href="https://github.com/dims-network/dims/blob/v1.5.0/examples/reference/README.md"><code>examples/reference/</code></a>, a synthetic study
+whose answers are known before anything runs.</p>
+<hr />
+<h2 id="a1--stated-input-bounds-refused-before-allocating">A1 — Stated input bounds, refused before allocating<a class="headerlink" href="#a1--stated-input-bounds-refused-before-allocating" title="Permanent link">&para;</a></h2>
+<p>An analysis states the shortest and longest input it accepts, in samples, with
+the reason.</p>
+<p>RQA and cross-RQA build a dense N×N matrix, so the maximum follows from memory:
+a 58,000-point recording is 3.4 billion cells and <strong>27 GB</strong>, and there was no
+guard at all. <code>common/limits.py</code> holds one implementation of the arithmetic;
+<code>check_length</code> refuses <strong>before</strong> allocating and names the limit, the actual
+length, and what to do about it.</p>
+<p>The lower bound is a minimum of <code>MIN_POINTS</code> samples and a <strong>non-zero
+variance</strong>. Both recurrence analyses normalise by the standard deviation, and a
+constant series divides by zero: measured before the check existed, a flat
+signal reported <code>recurrence_rate = -0.000977517</code> — a negative share of cells,
+which reached a dashboard caption. It is refused with a sentence, not analysed
+into a NaN.</p>
+<p>Both steps normalise through one <code>series.normalise</code>. They used to do it two
+ways — one divided by <code>np.std(x)</code>, the other by <code>np.std(x) + 1e-6</code> — which does
+not move DET or RR, because the threshold is a percentile and the analysis is
+scale-free, but does move the stored <code>threshold</code>, so the two steps' thresholds
+were not comparable.</p>
+<p>A pairwise analysis interpolates both series onto one grid at the <strong>finer</strong> of
+the two sampling intervals, so a 10 Hz series paired with a 100 Hz one produces
+a 100 Hz grid — ten times the points, a hundred times the matrix, and no added
+information. The length guard therefore applies to the <strong>common grid</strong>, not to
+either input.</p>
+<h2 id="a2--one-file-format">A2 — One file format<a class="headerlink" href="#a2--one-file-format" title="Permanent link">&para;</a></h2>
+<p><strong>JSON, with base64 little-endian typed arrays for anything large.</strong> No <code>.npz</code>
+anywhere. Every array field is either a plain JSON list — small, and something
+a person opens the file to read — or an object naming its encoding:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>{"encoding": "bitmap-b64", "rows": 500, "cols": 500, "data": "…"}
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>{"encoding": "f32-b64",    "shape": [128, 3026],      "data": "…"}
+</code></pre></div>
+<p>The <code>encoding</code> field is the design. A reader that meets one it does not know
+<strong>says so by name</strong>; a format that changed silently is how a tab ends up
+drawing an empty panel with nothing in the log. One decoder in Python
+(<code>common/arrays.py</code>), one in JavaScript (<code>DIMS.decodeArray</code>), tested against
+each other with vectors the Python side produced.</p>
+<p>There used to be two artifacts per analysis, and measured file by file the
+second one mostly held nothing the first did not:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>what the <code>.npz</code> uniquely held</th>
+<th>verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RQA</td>
+<td><code>time</code> + <code>signal</code>, byte-identical to the source CSV after the documented cleaning; windowed metrics that duplicate the JSON's exactly</td>
+<td>redundant</td>
+</tr>
+<tr>
+<td>cRQA</td>
+<td>the prepared signals on the common grid; metrics duplicated</td>
+<td>nearly redundant</td>
+</tr>
+<tr>
+<td>cross-wavelet</td>
+<td>coherence, power and phase at 6× the time resolution</td>
+<td>the real thing</td>
+</tr>
+</tbody>
+</table>
+<p>Meanwhile the assets contract told readers "<strong>Analyse from the <code>.npz</code></strong>" —
+pointing them, for RQA, at the file holding <em>less</em>.</p>
+<p>A recurrence matrix is a <strong>bitmap</strong>, one bit per cell, not a list of
+<code>[row, col]</code> pairs. Pairs cost about ten bytes per recurrent cell; a bitmap
+costs one bit per cell whatever the density. Measured on one ORTHO gaze matrix:
+<strong>7,300,452 bytes as pairs against 133,803 as a bitmap, 54.6×</strong>. Sparse only
+wins below about 1.2 % density, and RQA targets 7 % while ORTHO's gaze channels
+run 63–89 %.</p>
+<p><strong>Nothing derived is stored.</strong> <code>sig95_xwt</code> — joint power divided by its own
+per-scale level, broadcast across time — was a third full grid holding the
+quotient of two fields already in the file, and a quarter of the full-resolution
+output. A reader divides.</p>
+<p>The measured cost, stated rather than glossed. On the reference study:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>before</th>
+<th>after</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RQA (JSON + <code>.npz</code>)</td>
+<td>781,681</td>
+<td>207,459</td>
+<td><strong>3.8× smaller</strong></td>
+</tr>
+<tr>
+<td>cRQA</td>
+<td>309,186</td>
+<td>137,937</td>
+<td><strong>2.2× smaller</strong></td>
+</tr>
+<tr>
+<td>cross-wavelet, what a page fetches</td>
+<td>4,881,299</td>
+<td>2,238,164</td>
+<td><strong>2.2× smaller</strong></td>
+</tr>
+<tr>
+<td>cross-wavelet, full resolution</td>
+<td>6,979,924</td>
+<td>12,721,453</td>
+<td><strong>1.8× larger</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The last row is the price: base64 float32 against a deflate-compressed <code>.npz</code>.
+It is paid by the file a browser never fetches, and it buys one format with one
+decoder and one schema. A study that does not want it sets
+<code>analysis.crosswavelet.saveFullResolution: false</code>.</p>
+<h2 id="a3--two-resolutions-and-only-where-the-second-has-content">A3 — Two resolutions, and only where the second has content<a class="headerlink" href="#a3--two-resolutions-and-only-where-the-second-has-content" title="Permanent link">&para;</a></h2>
+<p>Same schema, two files:</p>
+<ul>
+<li><code>{video}_{analysis}_data.json</code> — reduced, what the browser fetches</li>
+<li><code>{video}_crosswavelet_full.json</code> — full resolution</li>
+</ul>
+<p>They differ <strong>only</strong> in the time axis; field names and schema are identical, so
+one reader serves both, and a notebook written against the payload does not
+break on the file it is supposed to prefer.</p>
+<p><strong>Only cross-wavelet gets the second file</strong>, and that is measured rather than
+assumed: only there are the large fields two-dimensional (128 × 3026 against
+128 × 504 drawn). Everything in a recurrence result except the matrix is
+one-dimensional and small — a 6,000-point signal is 24 kB as float32 — so the
+full-resolution signal travels in the single file, and there is nothing a second
+one could hold.</p>
+<p><strong>The recurrence matrix is not stored at any resolution.</strong> It is quadratic:
+3,000 points bit-packed is 1.1 MB, but 58,000 is 420 MB. The signal and the
+threshold are stored, and the matrix is one <code>cdist</code> away.</p>
+<p>Every payload carries <code>payload_version</code>, and it is not decoration.</p>
+<p>A tab checks it before drawing and, when it cannot read the file, says which
+core wrote it and what to run — an older asset says "rebuild", a newer one says
+"update the vendored core", because those are opposite fixes. A blank panel is
+indistinguishable from a study with no data, and that is the failure this
+release most wants nobody to find by looking at a dashboard.</p>
+<p>The merge honours it too. <code>write_payload</code> preserves entries an incoming run did
+not rewrite — that is what keeps a study-owned analysis alive across a run of a
+shared step — but <strong>nothing is merged across a version change</strong>, because an
+entry nothing rewrote is one the new reader cannot read. Found by rebuilding
+ORTHO: four of twelve recordings came out stamped v2 while holding v1 entries.
+What is dropped is named.</p>
+<p>A payload with <strong>no</strong> version written into a file that has one is <strong>refused</strong>,
+not merged. Otherwise a study-owned step that forgot the field would drop every
+entry already in the file, including analyses it did not produce — turning one
+missing line into the silent loss that merging exists to prevent.</p>
+<p><strong>A step removes its own entries, and only its own.</strong> Preserving everything was
+the other half of this trade and it had a cost: a study that stopped asking for
+a result kept the old answer for ever, and every reader drew it. Measured on the
+reference study — <code>include_crosswavelet</code> asked for four pairs,
+<code>processing_info.pairs_computed</code> said four, the file held seven, and two of the
+extras named a series no effector declared any more, which the network tab drew
+as an entire extra person.</p>
+<p>So the file records who wrote each entry, in a top-level <code>entry_owners</code> of
+<code>{payload key: {entry name: step id}}</code>, and an entry goes when <strong>all</strong> of these
+hold: the incoming run names an owner and the keys it owns, the file records
+that same owner against the entry, the run did not produce it, and the config no
+longer asks for it.</p>
+<ul>
+<li>The last condition is not redundant. A step that cannot read one data type's
+  CSV warns and carries on, so "absent from this run" is not "no longer
+  wanted" — pruning on absence alone deletes a good and expensive result
+  because somebody renamed a file.</li>
+<li>An entry owned by <strong>another</strong> step survives. That is the ORTHO guarantee
+  above, now with a name attached rather than resting on never removing
+  anything.</li>
+<li>An entry with <strong>no</strong> owner recorded survives too, and is reported. A file
+  written before this bookkeeping cannot be spoken for, and a guess there is
+  exactly how a shared step deletes a fork's results. <code>dims-analysis prune</code>
+  is the deliberate removal, and it reports before it writes.</li>
+<li><code>entry_owners</code> is rebuilt on every write and never merged as part of the
+  payload: the one-level merge replaces a nested dict wholesale, so carrying it
+  through that path would drop another step's stamps — the bookkeeping would
+  have the very bug it exists to prevent.</li>
+<li><code>payload_version</code> does <strong>not</strong> move for it. The key is additive and no reader
+  inspects unknown top-level keys; bumping the version would instead send every
+  existing file down the "nothing merges across a format change" branch.</li>
+</ul>
+<p>A step declares what it owns by answering <code>Step.expected_entries(config)</code> with
+<code>{payload key: the entry names this config asks for}</code>. The default is <code>{}</code>,
+meaning <em>cannot say</em> — such a step's entries are stamped with nobody and removed
+by nothing, which is the safe end of the trade.</p>
+<p><strong>One assumption the whole scheme rests on: a step writes all of its entries for
+a file in a single call.</strong> The shipped steps do, writing once per video after
+their loop over data types or pairs. A step that wrote once per pair would, on
+its second call, find its own first entry absent from the incoming payload and
+prune the work it had just done.</p>
+<h2 id="a4--reduction-is-recorded-and-a-cap-is-a-cap">A4 — Reduction is recorded, and a cap is a cap<a class="headerlink" href="#a4--reduction-is-recorded-and-a-cap-is-a-cap" title="Permanent link">&para;</a></h2>
+<p>Everything a browser draws is reduced, and the reduction is part of the result:
+factor, method, the full length it came from, and the recurrence rate both
+before and after.</p>
+<p><code>n // factor &lt;= max_points</code>, and the two words matter. <code>factor_for</code>
+floor-divided, so 999 points against a cap of 500 gave a factor of 1 and drew
+all 999 — anything between the cap and twice the cap was not reduced at all,
+which is quadratic in a recurrence plot. The same defect existed a second time,
+inside the cross-wavelet step, which computed its own factors.</p>
+<p>Budgets, in drawn elements: a recurrence plot at most <strong>500 × 500</strong>, a
+cross-wavelet picture at most <strong>500 × 100</strong>.</p>
+<p><code>rate_full</code> and <code>rate_drawn</code> are both recorded because they can differ: on a
+very sparse matrix, reproducing the rate exactly would reduce a recurrent line
+to a couple of dots. The picture must never silently contradict the number
+printed beside it.</p>
+<h2 id="a5--the-window-is-a-parameter-of-the-result">A5 — The window is a parameter of the result<a class="headerlink" href="#a5--the-window-is-a-parameter-of-the-result" title="Permanent link">&para;</a></h2>
+<p>DET, LAM, RR and L_MAX are shares of the structure inside one window, and every
+one of them moves with how long that window is. So a windowed analysis records
+<code>window</code>: the length and step <strong>asked for</strong>, the length and step <strong>used</strong>, the
+number of windows, and a sentence when they differ.</p>
+<p>They differ often. A 20 s window does not fit twice in a 20.48 s recording, and
+one trivial window renders a blank chart, so it is shortened — correctly, and
+until this contract existed, silently: 20 s and 1 s requested, 10.24 s and 0.5 s
+used, nothing said. Two recordings of different lengths were then analysed at
+different window lengths and their metric series compared as if they were not.</p>
+<p>The placement is decided <strong>in seconds</strong>, and sample indices derived from times.
+Doing it in samples made the reported time axis move with the sampling rate: the
+same 2 s sine at 50 Hz and 100 Hz produced steps of 0.5 s and 0.51 s and last
+window centres of 15.12 s and 15.32 s. A unit error like that is invisible on
+real data, because every number stays plausible.</p>
+<p>One implementation: <code>common/window.py</code>, used by both recurrence steps.</p>
+<h2 id="a6--asked-for-and-achieved-are-both-recorded">A6 — Asked-for and achieved are both recorded<a class="headerlink" href="#a6--asked-for-and-achieved-are-both-recorded" title="Permanent link">&para;</a></h2>
+<p>Wherever an analysis aims at something it may not hit, the payload carries both
+numbers and a warning when they are far apart.</p>
+<ul>
+<li><strong>Recurrence rate.</strong> The threshold is a percentile of the distance matrix, so
+  a signal with many exactly-equal distances lands on a plateau and the target
+  cannot be reached. That is common in real data — a game piece at rest, a
+  quantised sensor — and it went unrecorded: an ORTHO series reached 12.7 %
+  against a 7 % target in silence, and a four-level quantised signal reaches
+  33.7 %. DET and LAM depend strongly on the rate, so two recordings analysed at
+  materially different rates are not comparable, and that is a fact about the
+  data rather than an error: it is reported, not raised.</li>
+<li><strong>The window</strong>, as A5 describes.</li>
+<li><strong><code>mcCount</code></strong>, so a study computed partly at 100 surrogates and partly at 300
+  cannot be silently inconsistent.</li>
+<li><strong>The core version that produced the file</strong>, in <code>provenance</code>.</li>
+</ul>
+<p>Rounding is uniform. Every payload passes through <code>round_payload</code> and carries a
+<code>precision</code> block; a study-owned step that skips it produces a file whose stated
+precision is not its actual precision.</p>
+<h2 id="a7--a-stated-compute-budget">A7 — A stated compute budget<a class="headerlink" href="#a7--a-stated-compute-budget" title="Permanent link">&para;</a></h2>
+<p><code>analysis.crosswavelet.mcCount</code> is the number of Monte Carlo surrogates behind
+the coherence null. 300 is the publication setting; the whole ORTHO study at
+that setting is <strong>~2.8 hours</strong>, and the bottleneck is a Python double loop
+inside <code>pycwt.wct_significance</code> — 6.9M <code>numpy.ma.__getitem__</code> calls per six
+surrogates — not the wavelet mathematics. Rewriting a published numerical
+routine is out of scope; running independent pairs concurrently is not.</p>
+<p><code>--jobs</code> does that, defaulting to one process per core. <strong>Serial and parallel
+output must be byte-identical</strong>, and that is the acceptance check rather than a
+hope: the null is seeded on its own parameters rather than drawn from a shared
+stream, and results are collected in the order the pairs were listed rather than
+as they finish, because a payload is a dict written in insertion order. Measured
+on the reference study with a cold null cache, ten cores, seven pairs: <strong>95.3 s
+serially against 37.1 s in parallel</strong>, byte for byte the same file.</p>
+<h2 id="a8--what-is-computed-is-shown-or-it-is-not-computed">A8 — What is computed is shown, or it is not computed<a class="headerlink" href="#a8--what-is-computed-is-shown-or-it-is-not-computed" title="Permanent link">&para;</a></h2>
+<p>A system can sit in a third state — paying for something nobody reads — and
+nothing says so. The coherence null was exactly that: every study computed it,
+and one tab in one study read it.</p>
+<p>The rule: <strong>the Monte Carlo is available to every study, and its default
+follows from what the study contains.</strong></p>
+<ul>
+<li><code>analysis.crosswavelet.mcCount</code> works in any case repository. Anyone who
+  wants to display or work with coherence elsewhere turns it on; nothing about
+  the pipeline has to change for them.</li>
+<li><strong>Default 100</strong> when the config enables something that reads <code>sig95_wtc</code> —
+  today that is <code>include_network</code>, whose coherence mode is its only reader. Its
+  shared power mode reads <code>signif_xwt</code>, which is analytic and always present.
+  <strong>Default 0 otherwise</strong>, skipping the simulation entirely.</li>
+<li>An explicit <code>mcCount</code> always wins, in both directions.</li>
+<li>The step <strong>says which it chose and why</strong>, and records the choice in the
+  payload per A6, so it is visible after the fact and not only in a log nobody
+  kept.</li>
+<li>A tab that wants <code>sig95_wtc</code> and does not find it <strong>says so</strong> — "this output
+  was built without a coherence null; set <code>analysis.crosswavelet.mcCount</code> and
+  rebuild" — rather than drawing nothing. That is what keeps the default safe
+  when someone adds such a tab later.</li>
+</ul>
+<h2 id="a9--significance-levels-are-the-published-ones">A9 — Significance levels are the published ones<a class="headerlink" href="#a9--significance-levels-are-the-published-ones" title="Permanent link">&para;</a></h2>
+<p>The cross-wavelet spectrum is the square root of a product of two chi-squares
+(Torrence &amp; Compo 1998, eq. 30), <strong>not</strong> a chi-square. All three significance
+levels used the chi-square anyway, and evaluated the background at the mean of
+the two AR(1) coefficients rather than combining the two series' own spectra.
+Measured: the local level was 1.50× too high with matched coefficients and 2.39×
+at α = (0.95, 0.2); the time-averaged 1.32–1.37×; the scale-averaged 1.267×.</p>
+<p>One implementation, <code>common/tc98.py</code>, with the equation number beside each
+formula and the paper itself in <code>examples/reference/</code>. Its transcription is
+tested against the two values the paper prints (Z₁ = 2.182, Z₂ = 3.999) and
+against <code>pycwt</code> under substitution — put the chi-square back and hand it one
+spectrum twice, and it must reproduce <code>pycwt.significance</code> exactly.</p>
+<p><code>examples/reference/TORRENCE_COMPO.md</code> transcribes every constant used, with
+its table and equation number, so a reader can check the transcription rather
+than trust it.</p>
+<hr />
+<h2 id="acceptance">Acceptance<a class="headerlink" href="#acceptance" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>python -m pytest tests/reference -q -rs</code> is green, and every skip is
+  one you meant. It is a <strong>gate</strong>: CI runs it, and the generated
+  <code>core-update.yml</code> in every study runs it against a candidate release before
+  offering the bump, because the analyses are not vendored — a study installs
+  them from the core it pins.</li>
+<li>A 60,000-point series is refused with a message naming the limit, before
+  anything is allocated.</li>
+<li><code>tests/baseline.json</code> pins every number these analyses produce. When it moves,
+  the commit says which numbers moved and why.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      MIT-licensed. Built from the markdown in dims-network/dims.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js"></script>
+      
+        <script src="../../analyses/demo/analyses-plots.js"></script>
+      
+        <script src="../../javascripts/shot-placeholders.js"></script>
+      
+    
+  </body>
+</html>

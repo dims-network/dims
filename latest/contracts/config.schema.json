@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dims-network.github.io/schemas/config.schema.json",
+  "title": "DIMS dashboard config.json",
+  "description": "Describes one study. Written by hand or by the builder, read by the dashboard and by every analysis step. Before this schema existed there were three mutually incompatible dialects in use; keys marked 'tab-owned' come from tabs that were built in separate forks.",
+  "type": "object",
+  "required": [
+    "videoIDs",
+    "dataTypes"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "pairList": {
+      "description": "Either explicit pairs [[a,b],[a,c]], or a legacy flat list [a,b,c] which is expanded to all combinations. Both forms are supported; prefer pairs. anyOf, not oneOf: an empty list is valid under both branches, and oneOf would reject it.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "videoIDs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[^_]*(_[^_]+)*$"
+      },
+      "description": "Session identifiers. Each must have assets/videos/{videoID}.mp4 unless a videoSrcTemplate is set."
+    },
+    "dataTypes": {
+      "type": "object",
+      "description": "Per video, the measures available. Each implies assets/timeseries/{videoID}_{dataType}.csv.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "include_RQA": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Data types to run recurrence quantification on. Empty or absent disables the tab."
+    },
+    "include_cRQA": {
+      "$ref": "#/$defs/pairList",
+      "description": "Pairs for cross-recurrence analysis."
+    },
+    "include_crosswavelet": {
+      "$ref": "#/$defs/pairList",
+      "description": "Pairs for cross-wavelet and coherence."
+    },
+    "include_elan": {
+      "type": "boolean",
+      "description": "Show ELAN annotations from assets/elan/{videoID}.eaf."
+    },
+    "defaultWindowSize": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Full width, in seconds, of the window around the playhead: the playhead ± half this value."
+    },
+    "title": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "string"
+    },
+    "timeseriesTitle": {
+      "type": "string",
+      "description": "Figure title for the time-series tab. `{videoID}` is substituted. Defaults to the study `title` followed by the recording id."
+    },
+    "authors": {
+      "type": "string"
+    },
+    "contacts": {
+      "type": "string"
+    },
+    "perspectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "tab-owned (video): named camera angles, e.g. wide/parent/child."
+    },
+    "videoPerspectives": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "tab-owned (video): which perspectives exist per video."
+    },
+    "videoSrcTemplate": {
+      "type": "string",
+      "description": "tab-owned (video): path template with {videoID} and {persp}."
+    },
+    "fallbackVideoSrcTemplate": {
+      "type": "string",
+      "description": "tab-owned (video): used when the chosen perspective is missing."
+    },
+    "include_trajectory": {
+      "type": "boolean",
+      "description": "tab-owned (trajectory)."
+    },
+    "trajectory_settings": {
+      "type": "object",
+      "description": "tab-owned (trajectory): background image and field geometry.",
+      "properties": {
+        "imagePath": {
+          "type": "string"
+        },
+        "startX": {
+          "type": "number"
+        },
+        "startY": {
+          "type": "number"
+        },
+        "fieldWidth": {
+          "type": "number"
+        },
+        "fieldHeight": {
+          "type": "number"
+        }
+      }
+    },
+    "trajectory_tracks": {
+      "type": "object",
+      "description": "tab-owned (trajectory): per-video background image.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "path_images": {
+      "type": "object",
+      "description": "tab-owned (trajectory): image extent in field coordinates.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "x0": {
+            "type": "number"
+          },
+          "y0": {
+            "type": "number"
+          },
+          "x1": {
+            "type": "number"
+          },
+          "y1": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "include_dtw": {
+      "type": "boolean",
+      "description": "tab-owned (dtw). Beta."
+    },
+    "analysis": {
+      "type": "object",
+      "description": "Per-analysis tuning, keyed by step id. Exists so a study can change a parameter without maintaining its own copy of an analysis script -- which is what one fork previously had to do. Units here are always seconds, never multiples of the sampling interval.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "maxPeriod": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Longest period to compute, in seconds."
+          },
+          "scaleAvgBand": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "number"
+            },
+            "description": "Scale-averaging band [min, max], in seconds."
+          },
+          "window": {
+            "type": "number",
+            "description": "Windowed-metric window, in seconds (rqa, crqa; default 20). Shortened automatically when the recording cannot hold twenty of them, and the payload records asked-for beside used."
+          },
+          "step": {
+            "type": "number",
+            "description": "Windowed-metric step, in seconds (rqa, crqa; default 1)."
+          },
+          "saveFullResolution": {
+            "type": "boolean",
+            "default": true,
+            "description": "Write the analysis at the resolution it was computed at, as {video}_crosswavelet_full.json beside the payload. Same schema, same field names, different time axis. The payload is reduced for the browser; this is what a notebook or downstream analysis should read."
+          },
+          "targetRecurrence": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 1,
+            "description": "Recurrence rate the threshold search aims for, as a fraction (default 0.07). DET and LAM depend strongly on it, so two recordings analysed at different rates are not comparable; the payload records asked-for beside achieved."
+          },
+          "mcCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "crosswavelet: Monte Carlo surrogates behind the coherence null. 300 is the publication setting and costs about 2.8 hours on a twelve-recording study; 0 skips it. Defaults to 100 when include_network is set and 0 otherwise, because the network's coherence mode is the only thing that reads the null -- its shared power mode uses an analytic level instead and needs no surrogates."
+          },
+          "maxTimePoints": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "crosswavelet: width of the stored picture, in samples (default 500). The analysis runs at full resolution whatever this is; it caps what the browser fetches."
+          },
+          "maxFreqPoints": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "crosswavelet: height of the stored picture, in scales (default 100)."
+          }
+        }
+      }
+    },
+    "include_network": {
+      "description": "The cross-effector network: nodes are measures, edges are how strongly two measures went together, and both follow the playhead. An edge carries either wavelet coherence or shared cross-wavelet power, chosen by `mode` and switchable in the tab. Setting this switches the Monte Carlo coherence null on by default, at 100 surrogates, because without it a coherence edge cannot be told from chance; the shared power mode uses an analytic level and needs no surrogates. `true` draws every measure that appears in a cross-wavelet pair; an object groups them.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "groups": {
+              "type": "array",
+              "description": "How this study's measures divide -- two people, two conditions, two instruments. Each group either matches data type names with a regular expression, or is referenced by label from `effectors`. Anything belonging to no group is drawn in a trailing 'Other' group rather than dropped.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "match": {
+                    "type": "string",
+                    "description": "Case-insensitive regular expression on the data type name, for a study that has not declared `effectors`. Omit it when the group's members are declared: a group is then referenced by its label, and nothing is inferred from a name. With layout \"figure\" the part of the name it matches is stripped before the body part is read, so `^teacher` turns `teacher_righthandspeed` into `righthandspeed`."
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "type": "string",
+                    "description": "CSS colour for this group's nodes."
+                  }
+                }
+              }
+            },
+            "effectors": {
+              "type": "array",
+              "description": "Which time series is which node, said outright instead of inferred from its name. Without this the tab reads the group off a regular expression, the label off deleting that expression, and the body part off a token found somewhere inside what is left -- which works for a study that encodes person, part and quantity in one string, `teacher_righthandspeed`, and leaves a study whose measures are called `bodysync` and `neuralsync` with one undifferentiated group. Declaring is opt-in: omit this and the inference is exactly what it was. A series that appears in a pair and is declared by nothing here still gets a node, in 'Other'; a declared series that appears in no cross-wavelet pair still gets a node, with no edges, because that is the study's own question to answer.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "series"
+                ],
+                "properties": {
+                  "series": {
+                    "type": "string",
+                    "description": "The data type this node is, exactly as it appears in `dataTypes` and in assets/timeseries/{videoID}_{dataType}.csv. It stays a real data type rather than becoming a display name because the node is matched to its cross-wavelet pairs by this name: a label here resolves against no pair, so the node is drawn with no edges and the real measure turns up again in the trailing `Other` group."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "What to draw under the node. Defaults to `series`."
+                  },
+                  "group": {
+                    "type": "string",
+                    "description": "The `label` of one of the groups above. A group no entry in `groups` defines is a typo rather than an instruction to invent a column, so the node is drawn in 'Other' where it is visible."
+                  },
+                  "part": {
+                    "type": "string",
+                    "enum": [
+                      "head",
+                      "nose",
+                      "lefthand",
+                      "righthand",
+                      "hand",
+                      "torso",
+                      "hip",
+                      "foot"
+                    ],
+                    "description": "Where on the figure this node sits. Read only by layout \"figure\"; in \"columns\" it is ignored. A node with no part is stacked beside the figure rather than dropped."
+                  },
+                  "x": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Horizontal position as a fraction of the chart, 0 at the left and 1 at the right, overriding `part`. A fraction rather than a coordinate because the chart's own dimensions are private constants of network.js that have been retuned before; a config in raw units would drift the day one of them moves. Omit it in layout \"figure\" to keep the node on its own figure's centre line -- an explicit x is absolute and does not follow a figure when a third group is added."
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Vertical position as a fraction of the chart, 0 at the top and 1 at the bottom, overriding `part`."
+                  }
+                }
+              }
+            },
+            "band": {
+              "type": "array",
+              "description": "Period band in seconds to average each edge over, as [low, high]. Omit to use every period the analysis produced.",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "mode": {
+            "type": "string",
+            "enum": ["coherence", "power"],
+            "default": "coherence",
+            "description": "Which measure the edges carry, and the value the reader starts on. `coherence` asks whether two measures held a steady phase relationship, and ignores how much either of them moved. `power` asks whether both were moving at that timescale: cross-wavelet power divided by its own per-scale red-noise level, which is the product of the two amplitudes and says nothing about phase -- a thick power edge means both were busy, not that they were coupled. The control above the picture switches between them; this is only the starting point. `power` needs no Monte Carlo null.",
+            "$comment": "Read the two together: thick in coherence and thin in power is a coupling computed out of stillness."
+          },
+          "threshold": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "The share of tested cells that must beat the 95 % level before an edge is drawn solid rather than as a dashed hairline. Defaults to 0.15 for both. One value per mode, because the fraction of cells above a coherence chance level and the fraction above a red-noise power level are different distributions and one number would judge one of them by the other's yardstick.",
+            "properties": {
+              "coherence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "power": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          },
+          "layout": {
+              "type": "string",
+              "enum": [
+                "columns",
+                "figure"
+              ],
+              "default": "columns",
+              "description": "How the nodes are placed. \"columns\" (the default) stacks each group in a column. \"figure\" draws a body per group and puts each measure where its body part is, reading a token out of the measure's name after the group prefix -- head/nose, lefthand, righthand, torso, hip, foot; anything else is stacked beside the figure rather than dropped. Say it explicitly: a measure called `eff_hand_l` would otherwise get a person drawn around it."
+            }
+          }
+        }
+      ]
+    }
+  }
+}

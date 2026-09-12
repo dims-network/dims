@@ -1,0 +1,236 @@
+/* DIMS — one style, for the docs, the tutorial and the figures.
+ *
+ * This file is the source of truth for the palette. The website vendors the
+ * :root block below (tools/sync_tokens.py there, pinned to a release, checked
+ * in CI) rather than keeping a second copy that can drift -- the same
+ * pin-and-verify shape as a study's vendor/ directory.
+ *
+ * Three blocks:
+ *   1. the tokens
+ *   2. those tokens assigned to the Material for MkDocs variables
+ *   3. the components the markdown uses directly (figures, the tutorial)
+ *
+ * Light only, deliberately. The figures are drawn on white by
+ * docs/analyses/demo/analyses-plots.js, which reads these same tokens, so a
+ * dark page would frame light plots. One palette, one look.
+ */
+
+/* ---- 1. the tokens ---------------------------------------------------- */
+
+:root{
+  --bg:#ffffff; --panel:#ffffff; --panel2:#f6f8fa; --line:#d9dee3;
+  --text:#1f2328; --muted:#59636e; --dim:#8c959f;
+  --web:#0d9488; --web2:#0f766e;   /* static JS family (teal) */
+  --py:#7c3aed;  --py2:#6d28d9;     /* python family (purple) */
+  --accent:#0969da; --amber:#9a6700;
+}
+
+/* ---- 2. Material, wearing them ---------------------------------------- */
+
+:root{
+  --md-default-bg-color:        var(--bg);
+  --md-default-fg-color:        var(--text);
+  --md-default-fg-color--light: var(--muted);
+  --md-default-fg-color--lighter: var(--dim);
+  --md-default-fg-color--lightest: var(--line);
+
+  --md-typeset-color:           var(--text);
+  --md-typeset-a-color:         var(--accent);
+  --md-typeset-mark-color:      #fdf6e3;
+
+  /* A white header with dark contents, like the site's sticky nav, rather
+     than Material's solid colour bar. */
+  --md-primary-fg-color:        var(--bg);
+  --md-primary-fg-color--light: var(--bg);
+  --md-primary-fg-color--dark:  var(--bg);
+  --md-primary-bg-color:        var(--text);
+  --md-primary-bg-color--light: var(--muted);
+
+  --md-accent-fg-color:         var(--web2);
+  --md-accent-fg-color--transparent: rgba(13,148,136,.1);
+
+  --md-code-bg-color:           var(--panel2);
+  --md-code-fg-color:           var(--text);
+
+  --md-footer-bg-color:         var(--bg);
+  --md-footer-bg-color--dark:   var(--bg);
+  --md-footer-fg-color:         var(--muted);
+}
+
+/* The header is white, so it needs the site's hairline instead of a shadow to
+   separate it from the page. */
+.md-header{
+  border-bottom:1px solid var(--line);
+  box-shadow:none;
+}
+.md-header--shadow{box-shadow:none}
+.md-tabs{border-bottom:1px solid var(--line)}
+
+/* Search sits on white; give it the panel tint the site uses for inset boxes. */
+.md-search__form{background:var(--panel2);border:1px solid var(--line)}
+.md-search__form:hover{background:var(--panel2);border-color:var(--dim)}
+.md-search__input::placeholder{color:var(--dim)}
+
+/* Footer: the site's is a hairline and quiet text, not a dark band. */
+.md-footer{border-top:1px solid var(--line)}
+.md-footer-meta{background:var(--bg)}
+.md-copyright{color:var(--dim)}
+
+/* Typography to match style.css: 16px/1.65 system stack, headings that get
+   their weight from size rather than from colour. */
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.md-typeset{font-size:.8rem;line-height:1.65}
+.md-typeset h1{font-size:2rem;line-height:1.15;font-weight:800;letter-spacing:-.01em;
+  color:var(--text);margin:6px 0 12px}
+.md-typeset h2{font-size:1.15rem;font-weight:700;color:var(--text);
+  margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.md-typeset h3{font-size:1rem;font-weight:700;margin:22px 0 6px}
+.md-typeset h4{font-size:.95rem;font-weight:700;margin:18px 0 4px}
+
+.md-typeset code{
+  background:var(--panel2);border:1px solid var(--line);border-radius:5px;
+  padding:.08em .38em;font-size:.88em;
+}
+.md-typeset pre > code{border:1px solid var(--line)}
+
+/* Tables: the numpy-ish reference look from docs.css. */
+.md-typeset table:not([class]){
+  border:1px solid var(--line);border-radius:0;font-size:.9em;
+}
+.md-typeset table:not([class]) th{background:var(--panel2);font-weight:700;color:var(--text)}
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td{border:1px solid var(--line);padding:8px 11px;vertical-align:top}
+.md-typeset table:not([class]) td code{white-space:nowrap}
+
+/* Sidebar: teal for the page you are on, as the site's docs nav has it. */
+.md-nav__link--active,.md-nav__item .md-nav__link--active{color:var(--web2);font-weight:700}
+.md-nav__title{color:var(--dim);text-transform:uppercase;letter-spacing:.14em;font-size:.66rem}
+.md-nav--secondary .md-nav__title{text-transform:none;letter-spacing:0;font-size:.8rem}
+
+/* ---- 3. components the markdown uses ---------------------------------- */
+
+/* Figures on the Analyses pages: Plotly draws into these.
+
+   They break out of the text measure, because a heatmap of period against time
+   needs the width and a paragraph does not. The min-height is reserved before
+   the plot exists so the page does not jump when it arrives. */
+.figure{
+  margin:22px -40px;
+  padding:10px 12px 4px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--panel);
+  min-height:300px;
+}
+.fig-note{
+  margin:-10px -40px 26px;
+  padding:0 14px;
+  color:var(--muted);
+  font-size:.85rem;
+  line-height:1.55;
+}
+.fig-note code{font-size:.8rem}
+.fig-error{color:var(--amber);font-size:.85rem;padding:12px}
+
+@media(max-width:1100px){
+  .figure{margin-left:0;margin-right:0}
+  .fig-note{margin-left:0;margin-right:0;padding:0 2px}
+}
+
+/* ---- the tutorial ----------------------------------------------------- */
+
+.md-typeset .eyebrow{letter-spacing:.2em;text-transform:uppercase;color:var(--web);
+  font-weight:700;font-size:.72rem;margin-bottom:12px}
+.md-typeset .lede{color:var(--muted);font-size:1.08rem;max-width:740px;margin:0 0 8px}
+.md-typeset .lede b{color:var(--text)}
+.md-typeset .muted{color:var(--dim)}
+.md-typeset .sub{color:var(--muted);margin:0 0 4px}
+
+.md-typeset .path{border:1px solid var(--line);border-radius:14px;padding:24px 24px 8px;
+  margin:0 0 22px;background:var(--panel)}
+.md-typeset .path.builder{border-top:3px solid var(--web)}
+.md-typeset .path.manual{border-top:3px solid var(--py)}
+.md-typeset .path > h3{font-size:1.35rem;margin-bottom:2px}
+
+.md-typeset ol.steps{counter-reset:step;list-style:none;padding:0;margin:18px 0 6px}
+.md-typeset ol.steps > li{position:relative;padding:0 0 18px 44px;
+  border-left:2px solid var(--line);margin-left:14px}
+.md-typeset ol.steps > li:last-child{border-left-color:transparent;padding-bottom:4px}
+.md-typeset ol.steps > li::before{counter-increment:step;content:counter(step);
+  position:absolute;left:-15px;top:-2px;width:28px;height:28px;border-radius:50%;
+  background:var(--panel);border:2px solid var(--web);color:var(--web2);
+  font-weight:700;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.md-typeset .path.manual ol.steps > li::before{border-color:var(--py);color:var(--py2)}
+.md-typeset ol.steps > li h4{margin:0 0 4px;font-size:1rem}
+.md-typeset ol.steps > li p{margin:0 0 8px;color:var(--muted)}
+.md-typeset ol.steps > li ul{margin:0 0 8px;padding-left:20px;color:var(--muted)}
+.md-typeset ol.steps > li ul li{margin:2px 0}
+
+.md-typeset .callout{border:1px solid var(--line);border-left:3px solid var(--accent);
+  background:var(--panel2);border-radius:8px;padding:12px 16px;margin:14px 0;
+  font-size:.92rem;color:var(--muted)}
+.md-typeset .callout b{color:var(--text)}
+.md-typeset .callout.tip{border-left-color:var(--web)}
+.md-typeset .callout.warn{border-left-color:var(--amber)}
+
+/* Screenshots. A missing one becomes a dashed panel naming the file and what
+   belongs in it -- see docs/javascripts/shot-placeholders.js. */
+.md-typeset figure.shot{margin:14px 0 18px;padding:0}
+.md-typeset figure.shot img{display:block;width:100%;height:auto;
+  border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.md-typeset figure.shot figcaption{color:var(--dim);font-size:.82rem;margin:8px 2px 0;
+  text-align:left;font-style:normal}
+.md-typeset figure.shot .ph{border:2px dashed var(--line);border-radius:10px;
+  background:var(--panel2);padding:26px 22px;text-align:center;color:var(--muted)}
+.md-typeset figure.shot .ph .f{display:block;
+  font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color:var(--web2);margin-bottom:6px}
+.md-typeset figure.shot .ph .w{display:block;font-size:.9rem;max-width:520px;margin:0 auto}
+.md-typeset figure.shot .ph .n{display:block;font-size:.72rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:10px;font-weight:700}
+
+.md-typeset .mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:14px;margin:14px 0}
+.md-typeset .mini > div{border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  background:var(--panel)}
+.md-typeset .mini h4{margin:0 0 4px;font-size:.95rem}
+.md-typeset .mini p{margin:0;color:var(--muted);font-size:.88rem}
+
+.md-typeset table.spec{border-collapse:collapse;width:100%;margin:12px 0;font-size:.9rem;
+  border:0;display:table}
+.md-typeset table.spec th,.md-typeset table.spec td{border:0;border-bottom:1px solid var(--line);
+  padding:8px 10px;text-align:left;vertical-align:top;color:var(--muted);background:none}
+.md-typeset table.spec th{color:var(--text);font-weight:700;font-size:.82rem;
+  text-transform:uppercase;letter-spacing:.06em}
+.md-typeset table.spec td:first-child{color:var(--text);white-space:nowrap}
+
+/* Expandable sections. Native <details>, so it works without JavaScript and the
+   browser still loads the images inside -- which is what keeps the screenshot
+   placeholders honest. */
+.md-typeset details.more{border:1px solid var(--line);border-radius:12px;background:var(--panel);
+  margin:0 0 14px;overflow:hidden;font-size:inherit;box-shadow:none;padding:0}
+.md-typeset details.more[open]{border-color:#c3cbd4;box-shadow:0 2px 10px rgba(31,35,40,.05)}
+.md-typeset details.more > summary{list-style:none;cursor:pointer;padding:16px 20px;
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;background:none;border:0;
+  font-weight:400}
+.md-typeset details.more > summary::-webkit-details-marker{display:none}
+.md-typeset details.more > summary::after{display:none}
+.md-typeset details.more > summary::before{content:"›";color:var(--web);font-weight:700;
+  font-size:1.15rem;line-height:1;transform:translateY(1px);transition:transform .15s;
+  background:none;position:static;width:auto;height:auto;top:auto;left:auto}
+.md-typeset details.more[open] > summary::before{transform:rotate(90deg) translateX(1px)}
+.md-typeset details.more > summary:hover{background:var(--panel2)}
+.md-typeset details.more > summary b{font-size:1.05rem}
+.md-typeset details.more > summary .cost{color:var(--dim);font-size:.85rem;margin-left:auto}
+.md-typeset details.more > summary .what{color:var(--muted);font-size:.92rem;flex-basis:100%;
+  padding-left:24px;margin-top:-2px}
+.md-typeset .more-body{padding:2px 20px 18px;border-top:1px solid var(--line)}
+.md-typeset .more-body > :first-child{margin-top:14px}
+
+@media(max-width:560px){
+  .md-typeset h1{font-size:1.9rem}
+  .md-typeset .path{padding:18px 16px 6px}
+}

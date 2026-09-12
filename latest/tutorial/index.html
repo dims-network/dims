@@ -1,0 +1,2337 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Recordings and the time series taken from them, on one timeline, with the analyses that say how two signals relate.">
+      
+      
+      
+        <link rel="canonical" href="https://dims-network.github.io/dims/1.5/tutorial/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../getting-started/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>The tutorial - DIMS</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/dims.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#from-data-to-a-dashboard" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="DIMS" class="md-header__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DIMS
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              The tutorial
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="DIMS" class="md-nav__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    DIMS
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href=".." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start here
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start here
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The tutorial
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-example-study" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The example study
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Before you start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-by-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step by step
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-are-looking-at" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What you are looking at
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#going-further--the-analyses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Going further — the analyses
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-something-is-not-right" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When something is not right
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The no-code builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../analyses/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyses
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analyses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analyses/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analyses/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recurrence (RQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analyses/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-recurrence (cRQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tabs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabs/timeseries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time series
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabs/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabs/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabs/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabs/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-effector network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabs/elan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ELAN annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asset layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/analysis-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/data-visibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public and private data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/cli/dims-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/cli/dims-case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-case
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/cli/dims-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending DIMS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extending DIMS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/tab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a tab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing an analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contracts/case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A study repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/dims-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    window.DIMS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/host-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The host runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/figure-geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    figure-geometry.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/analysis-common/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims_analysis.common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../builder/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The builder's HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versions, vendoring and the pin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-example-study" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The example study
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Before you start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-by-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step by step
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-are-looking-at" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What you are looking at
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#going-further--the-analyses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Going further — the analyses
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-something-is-not-right" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When something is not right
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/dims-network/dims/edit/main/docs/tutorial.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="from-data-to-a-dashboard">From data to a dashboard<a class="headerlink" href="#from-data-to-a-dashboard" title="Permanent link">&para;</a></h1>
+<p class="lede">In this tutorial, we'll use the no-code builder to set up your DIMS dashboard from
+  scratch — no programming, no JSON files, no renaming files by hand. Bring <b>your own
+  recordings</b>, or press one button for <b>an example study</b> if you don't have any
+  yet; either way you'll have a working dashboard by the end. The four analyses DIMS
+  can run are at the end of the page, one section each — take them one at a time, or
+  not at all.</p>
+
+<h2 id="the-example-study">The example study<a class="headerlink" href="#the-example-study" title="Permanent link">&para;</a></h2>
+<div class="path builder">
+  <h3>ConvoConnect-Mini</h3>
+  <p class="sub">Two pairs of strangers, three minutes of conversation each,
+    everything synthetic. Step 2 generates it at the press of a button — use it if you
+    have no data of your own yet, and to follow the times and values quoted below.</p>
+  <p>Each pair — <code>dyad01</code> and <code>dyad02</code> — has the four things
+    any DIMS study is built from, all on one clock: <b>a video</b> of the
+    conversation, <b>measurements</b> over time, <b>a transcript</b>, and <b>ELAN
+    phase codes</b>. That is all the tutorial below needs.</p>
+  <p>The measurements are five: the speed of each partner's left and right hand, and
+    one belonging to the pair rather than to either of them — <code>rtpjSync</code>,
+    how closely their brains are tracking each other. The optional sections at the
+    end of this page reach for those: the hands for anything comparing two signals,
+    <code>rtpjSync</code> for anything looking at one. It's modelled on the first
+    case study in the DIMS paper, where a rise in inter-brain synchrony isn't the
+    finding but the <i>question</i>: you go back to the video and the transcript to
+    see what kind of moment it was.</p>
+  <table class="spec">
+    <tr><th>Pair</th><th>What happens</th><th>Why it is in the example</th></tr>
+    <tr><td>dyad01</td><td>Two people who click almost immediately.</td>
+        <td>Four synchrony peaks, each on a moment you can name.</td></tr>
+    <tr><td>dyad02</td><td>A conversation that never gets going.</td>
+        <td>Synchrony sits near zero and its biggest peaks land on nothing — and its
+          video is <b>12 s longer than its data</b>, so step 3 has something to
+          fix.</td></tr>
+  </table>
+  <p class="muted">None of it is a recording, and none of it ships with the builder:
+    the signals, the video and the annotations are generated together from one
+    conversation script the first time you ask for them, which is why they agree with
+    each other.</p>
+</div>
+
+<h2 id="before-you-start">Before you start<a class="headerlink" href="#before-you-start" title="Permanent link">&para;</a></h2>
+<div class="mini">
+  <div><h4>Python 3.10–3.12</h4><p>A free, one-time install from
+    <a href="https://www.python.org/downloads/">python.org</a>. On 3.13 everything
+    works except motion capture from video.</p></div>
+  <div><h4>The repository</h4><p><a href="https://github.com/dims-network/dims">dims-network/dims</a>
+    — clone it, or download the ZIP and unzip it.</p></div>
+  <div><h4>About 10 minutes</h4><p>Most of it yours; step 6 is about half a minute
+    on the basic path. The optional analyses at the end say what they add.</p></div>
+  <div><h4>No internet, after the install</h4><p>Everything after the first launch
+    runs on your own machine. Your data never leaves it.</p></div>
+</div>
+
+<h2 id="step-by-step">Step by step<a class="headerlink" href="#step-by-step" title="Permanent link">&para;</a></h2>
+<div class="path builder">
+  <p class="sub">Here's the whole process, one step at a time.</p>
+  <ol class="steps">
+    <li>
+      <h4>Start the builder</h4>
+      <p>Open the <code>apps/builder/</code> folder and double-click the launcher for
+        your machine. It installs what it needs the first time — that takes a minute or
+        two — and then opens the wizard in your browser.</p>
+      <ul>
+        <li><b>macOS:</b> <code>run.command</code></li>
+        <li><b>Windows:</b> <code>run.bat</code></li>
+        <li><b>Linux:</b> <code>run.sh</code></li>
+      </ul>
+      <div class="callout warn"><b>macOS, first time only:</b> if you see
+        <i>“Apple could not verify ‘run.command’ is free of malware.”</i>, click
+        <b>Done</b> — not <i>Move to Trash</i> — then open <b>System Settings →
+        Privacy &amp; Security</b>, scroll to <b>Security</b>, and click <b>Open
+        Anyway</b>. This is macOS flagging any downloaded unsigned script, and it
+        happens once.</div>
+      <figure class="shot" data-shot="01-wizard-opens.png"
+        data-capture="The wizard as it first opens: step 1 selected, the seven step buttons across the top, nothing filled in yet.">
+        <img src="../images/walkthrough/01-wizard-opens.png"
+             alt="The builder wizard open in a browser at step 1, with the seven steps listed across the top." />
+        <figcaption>The wizard opens on step 1. The seven steps across the top are
+          the whole job — you can click back to any of them at any time.</figcaption>
+      </figure>
+    </li>
+    <li>
+      <h4>Step 1 · Your study</h4>
+      <p>Three things to fill in, and one real decision.</p>
+      <ul>
+        <li><b>Folder</b> — a new or empty folder. The dashboard is created inside it.</li>
+        <li><b>Who may see this data?</b> — <b>Private</b> is the default and the right
+          answer if you are not certain. It switches on guards that stop recordings
+          reaching a shared code repository by accident. <b>Public</b> means the data
+          may be published, and adds a workflow that puts the dashboard online.</li>
+        <li><b>Dashboard details</b> — a title, optionally a subtitle, authors and a
+          contact address. These appear on the finished dashboard.</li>
+      </ul>
+      <p><b>Playback window</b> is how much video plays either side of the point you
+        click. Five seconds is a good starting value; you can change it later.</p>
+      <p>Press <b>Create study →</b>.</p>
+      <figure class="shot" data-shot="02-your-study.png"
+        data-capture="Step 1 filled in: a folder path, Private selected, title 'ConvoConnect-Mini'. Include the visibility explanation under the radio buttons.">
+        <img src="../images/walkthrough/02-your-study.png"
+             alt="Step 1 of the wizard with a folder chosen, Private visibility selected, and the study title filled in." />
+        <figcaption>Private is the default. The note under it says exactly what that
+          switches on.</figcaption>
+      </figure>
+      <div class="callout"><b>Coming back later?</b> Choose <b>Open one I made
+        earlier</b> and point it at the same folder. Everything comes back filled in,
+        so adding a session or changing an analysis is a rebuild rather than an edit
+        of a configuration file.</div>
+    </li>
+
+    <li>
+      <h4>Step 2 · Sessions &amp; files</h4>
+      <p><b>Drag your files onto this screen.</b> Everything from one recording goes
+        in together, and the builder works out what each file is from its name and
+        its contents:</p>
+      <table class="spec">
+        <tr><th>What</th><th>Looks like</th><th>Needs to be</th></tr>
+        <tr><td><b>A video</b></td><td><code>session1.mp4</code></td>
+            <td>One per session. Its name is the <b>session ID</b>, and everything
+              else for that recording is named after it.</td></tr>
+        <tr><td><b>Measurements</b><br><span class="muted">as many as you have</span></td>
+            <td><code>session1_headSpeed.csv</code><br>
+              <code>session1_handSpeed.csv</code><br>
+              <code>session1_sync.csv</code></td>
+            <td><b>One file per measurement</b>, each a column called <code>Time</code>
+              (any casing) in <b>seconds</b>, ascending — not milliseconds, not frame
+              numbers — plus that one measurement. The part of the filename after the
+              session ID is what the measurement gets called, so it is worth naming
+              them the way you want to read them. One wide spreadsheet works too; see
+              below.</td></tr>
+        <tr><td><b>A transcript</b><br><span class="muted">optional</span></td>
+            <td><code>session1_transcript.json</code></td>
+            <td><code>{ "segments": [ {start, end, speaker, text} ] }</code>, times in
+              seconds.</td></tr>
+        <tr><td><b>ELAN codes</b><br><span class="muted">optional</span></td>
+            <td><code>session1.eaf</code></td>
+            <td>Saved from ELAN as usual, with one constraint: only
+              <b>time-aligned</b> annotations are drawn. Tiers whose annotations
+              hang off a parent annotation rather than off the timeline — symbolic
+              subdivisions and associations — are skipped, and an <code>.eaf</code>
+              with none of the aligned kind is rejected with a message saying
+              so.</td></tr>
+      </table>
+      <p>The builder groups the files into <b>sessions</b> by that first part of the
+        name, and checks each one as it arrives — so a misnamed file or a
+        <code>Time</code> column in milliseconds surfaces here rather than as an empty
+        tab at the end. Anything it guesses wrong you can fix in place: which session
+        a file belongs to, and what the measurement is called.</p>
+      <div class="callout tip"><b>Don't have your own data, but want to try DIMS?</b>
+        Press <b>Load the example study</b>. The first press takes a few seconds — it
+        is generated on your machine rather than shipped — and 16 rows appear: two
+        conversations, with their videos, measurements, transcripts and annotations.
+        The rest of this page follows that study, so it is also the way to follow
+        along exactly.</div>
+      <figure class="shot" data-shot="03-sessions-files.png"
+        data-capture="The file list after Load the example study: 16 rows grouped under dyad01 and dyad02, each row showing its role and data type.">
+        <img src="../images/walkthrough/03-sessions-files.png"
+             alt="Step 2 showing sixteen staged files grouped under two sessions." />
+        <figcaption>The example study, loaded: sixteen rows across two sessions. Every
+          row says what the builder thinks the file is, and you can correct any of
+          them.</figcaption>
+      </figure>
+      <div class="callout"><b>One spreadsheet with several measurement columns</b> is
+        also fine — motion tracking usually gives you one. The builder splits it into
+        one file per measure on the way in, because that is the layout every analysis
+        reads.</div>
+      <div class="callout"><b>More than one camera?</b> Some studies film a session
+        from several angles. This screen has a collapsed <b>More than one camera per
+        session?</b> panel for naming them, and the dashboard grows a camera
+        selector. <b>This tutorial doesn't cover it</b> — leave that panel closed if
+        each session has one video.</div>
+      <p>Press <b>Next →</b>.</p>
+    </li>
+
+    <li>
+      <h4>Step 3 · Align video &amp; data</h4>
+      <p>The dashboard puts your measurements on the video's clock. If a session's
+        video and its measurements are not the same length, the dashboard shows dead
+        space — video with no data under it, or data running past the end of the
+        video.</p>
+      <p>This is exactly the kind of problem the example study is here to show you:
+        <b>dyad02's video is 12 seconds longer than its measurements</b>. The preview
+        shows the video track above each measurement track, so you can see the
+        overhang. There are two ways to fix it, and neither touches your original
+        files:</p>
+      <ul>
+        <li><b>Trim the video</b> to a window you pick with the two handles — right if
+          the camera was rolling before the session started.</li>
+        <li><b>Pad the measurements</b> with zeros at either end — right if the
+          measurements genuinely cover a shorter part of the recording.</li>
+      </ul>
+      <p>For dyad02, trim the video: the camera was rolling before they sat down.
+        dyad01 already lines up and needs nothing.</p>
+      <figure class="shot" data-shot="04-align.png"
+        data-capture="Step 3 showing dyad02: the video track visibly longer than the measurement tracks, with the dual-handle trim slider.">
+        <img src="../images/walkthrough/04-align.png"
+             alt="Step 3 showing the video track for dyad02 extending past its measurement tracks." />
+        <figcaption>The overhang is the 12 seconds. The card's header keeps
+          reporting the session as it stands until you press <b>Apply trim</b>;
+          dragging the handles previews the window, it does not change anything.
+          Trimming writes a trimmed copy at build time — your original video is never
+          modified.</figcaption>
+      </figure>
+      <div class="callout"><b>This step is the only alignment tool DIMS has.</b>
+        Build a study <a href="setup.html">from a terminal</a> instead and the files
+        have to arrive already lined up — there is no trimming or padding outside the
+        builder.</div>
+    </li>
+
+    <li>
+      <h4>Step 4 · Tabs &amp; analyses</h4>
+      <p>Every dashboard shows the video, the measurements and any transcript
+        without being asked. This screen is for everything <i>beyond</i> that, and
+        all of it is optional — so for now, switch on just two things:</p>
+      <ul>
+        <li><b>ELAN annotations</b>, so the phases you coded appear on the same
+          timeline. It is a switch: nothing to compute, nothing to choose.</li>
+        <li><b>Recurrence (RQA)</b>, and pick the single measure
+          <code>rtpjSync</code> from the chips underneath it. This is so step 6 has
+          something real to do; what recurrence <i>means</i> is further down this
+          page, and you can come back for it.</li>
+      </ul>
+      <p>Leave cross-recurrence, cross-wavelet and the network alone. Each has its
+        own section below, and each tells you what it costs before you switch it
+        on — cross-wavelet in particular can turn step 6 from a minute into an
+        afternoon.</p>
+      <figure class="shot" data-shot="05-analyses.png"
+        data-capture="Step 4 with only ELAN and recurrence switched on, and rtpjSync the single selected chip under recurrence.">
+        <img src="../images/walkthrough/05-analyses.png"
+             alt="Step 4 with recurrence switched on and one measure selected." />
+        <figcaption>Every analysis has a <b>Settings</b> panel with the tuning a
+          study is allowed to change. The defaults are sensible; leave them alone the
+          first time.</figcaption>
+      </figure>
+      <p>Press <b>Next →</b>.</p>
+    </li>
+
+    <li>
+      <h4>Step 5 · Build</h4>
+      <p>Press <b>Build the study</b>. Your files are copied into place, renamed to
+        the layout the dashboard expects, and the study's configuration is written and
+        checked. It takes a few seconds. Nothing is computed yet.</p>
+      <figure class="shot" data-shot="07-build.png"
+        data-capture="Step 5 after a successful build: the confirmation and the list of files placed.">
+        <img src="../images/walkthrough/07-build.png"
+             alt="Step 5 showing a completed build with the list of placed files." />
+        <figcaption>Sixteen files placed. If something was wrong, this is where it
+          says so, and it names the file.</figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <h4>Step 6 · Compute</h4>
+      <p>Press <b>Run the analyses</b>. The builder makes a small Python environment
+        just for this study and runs what you switched on, streaming the progress as
+        it goes.</p>
+      <p>With only recurrence on one measure this is about half a minute — 29 seconds
+        measured, most of it building the environment, which happens once. The status line underneath
+        counts the seconds, because some analyses go quiet for minutes while they
+        work, and a still page is easy to mistake for a stuck one.</p>
+      <figure class="shot" data-shot="08-compute.png"
+        data-capture="Step 6 mid-run: the live progress log, and the elapsed-time line underneath it.">
+        <img src="../images/walkthrough/08-compute.png"
+             alt="Step 6 showing live analysis progress streaming into the page." />
+        <figcaption>You can leave it. When it finishes, the last step lights up.</figcaption>
+      </figure>
+    </li>
+
+    <li>
+      <h4>Step 7 · Open it</h4>
+      <p>Press <b>Open the dashboard</b>. It opens in a new browser tab, running from
+        your own machine. That is the whole thing built.</p>
+      <p>The same screen gives you copy-and-paste commands to put it online — GitHub
+        Pages, Netlify or Vercel — if the data may be published. If you chose
+        <b>Private</b> in step 1, publishing is deliberately not a button: it is a
+        decision with a checklist.</p>
+      <figure class="shot" data-shot="09-open-it.png"
+        data-capture="Step 7 with the Open the dashboard button and the deployment commands underneath.">
+        <img src="../images/walkthrough/09-open-it.png"
+             alt="Step 7 offering to open the dashboard and showing deployment commands." />
+        <figcaption>Done.</figcaption>
+      </figure>
+    </li>
+  </ol>
+</div>
+
+<h2 id="what-you-are-looking-at">What you are looking at<a class="headerlink" href="#what-you-are-looking-at" title="Permanent link">&para;</a></h2>
+<div class="path builder">
+  <p class="sub">The dashboard, and the one gesture the whole tool is built around.</p>
+  <p><b>The video, the measurements, the transcript and your ELAN codes share one
+    clock.</b> Click anywhere on a measurement trace and the video jumps to that
+    moment, with the transcript following along. That's it — that's the tool.</p>
+  <figure class="shot" data-shot="10-dashboard-timeseries.png"
+    data-capture="The dashboard's main view for dyad01: the traces on the left, video and transcript on the right, playhead parked on the peak at 1:16.">
+    <img src="../images/walkthrough/10-dashboard-timeseries.png"
+         alt="The DIMS dashboard showing time series, a video panel and a transcript side by side." />
+    <figcaption>dyad01 at 1:16, where <code>rtpjSync</code> reaches +0.90. The
+      transcript says why: both of them moved here for a job that was supposed to be
+      temporary.</figcaption>
+  </figure>
+
+  <p>It's worth trying properly, because this is the paper's whole argument in one
+    gesture. In dyad01, four peaks are worth clicking: <b>0:49</b> (+0.89),
+    <b>1:16</b> (+0.90), <b>2:12</b> (+0.87) and <b>2:33</b> (+0.86). Each is a
+    different kind of moment — a joke landing, a mutual disclosure, finishing each
+    other's sentence, and a warm aside near the end. In a static plot they'd all
+    look the same.</p>
+  <p>Then open <b>dyad02</b> and do the same, because this is the half that should
+    worry you. Its synchrony sits at zero for most of the conversation, and the one
+    moment where these two actually connect is at <b>1:50</b> (+0.70). But its
+    highest peaks are somewhere else entirely: <b>2:23</b> (+0.88) on “That's longer
+    than it sounds”, <b>1:58</b> (+0.84) on “Exactly”, <b>1:13</b> (+0.81) on “What
+    about you?”. Nothing. In a pair who aren't coupled, the biggest peaks land on
+    nothing at all — and they're bigger than the one peak that meant something.
+    Reading a peak without going back to the recording is how that ends up in a
+    paper.</p>
+
+  <p><b>ELAN annotations</b> run along the same timeline as everything else: in the
+    example study, the phases of each conversation — warm-up, the topics, the
+    shared laughter, the closing.</p>
+  <figure class="shot" data-shot="10b-dashboard-elan.png"
+    data-capture="The ELAN Annotations tab for dyad01, its phases tier laid along the same timeline as the measurements.">
+    <img src="../images/walkthrough/10b-dashboard-elan.png"
+         alt="The ELAN annotations tab showing coded conversation phases on the timeline." />
+    <figcaption>Your codes, on the clock the rest of the study is on.</figcaption>
+  </figure>
+
+  <p class="muted">That is the whole basic dashboard. Everything below is optional:
+    four analyses, each in its own section, each saying what it asks of you before
+    you switch it on.</p>
+</div>
+
+<h2 id="going-further--the-analyses">Going further — the analyses<a class="headerlink" href="#going-further--the-analyses" title="Permanent link">&para;</a></h2>
+<p class="lede" style="margin-bottom:18px">Each of these is a switch in step 4 and a
+  tab in the dashboard. Switch one on, press <b>Build</b> again, run step 6 again,
+  and it appears. They are independent, except where a section says otherwise — and
+  they are in the order they make sense to read.</p>
+
+<details class="more">
+  <summary><b>Recurrence (RQA)</b>
+    <span class="cost">already on · seconds</span>
+    <span class="what">Where one signal returns to a state it was in before.</span>
+  </summary>
+  <div class="more-body">
+    <p>You switched this on in step 4, so its tab is already there. A recurrence
+      plot asks a single question of a single signal: at which pairs of moments was
+      it in nearly the same state? Repeated structure shows up as texture — diagonal
+      lines where a stretch of the signal replays a stretch from earlier, blocks
+      where it sat still.</p>
+    <p>The numbers beside the plot — recurrence rate, determinism, laminarity —
+      depend on the <b>target recurrence rate</b> set in step 4's Settings panel. Two
+      studies compared with each other must use the same value, or the comparison is
+      between two thresholds rather than two conversations.</p>
+    <figure class="shot" data-shot="opt-rqa-tab.png"
+      data-capture="The recurrence tab for dyad01 rtpjSync — the plot plus the metrics panel beside it.">
+      <img src="../images/walkthrough/opt-rqa-tab.png"
+           alt="The recurrence tab showing a recurrence plot and its metrics." />
+      <figcaption><code>rtpjSync</code> for dyad01. The texture is the point; the
+        numbers quantify it.</figcaption>
+    </figure>
+  </div>
+</details>
+
+<details class="more">
+  <summary><b>Cross-recurrence (cRQA)</b>
+    <span class="cost">adds seconds</span>
+    <span class="what">Where two signals repeat <i>each other</i>, and with what delay.</span>
+  </summary>
+  <div class="more-body">
+    <p>Switch on <b>Cross-recurrence (cRQA)</b> in step 4. Every pair is selected by
+      default — it is cheap — so click to drop the ones you don't want. For the
+      example study, keep <code>personLeftRightHandSpeed × personRightRightHandSpeed</code>:
+      two people's right hands.</p>
+    <p>The reason that pair is interesting is turn-taking. People take turns, so
+      their hands take turns, and a lagged relationship puts the structure
+      <i>off</i> the diagonal — the distance from the diagonal is the delay. A
+      conversation where one person consistently follows the other looks different
+      from one where they overlap.</p>
+    <figure class="shot" data-shot="opt-crqa-tab.png"
+      data-capture="The Cross-RQA tab for dyad01, the two partners' right hands, with the structure sitting off the diagonal.">
+      <img src="../images/walkthrough/opt-crqa-tab.png"
+           alt="A cross-recurrence plot for two hand-speed signals." />
+      <figcaption>Off-diagonal structure is a lag. On-diagonal would mean they moved
+        at the same instant.</figcaption>
+    </figure>
+  </div>
+</details>
+
+<details class="more">
+  <summary><b>Cross-wavelet</b>
+    <span class="cost">adds ~9 minutes</span>
+    <span class="what">Which timescales two signals share, and which one leads.</span>
+  </summary>
+  <div class="more-body">
+    <div class="callout warn"><b>This is the one that costs.</b> On the example
+      study — two pairs across two sessions — step 6 goes from <b>29 seconds</b> to
+      <b>eight or nine minutes</b> (8:31 and 9:29 on two runs of the same thing).
+      Almost all of it is the coherence chance level: a simulation run a hundred
+      times for every pair in every session. Without it nothing here can be told from
+      coincidence, because two unrelated signals score about 0.25, not 0.</div>
+    <p>Switch on <b>Cross-wavelet analysis</b> in step 4 and pick the pairs from the
+      chips underneath. Nothing is chosen for you: five measurements make ten
+      possible pairs, and each is a separate run. For this study, two is plenty:</p>
+    <ul>
+      <li><code>personLeftLeftHandSpeed × personRightLeftHandSpeed</code></li>
+      <li><code>personLeftRightHandSpeed × personRightRightHandSpeed</code></li>
+    </ul>
+    <p><code>rtpjSync</code> belongs to the pair rather than to either body, so leave
+      it out of the cross-analyses and read it in the time-series tab, where it earns
+      its keep.</p>
+    <figure class="shot" data-shot="opt-cw-step4.png"
+      data-capture="Step 4 with cross-wavelet switched on and two hand pairs selected in its chip row.">
+      <img src="../images/walkthrough/opt-cw-step4.png"
+           alt="Step 4 showing the cross-wavelet chip row with two pairs selected." />
+      <figcaption>Two pairs selected out of ten possible. Each one is a separate run
+        of the slowest analysis here.</figcaption>
+    </figure>
+    <p>In the dashboard, warm regions are shared power and the arrows show the
+      lead–lag. The outlined regions are the ones that beat chance.</p>
+    <figure class="shot" data-shot="opt-cw-tab.png"
+      data-capture="The cross-wavelet tab for dyad01, one of the hand-speed pairs, with the significance contours visible.">
+      <img src="../images/walkthrough/opt-cw-tab.png"
+           alt="A cross-wavelet coherence plot with significance contours and phase arrows." />
+      <figcaption>Warm is shared power; the arrows say who leads; the outlines mark
+        what beat chance.</figcaption>
+    </figure>
+    <div class="callout tip"><b>Two levers, if it's taking too long.</b> The cost is
+      pairs × sessions × surrogates. Picking two pairs instead of ten is the first.
+      The second is in the cross-wavelet <b>Settings</b> panel: the surrogate count
+      is 100, and dropping it to 20 for a first look cuts the step to about a fifth
+      (1:42 against 9:29, measured). Put it back to 100 before you draw any
+      conclusion from it — a null estimated from 20 samples is a noisy
+      threshold.</div>
+  </div>
+</details>
+
+<details class="more">
+  <summary><b>The cross-effector network</b>
+    <span class="cost">needs cross-wavelet</span>
+    <span class="what">One picture of what is coupled with what, following the playhead.</span>
+  </summary>
+  <div class="more-body">
+    <p><b>Read the cross-wavelet section first.</b> The network's edges come straight
+      out of the cross-wavelet analysis — either its coherence or its shared power,
+      whichever you pick in the tab — so switching the network on switches
+      cross-wavelet on too, and inherits its cost.</p>
+    <p>The diagram in step 4 is the one screen that looks unusual. <b>Add a person</b>
+      for each figure, <b>click an empty circle</b> on a body to put a measurement
+      there, then <b>drag from one placed circle to another</b> to ask for the
+      coupling between them — a dashed line follows the pointer. Clicking the two in
+      turn does the same thing. Put each partner's two hands on their own figure and
+      draw the two lines: four hands, two people, two lines, and that's the whole
+      network. Each line is one cross-wavelet pair — the same list as the chips
+      above, shown a second way.</p>
+    <figure class="shot" data-shot="opt-network-step4.png"
+      data-capture="The network diagram with two figures (Left partner, Right partner), each partner's two hands placed on them, and the two lines drawn between them.">
+      <img src="../images/walkthrough/opt-network-step4.png"
+           alt="The cross-effector network diagram with two human figures and measures on their hands." />
+      <figcaption>Two people, their hands, and the lines you want measured.</figcaption>
+    </figure>
+    <p>In the dashboard the picture moves with the playhead. A thick solid line beats
+      the 95 % level in enough of the window to be worth reading; a <b>dashed</b>
+      line means the measurement said nothing, which is a result and not a failure.
+      Thickness is relative to the other visible lines — the picture answers
+      “which of these is strongest here”, and the tooltip gives the number.</p>
+    <p><b>Two questions, one picture.</b> <i>Coherence</i> asks whether two measures
+      held a steady phase relationship and ignores how much either of them moved;
+      <i>shared power</i> asks whether both were moving at that timescale. Read them
+      against each other: thick in coherence and thin in power is a coupling computed
+      out of stillness, which is the reading to distrust.</p>
+    <div class="callout warn"><b>It won't sort your dyads for you.</b> On the example
+      study, both dyads come out with a solid line between the partners' <i>left</i>
+      hands — 27% of tested cells above chance in dyad01, 27% in dyad02. People take
+      turns whether or not the conversation is going anywhere, and their hands take
+      turns with them. The one line that separates the two pairs is the right hands:
+      solid in dyad01 (28%), dashed in dyad02 (12%). The real difference between
+      these two conversations is in <code>rtpjSync</code>, not in the diagram. An
+      edge tells you two measures moved together, and coordination isn't rapport.</div>
+    <figure class="shot" data-shot="opt-network-tab.png"
+      data-capture="The network tab for dyad01 with the playhead on a synchrony peak; if you take a second, dyad02 at the same tab, where the two right hands are joined by a dashed line.">
+      <img src="../images/walkthrough/opt-network-tab.png"
+           alt="The cross-effector network showing two figures with lines between their measures." />
+    </figure>
+  </div>
+</details>
+
+<h2 id="when-something-is-not-right">When something is not right<a class="headerlink" href="#when-something-is-not-right" title="Permanent link">&para;</a></h2>
+<div class="path builder">
+  <table class="spec">
+    <tr><th>What you see</th><th>What it means</th></tr>
+    <tr><td>A file the builder ignored</td>
+        <td>Its name does not match anything it recognises. Check the extension and
+          that the session ID matches the video's.</td></tr>
+    <tr><td>“No cross-wavelet output was found for this recording”</td>
+        <td>The network is drawn from cross-wavelet results, so it needs the pairs
+          it draws to have been computed. Reopen the study, check the pairs are
+          still selected in step 4, and rebuild.</td></tr>
+    <tr><td>An empty tab in the dashboard</td>
+        <td>The analysis behind it was not switched on for those measures in step 4.
+          Reopen the study, switch it on, rebuild.</td></tr>
+    <tr><td>Video and data drifting apart</td>
+        <td>The <code>Time</code> column is probably in milliseconds, or the video is
+          a different take from the one the measurements came from.</td></tr>
+    <tr><td>Step 6 taking very long</td>
+        <td>Expected on long recordings with many pairs. Fewer cross-wavelet pairs
+          is the first lever; fewer surrogates is the second.</td></tr>
+    <tr><td>A network with no lines</td>
+        <td>Lines come from cross-wavelet pairs. Two measures with no line between
+          them on the step 4 diagram are two circles in the dashboard too.</td></tr>
+  </table>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      MIT-licensed. Built from the markdown in dims-network/dims.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js"></script>
+      
+        <script src="../analyses/demo/analyses-plots.js"></script>
+      
+        <script src="../javascripts/shot-placeholders.js"></script>
+      
+    
+  </body>
+</html>
