@@ -238,8 +238,10 @@ body{
 /* ---- the header wordmark ---------------------------------------------- */
 
 /* The logo is "DIMS Dashboard" spelled out, so Material's site title beside it
-   would say the name twice. Only the first topic is hidden: the second is the
-   page title, which slides in when the page scrolls and is worth keeping. */
-.md-header__topic:first-child{display:none}
+   would say the name twice. Hide the title text only: mike's version selector
+   is a sibling inside the same topic, and hiding the whole block took the
+   version switcher with it. The second topic -- the page title that slides in
+   on scroll -- is untouched. */
+.md-header__topic:first-child .md-ellipsis{display:none}
 .md-header__button.md-logo{padding-right:.4rem}
 .md-header__button.md-logo img{height:1.4rem;width:auto}
