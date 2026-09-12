@@ -17,10 +17,7 @@ for that pair.
 <figure class="shot" markdown="0">
   <img src="../../images/walkthrough/opt-network-tab.png"
        alt="The cross-effector network tab: two figures, their hands joined by two curved edges, above the controls that set the period band and what an edge means." />
-  <figcaption>The tab as it ships, on ConvoConnect-Mini — the example study the
-    builder generates. Two people, one edge per pair asked for, the playhead on a
-    synchrony peak. <a href="../../tutorial/#going-further--the-analyses">The
-    tutorial builds this study</a>.</figcaption>
+  <figcaption>The tab as it ships, on an example study.
 </figure>
 
 - Tab id `network`, gated by `include_network`.
