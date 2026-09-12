@@ -105,23 +105,29 @@ def on_page_markdown(markdown, page, config, files, **kwargs):
 # dims-core.js loads for the light theme -- and this site is light only.
 
 BRANDING = os.path.join("packages", "dims-core", "branding")
-MARKS = {
-    "images/dims-logo-light.png": "dims-logo-light.png",   # header
-    "images/dims-mark.png": "dims-mark.png",               # favicon
+
+# Published from the source tree, not copied into docs/: one file, the one the
+# dashboards load. The geometry module is here for the same reason as the
+# branding -- docs/javascripts/figure-demo.js draws the figure-geometry page's
+# figures with it, so the picture is the release's own geometry.
+FROM_THE_CORE = {
+    "images/dims-logo-light.png": os.path.join(BRANDING, "dims-logo-light.png"),
+    "images/dims-mark.png": os.path.join(BRANDING, "dims-mark.png"),
+    "javascripts/figure-geometry.js": os.path.join(
+        "packages", "dims-tabs", "figure-geometry.js"),
 }
 
 
 def on_files(files, config, **kwargs):
-    for uri, name in MARKS.items():
-        src = os.path.join(HERE, BRANDING, name)
+    for uri, name in FROM_THE_CORE.items():
+        src = os.path.join(HERE, name)
         if not os.path.isfile(src):
             raise FileNotFoundError(
-                f"{os.path.join(BRANDING, name)} is missing; mkdocs.yml points "
-                f"the logo or favicon at it")
+                f"{name} is missing; mkdocs.yml or a docs script points at it")
         try:
             asset = File.generated(config, uri, abs_src_path=src)
         except AttributeError:          # MkDocs < 1.6
-            asset = File(name, os.path.join(HERE, BRANDING),
+            asset = File(os.path.basename(src), os.path.dirname(src),
                          config["site_dir"], config["use_directory_urls"])
         files.append(asset)
     return files

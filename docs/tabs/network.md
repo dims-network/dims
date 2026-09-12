@@ -15,6 +15,15 @@ edge exists only where [`include_crosswavelet`](../analyses/crosswavelet.md) ask
 for that pair. **A pair you did not ask for is a missing edge, and nothing says
 so** — the two nodes are still drawn, with nothing between them.
 
+<figure class="shot" markdown="0">
+  <img src="../../images/walkthrough/opt-network-tab.png"
+       alt="The cross-effector network tab: two figures, their hands joined by two curved edges, above the controls that set the period band and what an edge means." />
+  <figcaption>The tab as it ships, on ConvoConnect-Mini — the example study the
+    builder generates. Two people, one edge per pair asked for, the playhead on a
+    synchrony peak. <a href="../../tutorial/#going-further--the-analyses">The
+    tutorial builds this study</a>.</figcaption>
+</figure>
+
 - Tab id `network`, gated by `include_network`.
 - Needs the cross-wavelet analysis. Coherence mode needs its coherence chance
   level; shared power mode does not.

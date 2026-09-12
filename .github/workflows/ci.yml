@@ -13,7 +13,7 @@ jobs:
       # Every JavaScript file that ships, not only the two that started here.
       # builder.js is 1100 lines and was not syntax-checked at all, and the
       # docs figures are the only code on the published site.
-      js_glob: "packages/dims-core/*.js packages/dims-tabs/*.js apps/builder/dims_builder/static/*.js docs/analyses/demo/*.js"
+      js_glob: "packages/dims-core/*.js packages/dims-tabs/*.js apps/builder/dims_builder/static/*.js docs/analyses/demo/*.js docs/javascripts/*.js"
       # The scaffold's config.json is not a study's: it names no recordings
       # until someone fills it in. The `contracts` job below validates it as
       # what it is, which this generic check cannot.

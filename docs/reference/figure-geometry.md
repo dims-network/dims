@@ -12,6 +12,10 @@ arrange in the wizard is what the dashboard draws:
 | the dashboard's network tab (`network.js`, beside it) | `vendor/dims-tabs/`, copied wholesale by `dims-case` |
 | the wizard's step 4 diagram (`builder.js`) | the DIMS checkout, served at `/vendor/figure-geometry.js` |
 
+**The two figures on this page are drawn by this file**, published into the site
+from `packages/dims-tabs/` and run in your browser — so they are the geometry
+this release ships, not a drawing of it.
+
 **To move a body part, change it here.** The number you change moves the node in
 the wizard immediately, and in a built study at its next
 [`dims-case sync`](cli/dims-case.md) — a study keeps its own vendored copy until
@@ -44,6 +48,8 @@ edge the tab draws is 16 px, which a 52 px circle would swallow whole.
 
 `SPOTS` — six places something can sit. `dx` is measured from the figure's centre
 line, so a spot is positioned relative to whichever person it belongs to.
+
+<div class="figure" id="fig-body"></div>
 
 | `part` | label | `dx` | `y` |
 |---|---|---|---|
@@ -78,6 +84,8 @@ the group prefix is stripped, so `teacher_righthandspeed` becomes
 | `positions(cx)` | every part name — **aliases included** — as `{x, y}` on a figure centred at `cx` |
 | `personCx(index, total)` | where the nth of `total` figures is centred: `VIEW_W × (index+1) / (total+1)`, so people are evenly spaced with margins at both ends |
 | `appendFigure(svg, {cx, color, el, opacity})` | draws one translucent body. `opacity` defaults to `0.3` |
+
+<div class="figure" id="fig-people"></div>
 
 `positions` derives the alias entries from `SPOTS` rather than listing them, so an
 alias and the place it points at cannot drift apart.

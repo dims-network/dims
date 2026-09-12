@@ -104,6 +104,11 @@ extra_javascript:
   # A screenshot that has not been taken yet becomes a panel naming the file and
   # what belongs in it, rather than a broken-image icon.
   - javascripts/shot-placeholders.js
+  # The figure-geometry page draws itself with the file it documents, published
+  # from packages/dims-tabs/ by the hook. Order matters, as it does in a study's
+  # index.html: the geometry has to be there before anything draws with it.
+  - javascripts/figure-geometry.js
+  - javascripts/figure-demo.js
 
 hooks:
   - mkdocs_hooks.py
