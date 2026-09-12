@@ -41,7 +41,7 @@
     each other.</p>
 </div>
 
-## Before you start
+## What you need
 
 <div class="mini">
   <div><h4>Python 3.10–3.12</h4><p>A free, one-time install from
