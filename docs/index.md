@@ -20,6 +20,9 @@ and any study whose video was stripped for de-identification. What you lose is t
 video panel and the ability to click from a peak to the moment on screen; nothing
 else changes.
 
+**[See a live dashboard →](https://dims-network.github.io/case-demo/)** Click the
+timeline; the video and every chart follow.
+
 Every page below is written for one kind of reader. If you are new, start at the
 tutorial and come back here.
 
@@ -111,5 +114,16 @@ Read away from the keyboard.
 
 Everything here is published at **<https://dims-network.github.io/dims/>**, built
 from this directory once per release — so a page on the site and the file beside
-the code are the same text, at the version you are reading. The project's home
-page is **<https://dims-network.github.io/>**.
+the code are the same text, at the version you are reading.
+
+## Citing DIMS
+
+The DIMS Dashboard is introduced in:
+
+> Miao, G. Q., Trujillo, J., Bulls, L. S., Thornton, M. A., Dale, R., & Pouw, W.
+> (2025). *DIMS Dashboard for Exploring Dynamic Interactions and Multimodal
+> Signals.* Proceedings of the 47th Annual Meeting of the Cognitive Science
+> Society (CogSci 2025).
+> [Post-print](https://dims-network.github.io/Miao_etal_2025_DIMS_Dashboard_CogSciPostPrint_CameraReady.pdf)
+
+The code lives at [github.com/dims-network](https://github.com/dims-network).
