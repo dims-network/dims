@@ -1,0 +1,147 @@
+# MkDocs Material + mike, over the markdown in docs/.
+#
+# The groups and page order below are the ones already curated in the website's
+# tools/SOURCE.json, so the two renderers present the same documentation in the
+# same shape. Nothing here edits docs/ -- the markdown stays the single source.
+#
+#   pip install -r requirements-docs.txt
+#   mkdocs serve                 # live preview on :8000
+#   mike deploy --update-aliases 1.4 latest && mike set-default latest
+#
+site_name: DIMS
+site_description: >-
+  Recordings and the time series taken from them, on one timeline, with the
+  analyses that say how two signals relate.
+# Where a mike deployment lands: gh-pages of this repository, one directory
+# per version. The hand-rendered pages on the website stay at /docs/.
+site_url: https://dims-network.github.io/dims/
+repo_url: https://github.com/dims-network/dims
+repo_name: dims-network/dims
+edit_uri: edit/main/docs/
+copyright: MIT-licensed. Built from the markdown in dims-network/dims.
+
+docs_dir: docs
+site_dir: site
+
+# The capture contract for the walkthrough screenshots lives beside them, where
+# the skill that takes them expects it. It is a note to whoever takes the next
+# shot, not a page of the documentation.
+exclude_docs: |
+  images/walkthrough/SHOTS.md
+
+theme:
+  name: material
+  language: en
+  # The system stack the website uses, not Roboto. `false` also stops the build
+  # reaching out to Google Fonts, which a dashboard-shaped project has no reason
+  # to depend on.
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.sections      # the six groups stay open in the sidebar
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+  # Light only, and no toggle. The analyses figures are drawn on white by
+  # analyses-plots.js from the tokens in docs/stylesheets/dims.css, so a dark
+  # page would frame light plots; the website is light for the same reason.
+  palette:
+    scheme: default
+    primary: white
+    accent: teal
+
+extra:
+  # The version switcher in the header. mike writes versions/ at the site root
+  # and this reads it; without mike deployed the header simply has no selector.
+  version:
+    provider: mike
+    alias: true
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+      # GitHub's slugs, so an anchor written for the README ("#sync--take-a-new-core")
+      # resolves on the site too. Python-Markdown's default collapses the double
+      # hyphen an em dash leaves behind, and every such cross-link silently breaks.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+# One stylesheet for the docs, the tutorial and the figures. It owns the
+# palette; the website vendors the token block from it.
+extra_css:
+  - stylesheets/dims.css
+
+# The figures on the analyses pages are the real payloads, drawn by the same
+# script the dashboards use. Plotly is pinned.
+extra_javascript:
+  - https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js
+  - analyses/demo/analyses-plots.js
+  # A screenshot that has not been taken yet becomes a panel naming the file and
+  # what belongs in it, rather than a broken-image icon.
+  - javascripts/shot-placeholders.js
+
+hooks:
+  - mkdocs_hooks.py
+
+plugins:
+  - search
+
+nav:
+  - Start here:
+      - Documentation: index.md
+      - The tutorial: tutorial.md
+      - Getting started: getting-started.md
+      - The no-code builder: builder/index.md
+  - Analyses:
+      - Overview: analyses/index.md
+      - Cross-wavelet analysis: analyses/crosswavelet.md
+      - Recurrence (RQA): analyses/rqa.md
+      - Cross-recurrence (cRQA): analyses/crqa.md
+  - Tabs:
+      - Time series: tabs/timeseries.md
+      - RQA: tabs/rqa.md
+      - Cross-RQA: tabs/crqa.md
+      - Cross-wavelet: tabs/crosswavelet.md
+      - Cross-effector network: tabs/network.md
+      - ELAN annotations: tabs/elan.md
+  - Reference:
+      - config.json: reference/config.md
+      - Asset layout: contracts/assets.md
+      - Analysis output: contracts/analysis-output.md
+      - Public and private data: contracts/data-visibility.md
+      - dims-analysis: reference/cli/dims-analysis.md
+      - dims-case: reference/cli/dims-case.md
+      - dims-builder: reference/cli/dims-builder.md
+      - Testing: reference/testing.md
+  - Extending DIMS:
+      - Writing a tab: contracts/tab.md
+      - Writing an analysis: contracts/step.md
+      - A study repository: contracts/case.md
+      - window.DIMS: reference/dims-api.md
+      - The host runtime: reference/host-runtime.md
+      - figure-geometry.js: reference/figure-geometry.md
+      - dims_analysis.common: reference/analysis-common.md
+      - The builder's HTTP API: builder/api.md
+  - Explanation:
+      - Architecture: architecture.md
+      - Versions, vendoring and the pin: versioning.md

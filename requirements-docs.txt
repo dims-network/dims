@@ -1,0 +1,4 @@
+# The documentation site. Not needed to use or develop DIMS -- only to build
+# the site from docs/. Pinned to minors, like the rest of the vendored world.
+mkdocs-material>=9.5,<10
+mike>=2.1,<3

@@ -1,0 +1,51 @@
+name: Docs
+
+# The documentation is published once per release, at its own version, so a
+# study pinned to an older core can be read at the docs that describe it --
+# screenshots of the wizard included. `latest` is an alias mike repoints on
+# every deploy; the bare URL follows it.
+#
+# One-off setup this cannot do for you: enable Pages for the gh-pages branch,
+# and run `mike set-default latest` once so / redirects there.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Docs version to deploy (e.g. 1.4)"
+        required: true
+
+permissions:
+  contents: write        # mike commits the built site to gh-pages
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # mike needs the gh-pages branch, not just this commit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -q -r requirements-docs.txt
+
+      # v1.4.3 publishes as 1.4: a patch release documents the same minor, and
+      # a directory per patch would be thirty copies of the same screenshots.
+      - name: Which version these docs are
+        id: v
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "docs=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            tag="${GITHUB_REF_NAME#v}"
+            echo "docs=${tag%.*}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mike deploy --push --update-aliases "${{ steps.v.outputs.docs }}" latest

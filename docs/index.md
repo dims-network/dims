@@ -29,7 +29,7 @@ tutorial and come back here.
 
 | | for |
 |---|---|
-| **[The tutorial](https://dims-network.github.io/tutorial.html)** | your first dashboard, in the no-code builder, with screenshots. Start here if you have never used DIMS |
+| **[The tutorial](tutorial.md)** | your first dashboard, in the no-code builder, with screenshots. Start here if you have never used DIMS |
 | [The builder](builder/index.md) | what each of the wizard's seven steps asks and writes |
 | [Getting started](getting-started.md) | the same journey from a terminal, with your own data |
 
@@ -109,6 +109,7 @@ Read away from the keyboard.
 
 ---
 
-Everything here is also published at **<https://dims-network.github.io/>**, and
-generated from this directory — so a page on the site and the file beside the code
-are the same text.
+Everything here is published at **<https://dims-network.github.io/dims/>**, built
+from this directory once per release — so a page on the site and the file beside
+the code are the same text, at the version you are reading. The project's home
+page is **<https://dims-network.github.io/>**.

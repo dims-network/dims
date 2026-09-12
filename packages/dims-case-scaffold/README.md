@@ -27,7 +27,7 @@ or empty does not show up at all.
 | RQA | `include_RQA` lists data types | a recurrence plot per signal, with recurrence rate, determinism and laminarity tracked over time |
 | Cross-RQA | `include_cRQA` lists pairs | the same, between two different signals — structure off the main diagonal is a lagged coupling |
 | Cross-Wavelet | `include_crosswavelet` lists pairs | coherence by time and timescale, with a chance level from a Monte Carlo null |
-| Network | `include_network` is set | which signals are coupled with which, as one picture that moves with the playhead. Say which signal is which node with `effectors`; see [the tab's page](https://dims-network.github.io/docs/tabs-network.html) |
+| Network | `include_network` is set | which signals are coupled with which, as one picture that moves with the playhead. Say which signal is which node with `effectors`; see [the tab's page](https://dims-network.github.io/dims/latest/tabs/network/) |
 | ELAN | `include_elan` is true | annotation tiers from an `.eaf` file, aligned to the video |
 
 Across all of them: pick a point on the timeline and every tab narrows to a

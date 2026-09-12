@@ -25,3 +25,8 @@ build/
 # these on every run, and a permanently dirty tree trains people to ignore
 # `git status`, which is how an accidental `git add -A` sweeps something in.
 *.egg-info/
+
+# The built documentation site. `mkdocs build` writes 6 MB here, most of it
+# copies of the walkthrough screenshots; the published copy is the gh-pages
+# branch that `mike deploy` writes, never this.
+/site/

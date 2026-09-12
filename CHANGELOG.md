@@ -36,6 +36,26 @@ nobody is asking*.
   one, and it might be this step's own from before any of this was recorded;
   the old wording sent people looking for a second analysis that did not exist.
 
+**The documentation is built from this repository and published per version.**
+It was rendered by a script in the website's repository, which meant two
+renderers over one source and a tutorial whose screenshots always showed the
+newest wizard, whatever release you were reading about.
+
+- MkDocs Material builds `docs/`. `mkdocs build --strict` runs in CI, so a
+  broken cross-reference is a red X rather than a reader's 404.
+- `mike` publishes each release under its own version at
+  `dims-network.github.io/dims/`, with `latest` as an alias. A study pinned to
+  an older core can read the documentation that describes it.
+- The tutorial moved here as `docs/tutorial.md`, its sixteen screenshots with
+  it. They are versioned with it, so a re-take changes the next release and
+  leaves published ones showing the wizard they shipped.
+- One stylesheet, `docs/stylesheets/dims.css`: the palette, the Material
+  mapping, and the components the pages use. The website vendors the palette
+  from it rather than keeping a second copy.
+- `tests/test_contracts.py` fails if the tutorial names a screenshot that does
+  not exist, if a screenshot nothing shows is still carried, or if the page and
+  `SHOTS.md` disagree about the set.
+
 **Two people could end up with one name, and it cost a measure.** The wizard
 numbered a new person by how many there were, so removing Person 2 of three and
 adding another produced a second "Person 3". A measure named its person by

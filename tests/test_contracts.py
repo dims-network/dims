@@ -93,6 +93,41 @@ def test_every_contract_the_docs_cross_reference_exists():
     assert not missing, missing
 
 
+def test_every_walkthrough_screenshot_the_tutorial_names_exists():
+    """A missing shot renders as a dashed placeholder rather than a broken
+    image, which is what makes the page readable while it is being written --
+    and exactly why shipping one is easy to miss. The tutorial is published per
+    release now, so an absent screenshot is frozen into that version forever."""
+    tutorial = os.path.join(ROOT, "docs", "tutorial.md")
+    text = open(tutorial).read()
+    referenced = set(re.findall(r'src="\.\./(images/walkthrough/[^"]+)"', text))
+    assert referenced, "the tutorial references no screenshots at all"
+
+    missing = sorted(r for r in referenced
+                     if not os.path.exists(os.path.join(ROOT, "docs", r)))
+    assert not missing, missing
+
+    # The other direction: a shot nothing shows is one the page stopped using,
+    # and it is still being carried into every published version.
+    taken = {f"images/walkthrough/{n}"
+             for n in os.listdir(os.path.join(ROOT, "docs", "images", "walkthrough"))
+             if n.endswith(".png")}
+    assert not sorted(taken - referenced), sorted(taken - referenced)
+
+
+def test_every_shot_the_capture_contract_lists_is_one_the_tutorial_shows():
+    """SHOTS.md is generated from the tutorial's own data-shot attributes. When
+    they disagree, the script that takes the screenshots is working from the
+    wrong list."""
+    text = open(os.path.join(ROOT, "docs", "tutorial.md")).read()
+    wanted = set(re.findall(r'data-shot="([^"]+)"', text))
+    contract = open(os.path.join(
+        ROOT, "docs", "images", "walkthrough", "SHOTS.md")).read()
+    listed = set(re.findall(r"`([\w.-]+\.png)`", contract))
+    assert wanted == listed, {"only in tutorial": sorted(wanted - listed),
+                              "only in SHOTS.md": sorted(listed - wanted)}
+
+
 def test_the_figure_layout_vocabulary_is_the_same_in_every_file_that_names_it():
     """Where the network can put a node is written down four times.
 

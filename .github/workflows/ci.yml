@@ -41,6 +41,20 @@ jobs:
       - name: The repository's own contracts and version coherence
         run: python -m pytest tests/test_contracts.py tests/test_release.py -q
 
+  # The documentation site, built the way it is published. --strict makes a
+  # broken cross-reference a red X rather than a 404 for a reader: the check
+  # that render_docs.py --check used to be, now that MkDocs is the renderer.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -q -r requirements-docs.txt
+      - name: Every link resolves and every page is in the nav
+        run: mkdocs build --strict
+
   analysis-package:
     runs-on: ubuntu-latest
     steps:
