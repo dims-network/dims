@@ -1,0 +1,2375 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Recordings and the time series taken from them, on one timeline, with the analyses that say how two signals relate.">
+      
+      
+      
+        <link rel="canonical" href="https://dims-network.github.io/dims/1.5/reference/analysis-common/">
+      
+      
+        <link rel="prev" href="../figure-geometry/">
+      
+      
+        <link rel="next" href="../../builder/api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>dims_analysis.common - DIMS</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/dims.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#dims_analysiscommon--the-shared-machinery" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="DIMS" class="md-header__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DIMS
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              dims_analysis.common
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="DIMS" class="md-nav__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    DIMS
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start here
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start here
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The no-code builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../analyses/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyses
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analyses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recurrence (RQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-recurrence (cRQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tabs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/timeseries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time series
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-effector network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabs/elan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ELAN annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asset layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/analysis-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/data-visibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public and private data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/dims-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/dims-case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-case
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/dims-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending DIMS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extending DIMS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/tab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a tab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing an analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A study repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dims-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    window.DIMS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../host-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The host runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../figure-geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    figure-geometry.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims_analysis.common
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims_analysis.common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#payload-encoding-and-precision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Payload encoding and precision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Payload encoding and precision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arrays--the-two-wire-encodings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arrays — the two wire encodings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#payload--significant-figures-and-saying-what-produced-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        payload — significant figures, and saying what produced a file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results--merging-rather-than-clobbering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        results — merging rather than clobbering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading input
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading input">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#series--loading-a-time-series-with-the-failures-named" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        series — loading a time series, with the failures named
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assets--where-a-private-studys-data-actually-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        assets — where a private study's data actually is
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config--reading-the-include_-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config — reading the include_* keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limits--refusing-what-will-not-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        limits — refusing what will not fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recurrence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recurrence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recurrence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recurrence--one-definition-of-every-recurrence-quantity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recurrence — one definition of every recurrence quantity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reduce--making-a-picture-small-without-lying-about-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reduce — making a picture small without lying about it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#window--sliding-windows-that-fit-the-recording" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        window — sliding windows that fit the recording
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wavelet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wavelet
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wavelet">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#coherence--smoothing-delegated-deliberately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        coherence — smoothing, delegated deliberately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tc98--torrence--compo-1998-transcribed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tc98 — Torrence &amp; Compo (1998), transcribed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-plumbing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step plumbing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step plumbing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step_io--the-parts-of-a-step-that-are-always-the-same" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        step_io — the parts of a step that are always the same
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manifest--what-a-complete-assets-looks-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest — what a complete assets/ looks like
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The builder's HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versions, vendoring and the pin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#payload-encoding-and-precision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Payload encoding and precision
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Payload encoding and precision">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arrays--the-two-wire-encodings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        arrays — the two wire encodings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#payload--significant-figures-and-saying-what-produced-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        payload — significant figures, and saying what produced a file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#results--merging-rather-than-clobbering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        results — merging rather than clobbering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading input
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading input">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#series--loading-a-time-series-with-the-failures-named" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        series — loading a time series, with the failures named
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assets--where-a-private-studys-data-actually-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        assets — where a private study's data actually is
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config--reading-the-include_-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config — reading the include_* keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limits--refusing-what-will-not-fit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        limits — refusing what will not fit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recurrence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recurrence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recurrence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recurrence--one-definition-of-every-recurrence-quantity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recurrence — one definition of every recurrence quantity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reduce--making-a-picture-small-without-lying-about-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        reduce — making a picture small without lying about it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#window--sliding-windows-that-fit-the-recording" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        window — sliding windows that fit the recording
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wavelet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wavelet
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Wavelet">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#coherence--smoothing-delegated-deliberately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        coherence — smoothing, delegated deliberately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tc98--torrence--compo-1998-transcribed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tc98 — Torrence &amp; Compo (1998), transcribed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-plumbing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step plumbing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step plumbing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step_io--the-parts-of-a-step-that-are-always-the-same" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        step_io — the parts of a step that are always the same
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manifest--what-a-complete-assets-looks-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest — what a complete assets/ looks like
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/dims-network/dims/edit/main/docs/reference/analysis-common.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="dims_analysiscommon--the-shared-machinery"><code>dims_analysis.common</code> — the shared machinery<a class="headerlink" href="#dims_analysiscommon--the-shared-machinery" title="Permanent link">&para;</a></h1>
+<p>Fourteen modules that the analysis steps share. Nothing here is an analysis; it is
+the plumbing every step needs, factored out so that a rule exists <strong>once</strong>.</p>
+<p>This is contributor reference. If you are writing a step, read
+<a href="../../contracts/step/"><code>contracts/step.md</code></a> first — it tells you which of these to
+reach for. This page is what each one actually offers.</p>
+<blockquote>
+<p>Grouped on one page rather than fourteen, because none of these is looked up by
+name from outside the package.</p>
+</blockquote>
+<hr />
+<h2 id="payload-encoding-and-precision">Payload encoding and precision<a class="headerlink" href="#payload-encoding-and-precision" title="Permanent link">&para;</a></h2>
+<h3 id="arrays--the-two-wire-encodings"><code>arrays</code> — the two wire encodings<a class="headerlink" href="#arrays--the-two-wire-encodings" title="Permanent link">&para;</a></h3>
+<p><code>PAYLOAD_VERSION = 2</code>, <code>BITMAP = "bitmap-b64"</code>, <code>FLOAT32 = "f32-b64"</code>.</p>
+<p><code>pack_bitmap(matrix)</code> / <code>unpack_bitmap(obj)</code> — one bit per cell, rows byte-aligned.
+<code>pack_f32</code> / <code>unpack_f32</code> — little-endian float32, NaN preserved.
+<code>is_packed(obj)</code>, <code>unpack(obj)</code> — dispatch without knowing which encoding you have.
+<code>nan_to_none(values)</code> — for the plain-list fields, since JSON has no NaN.</p>
+<p>The browser's half of this contract is
+<a href="../dims-api/"><code>DIMS.decodeArray</code></a>.</p>
+<h3 id="payload--significant-figures-and-saying-what-produced-a-file"><code>payload</code> — significant figures, and saying what produced a file<a class="headerlink" href="#payload--significant-figures-and-saying-what-produced-a-file" title="Permanent link">&para;</a></h3>
+<p><code>PAYLOAD_SIGNIFICANT_FIGURES = 6</code>.</p>
+<p><code>round_significant(x)</code> and <code>round_payload(obj)</code> round to <strong>significant figures, not
+decimal places</strong> — a coherence of <code>0.0000123</code> and a power of <code>12345.6</code> cannot share
+a decimal count without one of them being destroyed.</p>
+<p><code>provenance(**extra)</code> returns <code>{"core_version": …}</code> plus whatever the step adds,
+dropping <code>None</code>s. <code>precision_note()</code> records how the file was rounded.</p>
+<p>An output that does not say how it was made cannot be compared with another. Two
+real cases drove this: a study computed partly at 100 surrogates and partly at 300
+was silently inconsistent, and a recurrence analysis that <em>reached</em> 33.7 % against
+a 7 % target looked identical to one that was <em>asked for</em> 33.7 %.</p>
+<h3 id="results--merging-rather-than-clobbering"><code>results</code> — merging rather than clobbering<a class="headerlink" href="#results--merging-rather-than-clobbering" title="Permanent link">&para;</a></h3>
+<p><code>VERSION_KEY</code>, <code>UnversionedPayload</code>, <code>check_version</code>, <code>same_version</code>,
+<code>merge_payload</code>, <code>read_existing</code>, <code>compare_entries</code>, <code>write_payload(path, payload,
+compact=True)</code>.</p>
+<p>Re-running one pair must not delete the other pairs already in the file, and a
+payload from a different format version must not be merged into one that is not.</p>
+<hr />
+<h2 id="reading-input">Reading input<a class="headerlink" href="#reading-input" title="Permanent link">&para;</a></h2>
+<h3 id="series--loading-a-time-series-with-the-failures-named"><code>series</code> — loading a time series, with the failures named<a class="headerlink" href="#series--loading-a-time-series-with-the-failures-named" title="Permanent link">&para;</a></h3>
+<p><code>TIME = "Time"</code>, <code>SeriesError</code>.</p>
+<p><code>time_column(df)</code> finds the time column case-insensitively.
+<code>load(path, min_points=0, value_column=None, min_variance=None)</code> raises
+<code>SeriesError</code> with a sentence saying what is wrong.
+<code>load_or_none(...)</code> is the same for the steps that want to warn and continue.
+<code>normalise(values)</code> is the z-normalisation the recurrence analyses run on.</p>
+<h3 id="assets--where-a-private-studys-data-actually-is"><code>assets</code> — where a private study's data actually is<a class="headerlink" href="#assets--where-a-private-studys-data-actually-is" title="Permanent link">&para;</a></h3>
+<p><code>MARKER = 'data.local.json'</code>.</p>
+<p><code>assets_root(project_dir)</code>, <code>resolve(path, project_dir, root)</code>, <code>describe(...)</code>.
+A private study keeps recordings outside the repository; this is the one place
+that knows how to follow the pointer. See
+<a href="../../contracts/data-visibility/"><code>contracts/data-visibility.md</code></a>.</p>
+<h3 id="config--reading-the-include_-keys"><code>config</code> — reading the <code>include_*</code> keys<a class="headerlink" href="#config--reading-the-include_-keys" title="Permanent link">&para;</a></h3>
+<p><code>ConfigError</code>, <code>gate_value</code>, <code>enabled(config, key)</code>,
+<code>as_list(config, key, what)</code>, <code>tuning(config, step_id)</code>,
+<code>tuned_number(config, step_id, key, default)</code>.</p>
+<p>Three keys use three different conventions — a list of measures, a list of pairs,
+a boolean — so the reading of them lives here rather than being re-guessed per
+step. <code>as_list</code> raises with an example of the right shape rather than a type error.</p>
+<h3 id="limits--refusing-what-will-not-fit"><code>limits</code> — refusing what will not fit<a class="headerlink" href="#limits--refusing-what-will-not-fit" title="Permanent link">&para;</a></h3>
+<p><code>MIN_POINTS = 10</code>, <code>MIN_VARIANCE = 0.0</code>, <code>MAX_MATRIX_BYTES = 2 GiB</code>,
+<code>InputTooLarge</code>.</p>
+<p><code>matrix_bytes(n)</code>, <code>max_points(budget)</code>, <code>check_length(n, what, budget)</code>.</p>
+<p>A recurrence matrix is quadratic and <code>cdist</code> returns float64, so 8 bytes a cell —
+which puts the ceiling near <strong>16,000 points</strong>. Being told that before the
+allocation is better than an <code>OOM</code> twenty minutes in.</p>
+<hr />
+<h2 id="recurrence">Recurrence<a class="headerlink" href="#recurrence" title="Permanent link">&para;</a></h2>
+<h3 id="recurrence--one-definition-of-every-recurrence-quantity"><code>recurrence</code> — one definition of every recurrence quantity<a class="headerlink" href="#recurrence--one-definition-of-every-recurrence-quantity" title="Permanent link">&para;</a></h3>
+<p><code>RATE_TOLERANCE = 0.01</code>.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>threshold_for_target(distance_matrix, target, self_paired)</code></td>
+<td>the threshold that hits a target recurrence rate</td>
+</tr>
+<tr>
+<td><code>rate_report(target, achieved, tolerance)</code></td>
+<td>the warning when it could not</td>
+</tr>
+<tr>
+<td><code>recurrence_rate(matrix, self_paired)</code></td>
+<td>the rate</td>
+</tr>
+<tr>
+<td><code>line_lengths(matrix, direction, min_len, self_paired)</code></td>
+<td>diagonal or vertical runs</td>
+</tr>
+<tr>
+<td><code>window_metrics(matrix, dt, min_line, self_paired)</code></td>
+<td><code>(RR, DET, LAM, L_MAX)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>self_paired</code> is the whole point of this module.</strong> A plain recurrence plot
+compares a series with itself, so the line of identity is trivially recurrent and
+must be excluded from every count; a cross-recurrence plot compares two different
+series, so there is no line of identity and nothing to exclude. Getting that wrong
+shifts every number. One flag, one implementation, both steps.</p>
+<p><code>L_MAX</code> is returned in <strong>seconds</strong> — the longest run multiplied by <code>dt</code>.</p>
+<h3 id="reduce--making-a-picture-small-without-lying-about-it"><code>reduce</code> — making a picture small without lying about it<a class="headerlink" href="#reduce--making-a-picture-small-without-lying-about-it" title="Permanent link">&para;</a></h3>
+<p><code>factor_for(n_points, max_points)</code> — <strong>rounds up</strong>, so the result never exceeds the
+cap.
+<code>block_mean</code>, <code>block_mode</code>, <code>block_binary</code>, <code>rate_of(m)</code>.</p>
+<p><code>block_binary</code> is the one that matters: it keeps both the structure and the
+density, selecting blocks <strong>by rank</strong> rather than by a density threshold, so the
+output rate is exact rather than depending on where a quantile lands among ties.
+A recurrent line stays a line.</p>
+<p><code>rate_of</code> is a plain mean and <strong>includes</strong> the line of identity, unlike
+<code>recurrence.recurrence_rate</code> — the two numbers in a payload are close but not
+identical, and they are not measuring quite the same thing.</p>
+<h3 id="window--sliding-windows-that-fit-the-recording"><code>window</code> — sliding windows that fit the recording<a class="headerlink" href="#window--sliding-windows-that-fit-the-recording" title="Permanent link">&para;</a></h3>
+<p><code>MIN_WINDOWS = 20</code>, <code>MIN_WINDOW_POINTS = 2</code>, <code>WindowPlan</code>, <code>plan(n, dt, window_sec,
+step_sec, min_windows)</code>.</p>
+<p>A long window over a short recording gives a handful of windows and no time
+course, so <code>plan</code> shortens what it must — and the two limits are separate:</p>
+<ul>
+<li><strong>The window length</strong> is capped at half the recording's span (with a floor of two
+  samples). <code>MIN_WINDOWS</code> plays no part in that.</li>
+<li><strong>The step</strong> is then shortened, if necessary, so that <code>MIN_WINDOWS</code> of them fit
+  across what is left to slide over.</li>
+</ul>
+<p>A 20-second window with a 1-second step over a 30-second recording comes back as
+<strong>15 s windows at a 0.75 s step, 21 of them</strong> — both values adjusted, and the
+warning says so: <em>"the 20 s window was shortened to 15 s and the 1 s step was
+shortened to 0.75 s, because a 30 s recording cannot hold 20 of the requested
+windows."</em></p>
+<p><code>WindowPlan.report()</code> records <strong>asked-for beside used</strong>, so the payload never hides
+the substitution — and DET and LAM depend on the window length, so an adjusted
+analysis is not comparable with an unadjusted one.</p>
+<hr />
+<h2 id="wavelet">Wavelet<a class="headerlink" href="#wavelet" title="Permanent link">&para;</a></h2>
+<h3 id="coherence--smoothing-delegated-deliberately"><code>coherence</code> — smoothing, delegated deliberately<a class="headerlink" href="#coherence--smoothing-delegated-deliberately" title="Permanent link">&para;</a></h3>
+<p><code>smoothed_spectra(W1, W2, scales, dt, dj, mother_wavelet)</code>,
+<code>coherence_from_spectra(S1, S2, S12)</code>, <code>coherence(...)</code>.</p>
+<p>The smoothing operator is pycwt's, validated, rather than a local
+reimplementation. That is not incidental: a hand-rolled smoother that failed to
+cancel phase is exactly the defect that shipped once and was found by a notebook
+rather than a crash.</p>
+<h3 id="tc98--torrence--compo-1998-transcribed"><code>tc98</code> — Torrence &amp; Compo (1998), transcribed<a class="headerlink" href="#tc98--torrence--compo-1998-transcribed" title="Permanent link">&para;</a></h3>
+<p><code>DEFAULT_LEVEL = 0.95</code>, <code>Z1_95_PUBLISHED = 2.182</code>, <code>Z2_95_PUBLISHED = 3.999</code>,
+<code>MAX_DIRECT_NU = 60.0</code>.</p>
+<p><code>cross_wavelet_pdf</code>, <code>survival</code>, <code>survival_by_quadrature</code>, <code>cross_wavelet_z(nu,
+level)</code>, <code>ar1_background(alpha, period, dt)</code>, <code>local_significance</code>,
+<code>time_average_dof</code>, <code>time_average_significance</code>, <code>scale_average_dof</code>,
+<code>scale_average_significance</code>.</p>
+<p>The two <code>_PUBLISHED</code> constants are the paper's own numbers, kept so the derived
+values can be <strong>checked against print</strong>. <code>tests/reference/test_wavelet_reference.py</code>
+does check <code>cross_wavelet_z</code> against 2.182 and 3.999 — though it restates those
+figures itself rather than importing these constants, so the constants here are
+documentation rather than something a test consumes. The
+distinction between the four significance levels — and which question each answers
+— is on <a href="../../analyses/crosswavelet/">the cross-wavelet page</a>.</p>
+<hr />
+<h2 id="step-plumbing">Step plumbing<a class="headerlink" href="#step-plumbing" title="Permanent link">&para;</a></h2>
+<h3 id="step_io--the-parts-of-a-step-that-are-always-the-same"><code>step_io</code> — the parts of a step that are always the same<a class="headerlink" href="#step_io--the-parts-of-a-step-that-are-always-the-same" title="Permanent link">&para;</a></h3>
+<p><code>parse_args(prog, description, default_output_dir, argv)</code>,
+<code>tuning(config, step_id, window_sec, step_sec, target_recurrence_default)</code>,
+<code>resolve_io(input_dir, output_dir, project_dir)</code>,
+<code>payload_writer(output_dir, output_name, label)</code>,
+<code>report_merge(report)</code>.</p>
+<p><code>parse_args</code> defaults <code>--window</code> and <code>--step</code> to <code>None</code> rather than to a number,
+<strong>deliberately</strong>: <code>None</code> means "the config decides", and a default here would
+silently win over the study's own <code>analysis</code> block.</p>
+<h3 id="manifest--what-a-complete-assets-looks-like"><code>manifest</code> — what a complete <code>assets/</code> looks like<a class="headerlink" href="#manifest--what-a-complete-assets-looks-like" title="Permanent link">&para;</a></h3>
+<p><code>NAME = 'MANIFEST.json'</code>, <code>scan</code>, <code>path_for</code>, <code>load</code>, <code>write(project_dir,
+deep=True)</code>, <code>compare(project_dir, deep=False)</code> → <code>(missing, changed, extra)</code>.</p>
+<p>Driven by <a href="../cli/dims-analysis/#manifest"><code>dims-analysis manifest</code></a>. Skips
+<code>MANIFEST.json</code> itself, <code>.gitkeep</code> and <code>.DS_Store</code>; hashes in 1 MiB chunks.</p>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../contracts/step/"><code>contracts/step.md</code></a> — writing a step.</li>
+<li><a href="../../contracts/analysis-output/"><code>contracts/analysis-output.md</code></a> — the rules
+  these modules exist to enforce, each with the measurement behind it.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      MIT-licensed. Built from the markdown in dims-network/dims.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js"></script>
+      
+        <script src="../../analyses/demo/analyses-plots.js"></script>
+      
+        <script src="../../javascripts/shot-placeholders.js"></script>
+      
+    
+  </body>
+</html>

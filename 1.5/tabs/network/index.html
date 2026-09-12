@@ -1,0 +1,2438 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Recordings and the time series taken from them, on one timeline, with the analyses that say how two signals relate.">
+      
+      
+      
+        <link rel="canonical" href="https://dims-network.github.io/dims/1.5/tabs/network/">
+      
+      
+        <link rel="prev" href="../crosswavelet/">
+      
+      
+        <link rel="next" href="../elan/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Cross-effector network - DIMS</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/dims.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-cross-effector-network" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="DIMS" class="md-header__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DIMS
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Cross-effector network
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="DIMS" class="md-nav__button md-logo" aria-label="DIMS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    DIMS
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dims-network/dims" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dims-network/dims
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start here
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start here
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The no-code builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../analyses/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyses
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analyses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recurrence (RQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../analyses/crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-recurrence (cRQA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tabs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../timeseries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time series
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crqa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-RQA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crosswavelet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-wavelet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-effector network
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross-effector network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reading-an-edge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading an edge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading an edge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#solid-above-what-the-number-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solid above: what the number is
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-third-verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The third verdict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-controls-above-the-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The controls above the picture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coherence-needs-a-chance-level-to-say-anything-at-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coherence needs a chance level to say anything at all
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clicking-an-edge-the-detail-figure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clicking an edge: the detail figure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-nodes-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the nodes go
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-it-in-the-wizard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building it in the wizard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saying-which-series-is-which-node" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saying which series is which node
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Saying which series is which node">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-when-a-declaration-and-the-data-disagree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens when a declaration and the data disagree
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-drawing-lives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the drawing lives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-rest-of-the-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The rest of the config
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../elan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ELAN annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config.json
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asset layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/analysis-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/data-visibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public and private data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-case
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/dims-builder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims-builder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extending DIMS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extending DIMS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/tab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing a tab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing an analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contracts/case/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A study repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/dims-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    window.DIMS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/host-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The host runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/figure-geometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    figure-geometry.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/analysis-common/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dims_analysis.common
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../builder/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The builder's HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Versions, vendoring and the pin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reading-an-edge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading an edge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading an edge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#solid-above-what-the-number-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solid above: what the number is
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-third-verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The third verdict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-controls-above-the-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The controls above the picture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coherence-needs-a-chance-level-to-say-anything-at-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coherence needs a chance level to say anything at all
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The two modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clicking-an-edge-the-detail-figure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clicking an edge: the detail figure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-nodes-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the nodes go
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-it-in-the-wizard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building it in the wizard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saying-which-series-is-which-node" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saying which series is which node
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Saying which series is which node">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-when-a-declaration-and-the-data-disagree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens when a declaration and the data disagree
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-drawing-lives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the drawing lives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-rest-of-the-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The rest of the config
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/dims-network/dims/edit/main/docs/tabs/network.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="the-cross-effector-network">The cross-effector network<a class="headerlink" href="#the-cross-effector-network" title="Permanent link">&para;</a></h1>
+<p>One picture of who is coupled with whom, following the playhead. Each <strong>node</strong> is
+a measure; each <strong>edge</strong> is how strongly two measures went together over the
+window around the current moment. Move the playhead and the picture changes.</p>
+<p><strong>An edge answers one of two questions, and you choose which.</strong> <em>Coherence</em> asks
+whether the two held a steady phase relationship. <em>Shared power</em> asks whether
+both were moving at all at that timescale. They are different questions and they
+disagree in the case that matters most — see <a href="#the-two-modes">the two modes</a>.</p>
+<p>It is a view of the cross-wavelet analysis, not a separate one. Everything it
+draws comes from <code>assets/crosswavelet/{video}_crosswavelet_data.json</code>, so an
+edge exists only where <a href="../../analyses/crosswavelet/"><code>include_crosswavelet</code></a> asked
+for that pair. <strong>A pair you did not ask for is a missing edge, and nothing says
+so</strong> — the two nodes are still drawn, with nothing between them.</p>
+<ul>
+<li>Tab id <code>network</code>, gated by <code>include_network</code>.</li>
+<li>Needs the cross-wavelet analysis. Coherence mode needs its coherence chance
+  level; shared power mode does not.</li>
+<li>Needs <code>figure-geometry.js</code>, which draws the body and the fan of edges. Without
+  it the tab reports that rather than drawing — <code>dims-case sync</code> writes the
+  script tag for you.</li>
+<li>Reads nothing else: no raw signal, no config beyond <code>include_network</code> — except
+  the <strong>Window Size</strong> control, seeded from <code>defaultWindowSize</code>, for how wide
+  "the moment" is.</li>
+</ul>
+<p>The window is the playhead ± half of the <strong>Window Size</strong> control, which starts
+at <code>defaultWindowSize</code> (5 s unless the study says otherwise) and follows the
+control from then on. A <strong>whole recording</strong> button above the picture appears once
+you have picked a moment and takes you back to averaging over everything, for
+when you want the study rather than the moment.</p>
+<h2 id="reading-an-edge">Reading an edge<a class="headerlink" href="#reading-an-edge" title="Permanent link">&para;</a></h2>
+<p>Four things are drawn on one line, and they answer different questions.</p>
+<table>
+<thead>
+<tr>
+<th>channel</th>
+<th>means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>thickness</strong></td>
+<td>the mode's measure over the window and the period band — but <em>relative to the other visible edges</em>, not absolute</td>
+</tr>
+<tr>
+<td><strong>solid or dashed</strong></td>
+<td>solid where the measure beats its 95 % level in at least 15 % of tested cells; dashed where it does not. That share is a control</td>
+</tr>
+<tr>
+<td><strong>colour</strong></td>
+<td>nothing, except the one edge you have selected</td>
+</tr>
+<tr>
+<td><strong>curvature</strong></td>
+<td>nothing — it is there so you can tell edges apart</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Every edge is bowed, and no two by the same amount.</strong> That is presentation only.
+Straight lines between nodes on one body are <em>the same line</em>, and cross-body edges
+all cross the middle and arrive at a node as a smear; fanning the set is what
+separates them. A large fan tightens rather than sweeping out of frame. The
+constants are in <a href="../../reference/figure-geometry/"><code>reference/figure-geometry.md</code></a>.</p>
+<p><strong>Thickness is relative on purpose.</strong> The width scale pivots on the mean of the
+currently visible above-chance edges, so the picture answers "which of these
+couplings is strongest here" rather than "what is the absolute number" — which
+is what the tooltip is for. It also means the same edge can look different after
+you hide another one. The "width sensitivity" slider controls how hard the scale
+pushes.</p>
+<p><strong>Dashed means the measurement said nothing.</strong> An edge is called real when at
+least 15 % of its tested cells beat the 95 % level, and drawn as a dashed
+hairline when it is not. That share is the <strong>Solid above (share of cells)</strong>
+control, and it is worth understanding rather than accepting.</p>
+<h3 id="solid-above-what-the-number-is">Solid above: what the number is<a class="headerlink" href="#solid-above-what-the-number-is" title="Permanent link">&para;</a></h3>
+<p><strong>It is a share of cells, not a level.</strong> The level is fixed at 95 % and comes
+from the analysis. What this control sets is <em>how many of the cells that were
+tested</em> have to beat that level before the tab is willing to call the edge real.</p>
+<p>A cell counts as <strong>tested</strong> when it survives four filters: its period is inside
+the <strong>Period band</strong>, its column is inside the window at the playhead, it lies
+outside the cone of influence, and its period has a usable 95 % level at all. So
+"tested cells" is smaller than "cells in the window", and both controls above
+change it — narrowing the band changes the denominator as well as the numerator.</p>
+<p><strong>Why not 5 %.</strong> Under the null, 5 % of cells beat a 95 % level by construction —
+that is what the level means, and the tooltip says so beside every edge. Setting
+the control there would make the test "did this edge behave at least as well as
+noise", and because the fraction is itself an estimate that scatters around 5 %,
+roughly half of the genuinely at-chance edges would come out solid. 0.15 is three
+times chance, chosen to sit clear of that scatter.</p>
+<p><strong>Why it is remembered per mode.</strong> The share of cells above a <em>sampled</em> coherence
+chance level and the share above an <em>analytic</em> red-noise power level are
+different distributions. One number would judge one of them by the other's
+yardstick, so each mode keeps its own, seeded from <code>include_network.threshold</code>
+and remembered as you switch back and forth.</p>
+<p><strong>What the ends do.</strong> At <strong>0</strong> every testable edge is solid — the test becomes
+"was even one cell measured". At <strong>1</strong> nothing is solid unless <em>every</em> tested cell
+beat its level. Neither end changes a single measured value: this control sets a
+verdict, not an answer, and the number in the tooltip is the same either way.</p>
+<p><strong>It is not presentation only.</strong> The width scale pivots on the mean of the
+<em>visible, above-chance</em> edges, so moving this control changes which edges are in
+that pool and therefore re-scales every solid edge on screen. It sits between the
+two presentation controls and behaves like neither.</p>
+<p><strong>It cannot rescue an untestable edge.</strong> An edge whose payload carries no usable
+level has no fraction to compare, so no threshold reaches it — see below.</p>
+<h3 id="the-third-verdict">The third verdict<a class="headerlink" href="#the-third-verdict" title="Permanent link">&para;</a></h3>
+<p>An edge whose payload carries no level at all is <strong>untestable</strong> — drawn, but its
+tooltip says the value cannot be tested and names the fix, and when every edge is
+in that state the tab says so above the picture rather than letting an untested
+picture pass for a tested one. In coherence mode the fix is
+<code>analysis.crosswavelet.mcCount</code> and a rebuild; in shared power mode it is not,
+because that level is computed rather than sampled.</p>
+<p><strong>Every edge's numbers are in its tooltip</strong>: the pair, the mode's value, the
+period band it was averaged over, the share of tested cells that beat the level
+and how many cells that was, what independence would have given (about 5 %), and
+the other mode's value for comparison.</p>
+<p>The widths themselves run from <code>MIN_WIDTH = 1.5</code> px at the bottom of the visible
+range to <code>MAX_WIDTH = 16</code> px at the top. The node they end at is deliberately
+small — <code>TAB_NODE_R</code> in <code>figure-geometry.js</code>, under half the radius the wizard
+uses for the same body — because the wizard's circle is a drop target and this one is the
+end of a line, and a big dot eats the width channel.</p>
+<p><strong>Every edge is a curve, and no two curve alike.</strong> Ranks are handed out across
+the whole set on screen and each edge bows perpendicular to its chord by its own
+amount (<code>bowRanks</code>, <code>bowStep</code> and <code>edgePath</code>, all in <code>figure-geometry.js</code>, which
+the wizard's diagram draws from too). Straight lines between nodes in a column
+are <em>the same line</em> — three edges drawing one bar — and edges that merely meet at
+a node arrive as a smear. Separating only the edges whose endpoints match is not
+enough; it leaves every other edge at the minimum bow. Past about sixteen edges
+the fan tightens rather than sweeping arcs out of the frame.</p>
+<h3 id="the-controls-above-the-picture">The controls above the picture<a class="headerlink" href="#the-controls-above-the-picture" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>control</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>whole recording</strong></td>
+<td>a button, shown only once you have picked a moment, that clears the playhead and averages every edge over the entire session</td>
+</tr>
+<tr>
+<td><strong>Edges show</strong></td>
+<td>coherence or shared power. <strong>This changes the question</strong>, not its presentation</td>
+</tr>
+<tr>
+<td><strong>Solid above (share of cells)</strong></td>
+<td>the share of <em>tested cells</em> that has to beat the 95 % level before an edge is drawn solid. Remembered separately for each mode, and it re-pivots the width scale — see <a href="#solid-above-what-the-number-is">above</a></td>
+</tr>
+<tr>
+<td><strong>Period band (s)</strong></td>
+<td>the shortest and longest period each edge is averaged over. <strong>This changes the answer</strong>, not its presentation: it selects which cells enter both the mean and the significance fraction</td>
+</tr>
+<tr>
+<td><strong>Width sensitivity</strong></td>
+<td>how hard the relative width scale pushes. Presentation only</td>
+</tr>
+<tr>
+<td><strong>one checkbox per pair</strong></td>
+<td>hides an edge. Fifteen edges is a lot to read at once, and hiding some also re-pivots the width scale, because it pivots on what is visible</td>
+</tr>
+</tbody>
+</table>
+<h3 id="coherence-needs-a-chance-level-to-say-anything-at-all">Coherence needs a chance level to say anything at all<a class="headerlink" href="#coherence-needs-a-chance-level-to-say-anything-at-all" title="Permanent link">&para;</a></h3>
+<p>Coherence does not sit at zero when there is no relationship — two unrelated
+signals score around 0.25, not 0. So a network of raw coherence values draws
+at-chance noise as findings and looks entirely convincing doing it.</p>
+<p>Switching the network on therefore switches on the Monte Carlo null at 100
+surrogates, because coherence mode is the only thing that reads it. Without it
+every edge is <code>untestable</code> in that mode and the tab says so rather than guessing.
+The null, and what it assumes, is documented under
+<a href="../../analyses/crosswavelet/">cross-wavelet</a>.</p>
+<p>Shared power mode is not affected: its level is computed from the two series' own
+red-noise backgrounds rather than sampled, so it is in the payload either way.</p>
+<h2 id="the-two-modes">The two modes<a class="headerlink" href="#the-two-modes" title="Permanent link">&para;</a></h2>
+<p><strong>Coherence</strong> asks whether two measures held a steady phase relationship. It is
+amplitude-normalised by design, so a tiny shared tremor scores exactly as high as
+a large shared movement — a thick coherence edge can be two nearly-still measures
+whose jitter has a shared source, which is the common case when both are tracked
+from one video. No period band separates that: the band selects which timescales
+enter the mean, and every cell in it is equally amplitude-blind.</p>
+<p><strong>Shared power</strong> is what does separate it. The cross-wavelet transform is
+<code>W₁·conj(W₂)</code>, so its magnitude is exactly <code>|W₁||W₂|</code> — the product of the two
+amplitude envelopes, and nothing to do with phase. Each cell is divided by
+<code>signif_xwt</code>, its own period's red-noise level, and it is those ratios that are
+averaged — a mean of ratios, not a ratio of means. That matters because the level
+varies by orders of magnitude across periods, so dividing once at the end would
+let the longest periods in the band decide the answer. The result is
+dimensionless, comparable between pairs, and significant exactly where it
+exceeds 1.</p>
+<p>A period whose level is missing or non-positive has no defined ratio, so in
+shared power mode those cells leave the average as well as the test. In
+coherence mode they leave only the test — a coherence value is still a value
+without a threshold to judge it against.</p>
+<p><strong>So a thick power edge means both measures were busy — not that they were
+coupled.</strong> Two people waving vigorously and independently make a fat edge. The
+diagnosis is the pair of readings, which is why <strong>the tooltip carries both
+numbers in either mode</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>coherence</th>
+<th>shared power</th>
+<th>reading</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>high</td>
+<td>high</td>
+<td>a real shared rhythm, with something behind it</td>
+</tr>
+<tr>
+<td>high</td>
+<td>low</td>
+<td>phase-locked stillness — the case to distrust</td>
+</tr>
+<tr>
+<td>low</td>
+<td>high</td>
+<td>both active, unrelated</td>
+</tr>
+</tbody>
+</table>
+<p>Width in power mode ranks the edges on a log-like scale rather than reading out
+the ratio, because the ratio is unbounded and a linear scale would clip every
+edge above its level to the same width. The ratio itself is in the tooltip.</p>
+<p><strong>Shared power needs no Monte Carlo null.</strong> Its level is analytic, so it is in
+every payload — a study built without <code>mcCount</code> can still be read this way, and
+the tab says so rather than showing an untestable picture in both modes.</p>
+<h2 id="clicking-an-edge-the-detail-figure">Clicking an edge: the detail figure<a class="headerlink" href="#clicking-an-edge-the-detail-figure" title="Permanent link">&para;</a></h2>
+<p>Selecting an edge does two things. It colours that line — the only use of colour
+in the picture, so "selected" reads as a state rather than as another
+measurement — and it draws <strong>that pair's cross-wavelet figure underneath the
+diagram</strong>.</p>
+<p>The detail figure is of a moment too, and its window follows the playhead. It is
+drawn once, when the edge is selected, and afterwards only the shaded window is
+moved: two answers to "which moment am I looking at" on one screen, where the
+wrong one has a box drawn round it, is worse than one.</p>
+<p>The figure is the cross-wavelet tab's, borrowed. In a dashboard built without
+that tab there is nothing to borrow, and the panel says so rather than drawing an
+empty figure.</p>
+<h2 id="where-the-nodes-go">Where the nodes go<a class="headerlink" href="#where-the-nodes-go" title="Permanent link">&para;</a></h2>
+<p>Two layouts, chosen with <code>layout</code>:</p>
+<ul>
+<li><strong><code>columns</code></strong> (the default) — one column per group, members spread down it.</li>
+<li><strong><code>figure</code></strong> — one human figure per group, with each measure on the body part
+  it belongs to: <code>head</code>, <code>nose</code>, <code>lefthand</code>, <code>righthand</code>, <code>hand</code>, <code>torso</code>, <code>hip</code>,
+  <code>foot</code>. Anything with no part is stacked beside the figure rather than dropped.</li>
+</ul>
+<p>Neither layout is force-directed, deliberately: a force layout moves nodes
+between frames, and this picture is read by comparing one moment with another.</p>
+<h2 id="building-it-in-the-wizard">Building it in the wizard<a class="headerlink" href="#building-it-in-the-wizard" title="Permanent link">&para;</a></h2>
+<p>The no-code builder draws this diagram in step 4 and asks you to fill it in,
+which is the same decision as writing the config below by hand.</p>
+<ul>
+<li><strong>Add a person</strong> for each figure you want, and name it. That is a <code>group</code>.
+  One is enough: a network of a single body's own effectors — hands with head,
+  left with right — is a whole network, and the tab centres the lone figure.
+  Be aware that the <strong>default</strong> 15 % share was chosen against between-person
+  data; whether it reads the same way within one body is an open question rather
+  than a settled one, and the "solid above" control is there to move it.</li>
+<li><strong>Click an empty circle</strong> — head, either hand, torso, hip or foot — and pick a
+  time series from the list. That is one <code>effectors</code> entry, and the node takes
+  the spot's own name as its <code>label</code>: <em>Left hand</em>, <em>Head</em>. Real measure names
+  are long enough that neighbouring nodes overlap into a smear, here and in the
+  dashboard; the full name stays in the node's tooltip. The picker closes on
+  Escape or a click outside it, without placing anything.</li>
+<li><strong>Drag from one placed node to another</strong> to ask for the coupling between them.
+  A dashed line follows the pointer; releasing on the second node makes the pair.
+  Clicking the two in turn does the same, and draws the same line while you are
+  between clicks. Escape, or releasing on empty space, abandons it.</li>
+<li>That line is one <code>include_crosswavelet</code> pair, which is what the tab turns into
+  an edge; without it two nodes are simply two nodes. <strong>The same pairs are chips
+  in the cross-wavelet block above, and the two are one list</strong> — either view
+  edits it and both redraw. So a pair can be asked for without ever touching the
+  diagram, and a pair whose measures are not both placed is selected but not
+  drawn (the summary line under the chips says how many are in each state).</li>
+<li>The <code>×</code> on a node takes it back off. Its lines go with it, because a line
+  needs two placed endpoints — but the pairs stay selected: where a measure sat
+  on a body is not whether to analyse it.</li>
+</ul>
+<p>Choosing the figure layout is not a separate step: placing anything on a body
+means <code>layout: "figure"</code>, because a body diagram that configured a column chart
+would be a lie.</p>
+<p><strong>An existing study opens already filled in.</strong> Every study written before
+<code>effectors</code> existed says all of this by naming its measures
+<code>teacher_righthandspeed</code>, so the wizard runs the same inference the tab runs —
+the group's regular expression for the person, a body-part token in what is left
+of the name for the spot — and shows you the result, saying that it guessed.
+Pressing Next writes it out in the explicit form. The two render identically;
+that is asserted by a test, because a migration that quietly moved a node would
+be worse than no migration.</p>
+<h2 id="saying-which-series-is-which-node">Saying which series is which node<a class="headerlink" href="#saying-which-series-is-which-node" title="Permanent link">&para;</a></h2>
+<p>By default the tab infers everything about a node from its name — the group from
+a regular expression, the label by deleting that expression, the body part from a
+token found somewhere inside what is left. That works when a study encodes person,
+part and quantity in one string:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>"include_network": {
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  "groups": [
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    { "label": "Teacher", "match": "^teacher", "color": "#e84393" },
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    { "label": "Student", "match": "^student", "color": "#00b894" }
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  ],
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  "layout": "figure"
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>}
+</code></pre></div>
+<p>…with measures called <code>teacher_righthandspeed</code> and <code>student_nosespeed</code>. It says
+nothing useful about a study whose measures are called <code>bodysync</code> and
+<code>neuralsync</code>: they match no group and contain no body part, so every measure
+lands in one undifferentiated column.</p>
+<p><strong><code>effectors</code> says it outright instead.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>"include_network": {
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  "groups": [
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    { "label": "Teacher", "color": "#e84393" },
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    { "label": "Student", "color": "#00b894" }
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  ],
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  "effectors": [
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    { "series": "teacher_righthandspeed", "group": "Teacher",
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>      "label": "Right hand", "part": "righthand" },
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    { "series": "teacher_nosespeed", "group": "Teacher",
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>      "label": "Head", "part": "head" },
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    { "series": "bodysync", "group": "Student",
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>      "label": "Body", "x": 0.72, "y": 0.40 }
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>  ],
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>  "layout": "figure",
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>  "band": [0.0, 12.0]
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>}
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>what it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>series</code></td>
+<td>the data type, exactly as in <code>dataTypes</code> and in <code>assets/timeseries/{video}_{series}.csv</code></td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>what to draw under the node. Defaults to <code>series</code></td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>the <code>label</code> of one of the groups above — no regex involved</td>
+</tr>
+<tr>
+<td><code>part</code></td>
+<td>where on the figure it sits. Ignored by the <code>columns</code> layout</td>
+</tr>
+<tr>
+<td><code>x</code>, <code>y</code></td>
+<td>position as a <strong>fraction of the chart</strong>, 0 to 1, overriding <code>part</code></td>
+</tr>
+</tbody>
+</table>
+<p>When <code>effectors</code> is given, a group needs no <code>match</code> — it is referenced by label.
+When it is absent, nothing changes: the inference above is exactly what it was.</p>
+<p><strong>Two groups must not share a <code>label</code>.</strong> It is the only thing an effector has to
+name its group by, so a duplicate is not a cosmetic problem: the tab resolves a
+label to one group, and the other one keeps no members and is not drawn — its
+measures appear on the survivor's figure. The wizard refuses to write such a
+config, naming the label, and its own default names cannot collide. A config
+written by hand can still do it.</p>
+<p><strong><code>series</code> must stay a real data type name</strong>, not a display name. A node is
+matched to its cross-wavelet pairs by that name, so a label here resolves against
+no pair: the node is drawn with no edges, and the measure you meant turns up
+again in the trailing <code>Other</code> group. That is what <code>label</code> is for.</p>
+<p><strong><code>x</code> and <code>y</code> are fractions, not pixels.</strong> The chart's own dimensions are private
+constants of the tab that have been retuned before, and a config written in raw
+units would drift the day one of them moves. In the <code>figure</code> layout, omitting
+<code>x</code> keeps the node on its own figure's centre line — which is the only way to say
+"on this person, lower down", because an explicit <code>x</code> is absolute and does not
+follow a figure when a third group is added.</p>
+<h3 id="what-happens-when-a-declaration-and-the-data-disagree">What happens when a declaration and the data disagree<a class="headerlink" href="#what-happens-when-a-declaration-and-the-data-disagree" title="Permanent link">&para;</a></h3>
+<p>Both directions are drawn rather than silently resolved, because both are
+questions only the study can answer:</p>
+<ul>
+<li><strong>A declared effector that appears in no cross-wavelet pair</strong> gets a node with
+  no edges. You asked for it and the analysis does not cover it.</li>
+<li><strong>A measure that appears in a pair and that no effector declares</strong> gets a node
+  in a trailing <code>Other</code> group, exactly as an unmatched name does.</li>
+<li><strong>An effector naming a group that no group defines</strong> is a typo, not an
+  instruction to invent a column, so it also lands in <code>Other</code>.</li>
+</ul>
+<p>The wizard checks these before it writes a study: a <code>series</code> with no CSV and a
+duplicated <code>series</code> are errors; an unknown <code>part</code> and an undefined <code>group</code> are
+warnings.</p>
+<h2 id="where-the-drawing-lives">Where the drawing lives<a class="headerlink" href="#where-the-drawing-lives" title="Permanent link">&para;</a></h2>
+<p>The body — its coordinate space, its six places, the aliases for their names, the
+lines that make a figure, and the fan the edges are bowed along — is
+<a href="https://github.com/dims-network/dims/blob/v1.5.0/packages/dims-tabs/figure-geometry.js"><code>packages/dims-tabs/figure-geometry.js</code></a>,
+documented at <a href="../../reference/figure-geometry/"><code>reference/figure-geometry.md</code></a>.</p>
+<p><strong>To move a body part, change it there.</strong> Two things draw that figure and they have
+to agree to the pixel, because what you arrange in the wizard is what the dashboard
+draws: this tab reads its own <code>vendor/dims-tabs/</code> copy, and the wizard is served
+the checkout's at <code>/vendor/figure-geometry.js</code>. A study keeps its vendored copy
+until <code>dims-case sync</code>, which refreshes both the directory and the <code>index.html</code>
+that loads it — so a change reaches the wizard at once and a built study when it
+syncs.</p>
+<h2 id="the-rest-of-the-config">The rest of the config<a class="headerlink" href="#the-rest-of-the-config" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>groups</code></td>
+<td>how the measures divide. <code>label</code>, an optional <code>color</code>, and a <code>match</code> regex when you are not declaring effectors. The wizard writes no <code>match</code> of its own; it carries one through if a study already had it</td>
+</tr>
+<tr>
+<td><code>band</code></td>
+<td>period band in seconds, <code>[low, high]</code>, to average each edge over. <strong>This changes the answer</strong>, not its presentation — it selects which periods enter both the mean and the significance fraction</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td>which measure the edges start on: <code>coherence</code> (the default) or <code>power</code>. The control above the picture switches it; this is only where it opens</td>
+</tr>
+<tr>
+<td><code>threshold</code></td>
+<td>the share of tested cells that has to beat the 95 % level before an edge is solid, as <code>{"coherence": 0.15, "power": 0.15}</code>. Either key may be omitted</td>
+</tr>
+<tr>
+<td><code>layout</code></td>
+<td><code>columns</code> or <code>figure</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>include_network: true</code> means "on, with everything inferred".</p>
+<p>The full shape, with every constraint, is in
+<a href="../../contracts/config.schema.json"><code>docs/contracts/config.schema.json</code></a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      MIT-licensed. Built from the markdown in dims-network/dims.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js"></script>
+      
+        <script src="../../analyses/demo/analyses-plots.js"></script>
+      
+        <script src="../../javascripts/shot-placeholders.js"></script>
+      
+    
+  </body>
+</html>
