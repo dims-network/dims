@@ -18,6 +18,8 @@ import re
 import shutil
 import tomllib
 
+from mkdocs.structure.files import File
+
 PAYLOADS = ("demo_signals.json", "demo_crosswavelet.json",
             "demo_rqa.json", "demo_crqa.json")
 
@@ -89,3 +91,37 @@ def on_page_markdown(markdown, page, config, files, **kwargs):
         return f"{repo}/blob/{_ref()}/{repo_path.lstrip('/')}" + anchor
 
     return LINK.sub(rewrite, markdown)
+
+
+# --- the mark ---------------------------------------------------------------
+#
+# The header wordmark and the favicon are the project's own, and they live with
+# the code that draws them into every dashboard
+# (packages/dims-core/branding/) rather than in docs/. Publishing them from
+# there keeps one copy: a second one in docs/ is a second thing to update when
+# the branding changes, and the dashboards would keep the old one.
+#
+# dims-logo-light.png is the variant for a light background -- the same one
+# dims-core.js loads for the light theme -- and this site is light only.
+
+BRANDING = os.path.join("packages", "dims-core", "branding")
+MARKS = {
+    "images/dims-logo-light.png": "dims-logo-light.png",   # header
+    "images/dims-mark.png": "dims-mark.png",               # favicon
+}
+
+
+def on_files(files, config, **kwargs):
+    for uri, name in MARKS.items():
+        src = os.path.join(HERE, BRANDING, name)
+        if not os.path.isfile(src):
+            raise FileNotFoundError(
+                f"{os.path.join(BRANDING, name)} is missing; mkdocs.yml points "
+                f"the logo or favicon at it")
+        try:
+            asset = File.generated(config, uri, abs_src_path=src)
+        except AttributeError:          # MkDocs < 1.6
+            asset = File(name, os.path.join(HERE, BRANDING),
+                         config["site_dir"], config["use_directory_urls"])
+        files.append(asset)
+    return files

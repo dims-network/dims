@@ -32,6 +32,11 @@ exclude_docs: |
 theme:
   name: material
   language: en
+  # The project's own branding, published from packages/dims-core/branding/ by
+  # the on_files hook -- the same files the dashboards load, not copies. The
+  # wordmark carries the name, so dims.css hides the site title beside it.
+  logo: images/dims-logo-light.png
+  favicon: images/dims-mark.png
   # The system stack the website uses, not Roboto. `false` also stops the build
   # reaching out to Google Fonts, which a dashboard-shaped project has no reason
   # to depend on.
