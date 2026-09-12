@@ -5,8 +5,8 @@ name: Docs
 # screenshots of the wizard included. `latest` is an alias mike repoints on
 # every deploy; the bare URL follows it.
 #
-# One-off setup this cannot do for you: enable Pages for the gh-pages branch,
-# and run `mike set-default latest` once so / redirects there.
+# Pages is enabled for the gh-pages branch and `mike set-default latest` has
+# been run, so / redirects to the current version. Neither needs doing again.
 
 on:
   push:
@@ -44,8 +44,13 @@ jobs:
             echo "docs=${tag%.*}" >> "$GITHUB_OUTPUT"
           fi
 
+      # --alias-type=copy, because mike's default makes `latest` a symlink and
+      # GitHub Pages does not follow one: /dims/latest/ served a 404 until this
+      # was a real directory. Git stores the duplicate tree as the same blobs,
+      # so the copy costs nothing a symlink was saving.
       - name: Publish
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mike deploy --push --update-aliases "${{ steps.v.outputs.docs }}" latest
+          mike deploy --push --update-aliases --alias-type=copy \
+            "${{ steps.v.outputs.docs }}" latest
