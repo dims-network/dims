@@ -1785,6 +1785,9 @@ arrange in the wizard is what the dashboard draws:</p>
 </tr>
 </tbody>
 </table>
+<p><strong>The two figures on this page are drawn by this file</strong>, published into the site
+from <code>packages/dims-tabs/</code> and run in your browser — so they are the geometry
+this release ships, not a drawing of it.</p>
 <p><strong>To move a body part, change it here.</strong> The number you change moves the node in
 the wizard immediately, and in a built study at its next
 <a href="../cli/dims-case/"><code>dims-case sync</code></a> — a study keeps its own vendored copy until
@@ -1856,6 +1859,8 @@ edge the tab draws is 16 px, which a 52 px circle would swallow whole.</p>
 <h2 id="places">Places<a class="headerlink" href="#places" title="Permanent link">&para;</a></h2>
 <p><code>SPOTS</code> — six places something can sit. <code>dx</code> is measured from the figure's centre
 line, so a spot is positioned relative to whichever person it belongs to.</p>
+<div class="figure" id="fig-body"></div>
+
 <table>
 <thead>
 <tr>
@@ -1951,6 +1956,8 @@ the group prefix is stripped, so <code>teacher_righthandspeed</code> becomes
 </tr>
 </tbody>
 </table>
+<div class="figure" id="fig-people"></div>
+
 <p><code>positions</code> derives the alias entries from <code>SPOTS</code> rather than listing them, so an
 alias and the place it points at cannot drift apart.</p>
 <p><code>appendFigure</code> takes <strong><code>el</code>, the caller's element-maker</strong> — <code>(name, attrs) → SVG
@@ -2125,6 +2132,10 @@ tab still registers and says what is wrong.</p>
         <script src="../../analyses/demo/analyses-plots.js"></script>
       
         <script src="../../javascripts/shot-placeholders.js"></script>
+      
+        <script src="../../javascripts/figure-geometry.js"></script>
+      
+        <script src="../../javascripts/figure-demo.js"></script>
       
     
   </body>

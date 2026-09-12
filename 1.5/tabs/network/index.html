@@ -1940,6 +1940,15 @@ draws comes from <code>assets/crosswavelet/{video}_crosswavelet_data.json</code>
 edge exists only where <a href="../../analyses/crosswavelet/"><code>include_crosswavelet</code></a> asked
 for that pair. <strong>A pair you did not ask for is a missing edge, and nothing says
 so</strong> — the two nodes are still drawn, with nothing between them.</p>
+<figure class="shot" markdown="0">
+  <img src="../../images/walkthrough/opt-network-tab.png"
+       alt="The cross-effector network tab: two figures, their hands joined by two curved edges, above the controls that set the period band and what an edge means." />
+  <figcaption>The tab as it ships, on ConvoConnect-Mini — the example study the
+    builder generates. Two people, one edge per pair asked for, the playhead on a
+    synchrony peak. <a href="../../tutorial/#going-further--the-analyses">The
+    tutorial builds this study</a>.</figcaption>
+</figure>
+
 <ul>
 <li>Tab id <code>network</code>, gated by <code>include_network</code>.</li>
 <li>Needs the cross-wavelet analysis. Coherence mode needs its coherence chance
@@ -2430,6 +2439,10 @@ syncs.</p>
         <script src="../../analyses/demo/analyses-plots.js"></script>
       
         <script src="../../javascripts/shot-placeholders.js"></script>
+      
+        <script src="../../javascripts/figure-geometry.js"></script>
+      
+        <script src="../../javascripts/figure-demo.js"></script>
       
     
   </body>
