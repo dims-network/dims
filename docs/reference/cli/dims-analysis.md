@@ -1,11 +1,13 @@
 # `dims-analysis`
 
-Run the analyses a study's `config.json` asks for, list what is installed, or
-record what a complete set of assets looks like.
+Run the analyses a study's `config.json` asks for, list what is installed,
+remove results it no longer asks for, or record what a complete set of assets
+looks like.
 
 ```
 dims-analysis run      [--config PATH] [--steps IDS] [--output-dir DIR] [--keep-going] [--traceback]
 dims-analysis list
+dims-analysis prune    [--config PATH] [--steps IDS] [--output-dir DIR] [--apply]
 dims-analysis manifest [--project-dir DIR] [--check] [--deep] [--no-checksums]
 ```
 
@@ -96,6 +98,43 @@ there is nothing to run.
 
 This output is what CI greps to prove the three shipped steps registered, so its
 shape is load-bearing.
+
+## `prune`
+
+Removes payload entries the config no longer asks for. Nothing is recomputed.
+
+| flag | default | |
+|---|---|---|
+| `--config` | `config.json` | the study to read |
+| `--steps` | `all` | comma-separated step ids |
+| `--output-dir` | — | override every step's output directory |
+| `--apply` | off | actually remove them; without it, only reports |
+
+A rebuild already removes the entries a step **owns** and the config no longer
+asks for. This exists for the ones it cannot: a file written before owners were
+recorded stamps nothing, and an unstamped entry is never removed on a guess, so
+a study built before v1.5.0 keeps its orphans through any number of rebuilds.
+
+```
+$ dims-analysis prune --config config.json
+
+assets/crosswavelet/dyad01_crosswavelet_data.json
+  would remove crosswavelet_pairs/personLeftLeftHandSpeed_vs_rtpjSync (owner: unknown)
+  ...
+
+12 entries would be removed. Re-run with --apply.
+```
+
+**Read the list before applying.** An entry stamped by another step is never
+offered — it is reported as `keeping`, naming the owner — but an entry showing
+`owner: unknown` is only *probably* an orphan. In one real study, `gaze_child`
+and `gaze_parent` sit in `*_rqa_data.json`, are absent from `include_RQA`, and
+are not orphans at all: they are a study-owned categorical RQA's results.
+
+A step is skipped unless it answers `expected_entries`, because `{}` there means
+*cannot say* rather than *asks for nothing*. Its `extra_output_names` are walked
+too, so cross-wavelet's full-resolution file is cleaned with its reduced one and
+the two cannot end up disagreeing about which pairs the study has.
 
 ## `manifest`
 

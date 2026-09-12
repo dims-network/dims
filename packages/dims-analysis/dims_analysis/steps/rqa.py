@@ -364,7 +364,9 @@ def main(argv=None):
     input_dir, output_dir = _step_io.resolve_io(INPUT_DIR, args.output_dir)
 
     analyse(config, input_dir=input_dir,
-            write=_step_io.payload_writer(output_dir, Step.output_name, "RQA data"),
+            write=_step_io.payload_writer(output_dir, Step.output_name, "RQA data",
+                                          owner=Step.id,
+                                          expected=Step().expected_entries(config)),
             window_sec=window_sec, step_sec=step_sec,
             target_recurrence=target_recurrence)
 
@@ -384,6 +386,13 @@ class Step(_Step):
     #: What `analysis.rqa` in the study's config overrides, key by key.
     defaults = {"window": 20.0, "step": 1.0,
                 "targetRecurrence": TARGET_RECURRENCE}
+
+    def expected_entries(self, config):
+        try:
+            types = _config.as_list(config, 'include_RQA', 'data types')
+        except Exception:
+            return {}          # a config this step will refuse anyway
+        return {'rqa_data': set(types)}
 
     def run(self, config, ctx):
         """No sys.argv, no chdir, no globals -- the parameters are parameters.

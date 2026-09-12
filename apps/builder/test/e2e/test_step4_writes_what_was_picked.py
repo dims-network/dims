@@ -142,3 +142,111 @@ def test_step4_writes_both_ways_of_picking_a_pair(builder, tmp_path):
     assert cfg.get("include_network"), "the network was switched on and did not survive"
     assert cfg["analysis"]["crosswavelet"]["mcCount"] == 100, \
         "the network needs a chance level and the study does not record one"
+
+
+def _to_step4(page, builder, out):
+    """The wizard, clicked through to the cross-effector network step."""
+    page.goto(builder, wait_until="networkidle")
+    page.fill("#output_dir", out)
+    page.fill("#title", "e2e")
+    page.click("#btn-create")
+    page.wait_for_selector('.panel[data-panel="2"]:not([hidden])', timeout=30_000)
+    page.click("#btn-samples")
+    page.wait_for_function("() => document.querySelectorAll('#filelist .filerow').length >= 16",
+                           timeout=180_000)
+    page.click("#next-2")
+    page.wait_for_selector('.panel[data-panel="3"]:not([hidden])')
+    page.click("#next-3")
+    page.wait_for_selector('.panel[data-panel="4"]:not([hidden])')
+    page.check("#t_network")
+
+
+def _labels(page):
+    return page.locator(".people-strip input[type=text]").evaluate_all(
+        "els => els.map(e => e.value)")
+
+
+def test_a_person_added_after_a_removal_does_not_reuse_a_name(builder, tmp_path):
+    """Reported from this exact click-through, and it cost a measure.
+
+    `addPerson` numbered by how many people there were, and a measure named its
+    person by *label*, so removing one of three and adding another produced two
+    people with the same name whose nodes were drawn on top of each other --
+    and removing either stripped both of their measures.
+
+    Driven through the real UI because the report was: I added three, removed
+    one, and got something weird.
+    """
+    out = str(tmp_path / "study")
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("dialog", lambda d: d.accept())
+        _to_step4(page, builder, out)
+
+        for _ in range(3):
+            page.click("#add-person")
+        assert _labels(page) == ["Person 1", "Person 2", "Person 3"]
+        assert page.locator("#network-diagram .dims-figure").count() == 3
+
+        # Put a measure on the third, so there is something to lose.
+        third = page.locator("#network-diagram [data-person][data-spot=head]").nth(2)
+        third.click()
+        measure = page.locator("#spot-menu button[data-pick]").first
+        kept = measure.get_attribute("data-pick")
+        measure.click()
+        assert page.locator(f"#network-diagram [data-dt='{kept}']").count() == 1
+
+        # Remove the middle one and add a replacement: the reported sequence.
+        page.locator(".people-strip [data-person-remove]").nth(1).click()
+        assert _labels(page) == ["Person 1", "Person 3"]
+        page.click("#add-person")
+
+        names = _labels(page)
+        assert len(set(names)) == len(names), \
+            f"two people share a name, so a measure cannot say which it is on: {names}"
+        assert names == ["Person 1", "Person 3", "Person 2"], names
+
+        # And the measure is still where it was put, on its own person.
+        assert page.locator(f"#network-diagram [data-dt='{kept}']").count() == 1, \
+            "the measure came off the diagram when an unrelated person was added"
+
+        # Removing the newcomer must not take the namesake's measure with it.
+        page.locator(".people-strip [data-person-remove]").last.click()
+        assert page.locator(f"#network-diagram [data-dt='{kept}']").count() == 1, \
+            "removing one person removed another person's measure"
+
+        browser.close()
+
+    assert not errors, f"the page threw: {errors}"
+
+
+def test_two_people_with_one_name_is_refused(builder, tmp_path):
+    """The wizard's own names cannot collide now, but a typed one can, and the
+    config identifies a measure's group by name -- so the dashboard would
+    collapse the two and one person's measures would go with it. Said plainly,
+    with the name in the message, rather than renaming anybody's person."""
+    out = str(tmp_path / "study2")
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        page.on("dialog", lambda d: d.accept())
+        _to_step4(page, builder, out)
+
+        page.check("#t_cw")
+        _chip(page, *PAIR_CHIP).click()
+        for _ in range(2):
+            page.click("#add-person")
+        for i in range(2):
+            page.locator(".people-strip input[type=text]").nth(i).fill("Twin")
+
+        page.click("#next-4")
+        page.wait_for_function(
+            "() => document.querySelector('#msg-4') && "
+            "document.querySelector('#msg-4').textContent.includes('Twin')",
+            timeout=10_000)
+        assert page.locator('.panel[data-panel="4"]:not([hidden])').count() == 1, \
+            "the wizard moved on and wrote a config naming two groups the same"
+        browser.close()

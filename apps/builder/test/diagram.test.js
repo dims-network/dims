@@ -95,8 +95,11 @@ test('placing a measure somewhere new moves it rather than cloning it', async ()
 });
 
 test('renaming a person carries their measures with them', async () => {
-  // Effectors reference a person by label, so a rename that does not follow
-  // would strand every node that person was carrying.
+  // A rename that did not reach the measures would strand every node that
+  // person was carrying. Asserted on the config rather than on the internal
+  // field: an effector names its person by id now, so the label appears only
+  // where the config format asks for one -- and that is the thing that has to
+  // be right.
   const { window: w, page } = boot();
   withTypes(page, w, ['alpha'], true);
   const id = page.addPerson('Teacher');
@@ -107,7 +110,9 @@ test('renaming a person carries their measures with them', async () => {
   input.value = 'Tutor';
   input.dispatchEvent(new w.Event('input', { bubbles: true }));
 
-  assert.strictEqual(page.state.effectors.alpha.group, 'Tutor');
+  const out = page.collectNetwork();
+  assert.deepStrictEqual(plain(out.groups).map((g) => g.label), ['Tutor']);
+  assert.strictEqual(plain(out.effectors)[0].group, 'Tutor');
   assert.strictEqual(filled(w).length, 1, 'the node came off the diagram');
 });
 
@@ -190,12 +195,16 @@ test("a study that says it all in its names opens with its nodes placed", async 
   assert.ok(page.state.placedByName, 'and the diagram should say they were guessed');
 
   const placed = page.state.effectors;
-  assert.strictEqual(placed.teacher_righthandspeed.group, 'Teacher');
   assert.strictEqual(placed.teacher_righthandspeed.part, 'righthand');
-  assert.strictEqual(placed.student_nosespeed.group, 'Student');
   assert.strictEqual(placed.student_nosespeed.part, 'head', 'nose sits on head');
   // The label loses the group prefix, exactly as the tab's nodeLabel does.
   assert.strictEqual(placed.student_nosespeed.label, 'nosespeed');
+  // Whose they are, read off the config rather than the internal field: the
+  // guess has to survive the trip out, which is what the dashboard reads.
+  const whose = {};
+  plain(page.collectNetwork().effectors).forEach((e) => { whose[e.series] = e.group; });
+  assert.strictEqual(whose.teacher_righthandspeed, 'Teacher');
+  assert.strictEqual(whose.student_nosespeed, 'Student');
 });
 
 test('pressing Next on such a study writes the explicit form', async () => {
@@ -328,7 +337,7 @@ function tabRenderer() {
   // index.html loads figure-geometry.js before the tabs.
   dom.window.eval(fs.readFileSync(path.resolve(
     __dirname, '..', '..', '..', 'packages', 'dims-tabs', 'figure-geometry.js'), 'utf8'));
-  dom.window.eval(`${body}\n;window.__tab = { grouping, layout, measuresIn };`);
+  dom.window.eval(`${body}\n;window.__tab = { grouping, layout, measuresIn, drawsBody };`);
   return dom.window.__tab;
 }
 
@@ -539,4 +548,257 @@ test('a placed node is labelled by where it was put, not by its full name', asyn
   const eff = page.collectNetwork().effectors.find((e) => e.series === 'personLeftLeftHandSpeed');
   assert.strictEqual(eff.label, 'Left hand', 'the label did not reach the study');
   assert.strictEqual(eff.series, 'personLeftLeftHandSpeed', 'series must stay the real name');
+});
+
+// --- a measure nobody declared is not a person -------------------------------
+
+// The bug these were written for. A study had three people; `rtpjSync` was
+// placed on the third. The person was removed in the wizard, the study was
+// rebuilt, and the network tab drew *three* figures: the two people plus a grey
+// body with `rtpjSync` floating at its side. The measure was real -- the
+// payload still carried pairs for it -- but the third person was not.
+//
+// The tab's rule is now that a body is drawn for a group only when something of
+// that group sits on one, which `figureLayout` answers and `drawsBody` reports.
+
+function undeclaredSetup() {
+  // The shape of the study in the screenshot: two people with a head and a
+  // right hand each, and one measure no effector mentions.
+  const net = {
+    groups: [{ label: 'Person 1', color: '#e84393' },
+             { label: 'Person 2', color: '#00b894' }],
+    effectors: [
+      { series: 'p1_head', group: 'Person 1', label: 'Head', part: 'head' },
+      { series: 'p1_hand', group: 'Person 1', label: 'Right hand', part: 'righthand' },
+      { series: 'p2_head', group: 'Person 2', label: 'Head', part: 'head' },
+      { series: 'p2_hand', group: 'Person 2', label: 'Right hand', part: 'righthand' },
+    ],
+    layout: 'figure',
+  };
+  const pairs = {};
+  [['p1_head', 'p2_head'], ['p1_hand', 'p2_hand'],
+   ['p1_head', 'rtpjSync'], ['p1_hand', 'rtpjSync']].forEach(([a, b]) => {
+    pairs[`${a}_vs_${b}`] = { data_type1: a, data_type2: b };
+  });
+  const tab = tabRenderer();
+  const groups = tab.grouping({ include_network: net }, tab.measuresIn(pairs));
+  const pos = tab.layout(groups, 'figure');
+  return { tab, groups, pos };
+}
+
+test('a measure no effector declared does not get a body of its own', async () => {
+  const { tab, groups, pos } = undeclaredSetup();
+
+  const other = groups.find((g) => g.members.includes('rtpjSync'));
+  assert.ok(other, 'the undeclared measure was dropped, which is worse');
+  assert.strictEqual(other.members.length, 1, 'only rtpjSync is undeclared');
+  assert.strictEqual(tab.drawsBody(other), false,
+    'the leftovers bucket was drawn as a person');
+
+  const bodies = groups.filter((g) => tab.drawsBody(g)).map((g) => g.label);
+  assert.deepStrictEqual(bodies, ['Person 1', 'Person 2'],
+    'the picture drew a figure for somebody the study does not mention');
+
+  // And it is still on the chart, with a position an edge can reach.
+  assert.ok(Number.isFinite(pos.rtpjSync.x) && Number.isFinite(pos.rtpjSync.y));
+});
+
+test('an undeclared measure stays inside the picture', async () => {
+  const { pos } = undeclaredSetup();
+  const VIEW_W = 1000;   // network.js's own viewBox width
+
+  // It used to be parked at its column's centre + 150, which for the third of
+  // three groups is x = 900 -- hard against the edge, past the body it was
+  // meant to sit beside, and clipped once its label was drawn.
+  assert.ok(pos.rtpjSync.x > 0 && pos.rtpjSync.x < VIEW_W - 40,
+    `rtpjSync sits at x=${pos.rtpjSync.x}, outside the drawable width`);
+  assert.strictEqual(pos.rtpjSync.part, null);
+  assert.strictEqual(pos.rtpjSync.x, pos.rtpjSync.group.cx,
+    'a bodyless group is a column, so its members sit on its centre line');
+});
+
+test('a study that declares no groups is still one person', async () => {
+  // The other direction, and the reason the rule asks the layout rather than
+  // the group's label: with no groups declared, every measure falls into one
+  // bucket -- and that bucket IS the person, body parts and all. Flagging the
+  // trailing group as "leftovers" by name would have taken its body away.
+  const pairs = {
+    'a_vs_b': { data_type1: 'righthandspeed', data_type2: 'head_x' },
+  };
+  const tab = tabRenderer();
+  const groups = tab.grouping({ include_network: true }, tab.measuresIn(pairs));
+  const pos = tab.layout(groups, 'figure');
+
+  assert.strictEqual(groups.length, 1);
+  assert.strictEqual(tab.drawsBody(groups[0]), true,
+    'the only group lost its body, so the figure layout drew nothing');
+  assert.strictEqual(pos.righthandspeed.part, 'righthand');
+});
+
+test('a part-less measure on a real person stays beside that person', async () => {
+  // A declared person with one measure the vocabulary cannot place keeps its
+  // body -- the other measures are on it -- and the odd one out is stacked at
+  // the side rather than dropped or sent to a column of its own.
+  const net = {
+    groups: [{ label: 'Player', color: '#5b8cff' }],
+    effectors: [
+      { series: 'head', group: 'Player', label: 'Head', part: 'head' },
+      { series: 'breath', group: 'Player', label: 'Breathing', part: null },
+    ],
+    layout: 'figure',
+  };
+  const pairs = { 'a_vs_b': { data_type1: 'head', data_type2: 'breath' } };
+  const tab = tabRenderer();
+  const groups = tab.grouping({ include_network: net }, tab.measuresIn(pairs));
+  const pos = tab.layout(groups, 'figure');
+
+  assert.strictEqual(tab.drawsBody(groups[0]), true);
+  assert.ok(pos.breath.x > pos.head.x, 'the stray belongs beside its figure');
+  assert.ok(pos.breath.x < 1000 - 40, 'and inside the picture');
+});
+
+// --- two people, one name ----------------------------------------------------
+//
+// Reported after the phantom-person bug, from the same flow. `addPerson` named
+// by `people.length + 1`, and `state.effectors[dt].group` held the *label*, so:
+// remove Person 2 of three, add another, and the study has two people called
+// "Person 3" whose measures are indistinguishable. Placing on one drew on the
+// other, removing either stripped both, and the config carried two groups with
+// one name for the dashboard to collapse.
+//
+// A person is identified by `id` now. A label is a display name, and the only
+// place it identifies anything is the config format -- which is why a
+// duplicate is refused on the way out rather than tolerated.
+
+test('the person added after a removal does not take a name already in use', async () => {
+  const { window: w, page } = boot();
+  withTypes(page, w, ['s_a', 's_b', 's_c'], true);
+
+  page.addPerson(); const p2 = page.addPerson(); page.addPerson();
+  assert.deepStrictEqual(plain(page.state.people.map((p) => p.label)),
+    ['Person 1', 'Person 2', 'Person 3']);
+
+  page.removePerson(p2);
+  page.addPerson();
+
+  const labels = plain(page.state.people.map((p) => p.label));
+  assert.strictEqual(new Set(labels).size, labels.length,
+    `two people share a label: ${labels.join(', ')}`);
+  // The gap is reused, so removing Person 2 and adding one gives a Person 2
+  // back rather than a second Person 3.
+  assert.deepStrictEqual(labels, ['Person 1', 'Person 3', 'Person 2']);
+});
+
+test('removing one namesake leaves the other one their measures', async () => {
+  // The destructive half. `removePerson` matched on the label, so removing
+  // either of two people called "Person 3" unplaced both of their measures.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['s_a', 's_b'], true);
+
+  const a = page.addPerson('Twin');
+  const b = page.addPerson('Twin');       // typed by hand; the defaults cannot
+  page.place('s_a', a, 'head');
+  page.place('s_b', b, 'head');
+
+  page.removePerson(b);
+
+  assert.deepStrictEqual(plain(Object.keys(page.state.effectors)), ['s_a'],
+    'removing one person took the other one\'s measure with it');
+  assert.strictEqual(page.unplacedTypes().includes('s_a'), false,
+    'the surviving measure came off the diagram');
+});
+
+test('two measures on two namesakes stay on their own figures', async () => {
+  // The other half: `placedPositions` matched on the label too, so both
+  // measures resolved onto whichever namesake came last and one node was
+  // drawn on top of the other.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['s_a', 's_b'], true);
+
+  const a = page.addPerson('Twin');
+  const b = page.addPerson('Twin');
+  page.place('s_a', a, 'head');
+  page.place('s_b', b, 'head');
+  page.renderDiagram();
+
+  const pos = page.placedPositions();
+  assert.strictEqual(pos.s_a.person.id, a);
+  assert.strictEqual(pos.s_b.person.id, b);
+  assert.notStrictEqual(pos.s_a.x, pos.s_b.x,
+    'both measures were placed on the same figure');
+  assert.strictEqual(filled(w).length, 2, 'one node was drawn over the other');
+});
+
+test('a duplicate label is refused rather than written', async () => {
+  // The config names a measure's group by label and the dashboard looks one up
+  // by it, so a study with two "Twin" groups loses one of them and its
+  // measures. Refused with the name in the message; nothing is renamed on the
+  // researcher's behalf.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['s_a', 's_b'], true);
+  const a = page.addPerson('Twin');
+  page.addPerson('Twin');
+  page.place('s_a', a, 'head');
+  page.toggleEdge('s_a', 's_b');
+
+  assert.deepStrictEqual(plain(page.duplicatePersonLabels()), ['Twin']);
+
+  w.document.getElementById('next-4').click();
+  await new Promise((r) => setTimeout(r, 10));
+
+  const msg = w.document.querySelector('#msg-4, [id^="msg-4"]');
+  assert.ok(msg && /Twin/.test(msg.textContent),
+    `expected the message to name the duplicate, got: ${msg && msg.textContent}`);
+});
+
+test('renaming a person is not renaming everyone who shared their name', async () => {
+  // The rename handler rewrote every effector whose group matched the old
+  // label, which reached the namesake's measures as well.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['s_a', 's_b'], true);
+  const a = page.addPerson('Twin');
+  const b = page.addPerson('Twin');
+  page.place('s_a', a, 'head');
+  page.place('s_b', b, 'head');
+  page.renderDiagram();
+
+  const input = w.document.querySelector(`[data-person-label="${a}"]`);
+  input.value = 'First';
+  input.dispatchEvent(new w.Event('input', { bubbles: true }));
+
+  assert.deepStrictEqual(plain(page.state.people.map((p) => p.label)), ['First', 'Twin']);
+  const whose = {};
+  plain(page.collectNetwork().effectors).forEach((e) => { whose[e.series] = e.group; });
+  assert.deepStrictEqual(whose, { s_a: 'First', s_b: 'Twin' });
+});
+
+test('a group naming nobody in the study is still carried through', async () => {
+  // The dashboard draws such a node in a trailing `Other` on purpose, and the
+  // wizard must not quietly drop what somebody wrote. It is not "placed",
+  // though: there is no figure of that name to draw it on.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['alpha'], {
+    groups: [{ label: 'Teacher' }],
+    effectors: [{ series: 'alpha', group: 'Persn 1', part: 'head' }],
+  });
+
+  assert.ok(page.unplacedTypes().includes('alpha'),
+    'a measure on a figure that does not exist cannot be placed');
+  assert.strictEqual(plain(page.collectNetwork().effectors)[0].group, 'Persn 1');
+});
+
+test('the person added after a removal does not take a colour in use either', async () => {
+  // Not destructive -- nothing is identified by colour -- but the diagram's
+  // whole job is telling two bodies apart, and `people.length` picked the
+  // colour of the person after the removed one.
+  const { window: w, page } = boot();
+  withTypes(page, w, ['s_a'], true);
+
+  page.addPerson(); const p2 = page.addPerson(); page.addPerson();
+  page.removePerson(p2);
+  page.addPerson();
+
+  const colours = plain(page.state.people.map((p) => p.color));
+  assert.strictEqual(new Set(colours).size, colours.length,
+    `two figures are drawn the same colour: ${colours.join(', ')}`);
 });

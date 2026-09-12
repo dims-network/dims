@@ -139,6 +139,50 @@ not merged. Otherwise a study-owned step that forgot the field would drop every
 entry already in the file, including analyses it did not produce — turning one
 missing line into the silent loss that merging exists to prevent.
 
+**A step removes its own entries, and only its own.** Preserving everything was
+the other half of this trade and it had a cost: a study that stopped asking for
+a result kept the old answer for ever, and every reader drew it. Measured on the
+reference study — `include_crosswavelet` asked for four pairs,
+`processing_info.pairs_computed` said four, the file held seven, and two of the
+extras named a series no effector declared any more, which the network tab drew
+as an entire extra person.
+
+So the file records who wrote each entry, in a top-level `entry_owners` of
+`{payload key: {entry name: step id}}`, and an entry goes when **all** of these
+hold: the incoming run names an owner and the keys it owns, the file records
+that same owner against the entry, the run did not produce it, and the config no
+longer asks for it.
+
+- The last condition is not redundant. A step that cannot read one data type's
+  CSV warns and carries on, so "absent from this run" is not "no longer
+  wanted" — pruning on absence alone deletes a good and expensive result
+  because somebody renamed a file.
+- An entry owned by **another** step survives. That is the ORTHO guarantee
+  above, now with a name attached rather than resting on never removing
+  anything.
+- An entry with **no** owner recorded survives too, and is reported. A file
+  written before this bookkeeping cannot be spoken for, and a guess there is
+  exactly how a shared step deletes a fork's results. `dims-analysis prune`
+  is the deliberate removal, and it reports before it writes.
+- `entry_owners` is rebuilt on every write and never merged as part of the
+  payload: the one-level merge replaces a nested dict wholesale, so carrying it
+  through that path would drop another step's stamps — the bookkeeping would
+  have the very bug it exists to prevent.
+- `payload_version` does **not** move for it. The key is additive and no reader
+  inspects unknown top-level keys; bumping the version would instead send every
+  existing file down the "nothing merges across a format change" branch.
+
+A step declares what it owns by answering `Step.expected_entries(config)` with
+`{payload key: the entry names this config asks for}`. The default is `{}`,
+meaning *cannot say* — such a step's entries are stamped with nobody and removed
+by nothing, which is the safe end of the trade.
+
+**One assumption the whole scheme rests on: a step writes all of its entries for
+a file in a single call.** The shipped steps do, writing once per video after
+their loop over data types or pairs. A step that wrote once per pair would, on
+its second call, find its own first entry absent from the incoming payload and
+prune the work it had just done.
+
 ## A4 — Reduction is recorded, and a cap is a cap
 
 Everything a browser draws is reduced, and the reduction is part of the result:

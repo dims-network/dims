@@ -12,4 +12,4 @@ from dims_checks.signals import signal_report, load_series
 from dims_checks.coherence import coherence_report, load_crosswavelet
 
 __all__ = ["signal_report", "load_series", "coherence_report", "load_crosswavelet"]
-__version__ = "1.4.3"
+__version__ = "1.5.0"

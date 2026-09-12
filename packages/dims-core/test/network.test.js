@@ -923,3 +923,67 @@ test('moving the playhead does not redraw the heatmap under it', async () => {
     w.__plotted.filter(p => p.el === 'networkDetailPlot').length, drawnBefore,
     'the detail figure was rebuilt rather than relaid out');
 });
+
+// --- a measure nobody declared is not a person -------------------------------
+//
+// Reported from the wizard: a study had three people, `rtpjSync` was placed on
+// the third, the person was removed, the study was rebuilt -- and the tab drew
+// three figures. Two people, then a grey body with the orphaned measure parked
+// beside it. There was never a third person; the measure was in the payload's
+// pairs and no effector declared it, so it landed in the trailing bucket, and
+// the bucket was drawn like everybody else.
+
+const ONE_DECLARED = {
+  ...BASE,
+  include_network: {
+    groups: [{ label: 'Declared', color: '#e84393' }],
+    effectors: [{ series: 'alpha', group: 'Declared', label: 'Head', part: 'head' }],
+    layout: 'figure',
+  },
+};
+
+test('a measure no effector declared gets no body of its own', async () => {
+  const w = await open_(await boot(ONE_DECLARED));
+  const svg = w.document.getElementById('networkSvg');
+
+  assert.strictEqual(svg.querySelectorAll('.dims-figure').length, 1,
+    'the leftovers bucket was drawn as a second person');
+
+  // Still on the chart, and still joined: dropping a measure the study
+  // computed would be a worse bug than the one being fixed.
+  assert.ok(nodeAt(w, 'beta'), 'the undeclared measure was dropped');
+  assert.strictEqual(edges(w).length, 1, 'its edge went with it');
+  assert.ok(labels(w).includes('Other'),
+    'the column says nothing about what it holds');
+});
+
+test('an undeclared measure is laid out inside the picture', async () => {
+  const w = await open_(await boot(ONE_DECLARED));
+  const beta = nodeAt(w, 'beta');
+  const x = Number(beta.getAttribute('cx'));
+  const y = Number(beta.getAttribute('cy'));
+
+  // It used to sit at its column's centre + 150, hard to the right of a body
+  // that should not have been there. It is a column of its own now.
+  assert.strictEqual(x, 1000 * 2 / 3, `beta sits at x=${x}, off its column`);
+  assert.ok(y > 100 && y < 500, `beta sits at y=${y}, outside the chart`);
+});
+
+test('every group heading is inside the viewBox', async () => {
+  // `FOOT_Y + 35` is 580 in a viewBox 560 tall, so in a figure layout no
+  // reader has ever seen one of these. A clipped element is still in the DOM,
+  // which is why the assertion is on the coordinate.
+  const w = await open_(await boot({
+    ...NETWORK_CONFIG,
+    include_network: { ...NETWORK_CONFIG.include_network, layout: 'figure' },
+    defaultWindowSize: 5,
+  }, NETWORK_FILES));
+
+  const texts = [...w.document.querySelectorAll('#networkSvg text')];
+  assert.ok(texts.length, 'no text at all');
+  texts.forEach(t => {
+    const y = Number(t.getAttribute('y'));
+    assert.ok(y >= 0 && y <= 560,
+      `"${t.textContent}" is drawn at y=${y}, outside the 560-unit viewBox`);
+  });
+});

@@ -295,3 +295,117 @@ def test_neither_recurrence_step_reassigns_a_module_global():
         offending = sorted({name for node in ast.walk(tree)
                             if isinstance(node, ast.Global) for name in node.names})
         assert not offending, f"{module.__name__} reassigns {offending}"
+
+
+# --- a rebuild after the config changed its mind ------------------------------
+
+def _three_series_study(tmp_path):
+    """A study whose config asks for every pair of three series."""
+    project = tmp_path / "study"
+    ts = project / "assets" / "timeseries"
+    ts.mkdir(parents=True)
+    names = ("alpha", "beta", "gamma")
+    for i, name in enumerate(names):
+        _series(ts / f"v1_{name}.csv", seed=i)
+    (project / "config.json").write_text(json.dumps({
+        "videoIDs": ["v1"],
+        "dataTypes": {"v1": list(names)},
+        "include_RQA": list(names),
+        "include_crosswavelet": [["alpha", "beta"], ["alpha", "gamma"],
+                                 ["beta", "gamma"]],
+        "analysis": {"crosswavelet": {"mcCount": 4}},
+    }, indent=2))
+    return project
+
+
+def _rewrite(project, **keys):
+    config = json.loads((project / "config.json").read_text())
+    config.update(keys)
+    (project / "config.json").write_text(json.dumps(config, indent=2))
+
+
+def _payload(project, rel):
+    return json.loads((project / "assets" / rel).read_text())
+
+
+def test_dropping_a_pair_removes_it_on_the_next_build(tmp_path):
+    """The reported bug, end to end.
+
+    A study had three people, `rtpjSync` was placed on the third, the person
+    was removed in the wizard and the study was rebuilt. The config then asked
+    for four cross-wavelet pairs and `pairs_computed` said four -- while the
+    file held seven, because the writer merged and never removed. The network
+    tab read the file and drew the orphaned measure as an extra person.
+    """
+    project = _three_series_study(tmp_path)
+    assert _run("crosswavelet", project).returncode == 0
+    first = _payload(project, "crosswavelet/v1_crosswavelet_data.json")
+    assert len(first["crosswavelet_pairs"]) == 3
+
+    _rewrite(project, include_crosswavelet=[["alpha", "beta"]])
+    assert _run("crosswavelet", project).returncode == 0
+
+    for rel in ("crosswavelet/v1_crosswavelet_data.json",
+                "crosswavelet/v1_crosswavelet_full.json"):
+        pairs = _payload(project, rel)["crosswavelet_pairs"]
+        assert sorted(pairs) == ["alpha_vs_beta"], \
+            f"{rel} kept a pair the config stopped asking for: {sorted(pairs)}"
+
+    data = _payload(project, "crosswavelet/v1_crosswavelet_data.json")
+    assert data["processing_info"]["pairs_computed"] == \
+        len(data["crosswavelet_pairs"]), \
+        "the file disagrees with its own count of what was computed"
+
+
+def test_only_the_analysis_entries_are_stamped(tmp_path):
+    """A payload's top level is not all entries.
+
+    `config`, `provenance`, `processing_info` and `precision` are documented
+    fields, not results. Stamping them made them prunable, and `provenance`
+    drops its `None` fields -- so a run with one optional field unset deleted a
+    key a previous run had recorded.
+    """
+    project = _three_series_study(tmp_path)
+    assert _run("crosswavelet", project).returncode == 0
+    data = _payload(project, "crosswavelet/v1_crosswavelet_data.json")
+
+    assert list(data["entry_owners"]) == ["crosswavelet_pairs"], \
+        f"metadata blocks were stamped: {sorted(data['entry_owners'])}"
+    assert set(data["entry_owners"]["crosswavelet_pairs"].values()) == {"crosswavelet"}
+    # And the documented blocks are still whole.
+    assert data["config"]["mother_wavelet"]
+    assert data["provenance"]["mc_count"] == 4
+
+
+def test_dropping_a_data_type_removes_its_rqa_entry(tmp_path):
+    """The same rule, through the other entry point: rqa's main() writes via
+    `payload_writer`, and a step that owned its entries under `run()` but not
+    under `main()` would prune on one path and accumulate on the other."""
+    project = _three_series_study(tmp_path)
+    assert _run("rqa", project).returncode == 0
+    assert len(_payload(project, "rqa/v1_rqa_data.json")["rqa_data"]) == 3
+
+    _rewrite(project, include_RQA=["alpha"])
+    assert _run("rqa", project).returncode == 0
+    assert sorted(_payload(project, "rqa/v1_rqa_data.json")["rqa_data"]) == ["alpha"]
+
+
+def test_another_analysis_in_the_same_file_survives_a_prune(tmp_path):
+    """The ORTHO guarantee, end to end: a study-owned analysis writes into the
+    same file as the shipped step, and the shipped step's removal of its own
+    entries must be invisible to it."""
+    project = _three_series_study(tmp_path)
+    assert _run("rqa", project).returncode == 0
+
+    path = project / "assets" / "rqa" / "v1_rqa_data.json"
+    data = json.loads(path.read_text())
+    data["rqa_data"]["gaze_parent"] = {"categorical": True}
+    path.write_text(json.dumps(data))       # unstamped, as a fork's step writes
+
+    _rewrite(project, include_RQA=["alpha"])
+    assert _run("rqa", project).returncode == 0
+
+    after = json.loads(path.read_text())["rqa_data"]
+    assert sorted(after) == ["alpha", "gaze_parent"], \
+        f"the shared step removed an analysis it did not produce: {sorted(after)}"
+    assert after["gaze_parent"]["categorical"] is True

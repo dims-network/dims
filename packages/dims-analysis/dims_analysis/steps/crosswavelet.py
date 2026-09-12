@@ -1135,6 +1135,33 @@ def _worker_count(jobs, n_pairs: int) -> int:
     return min(os.cpu_count() or 1, n_pairs)
 
 
+def _requested_pairs(config):
+    """The (type1, type2) pairs `include_crosswavelet` asks for.
+
+    Extracted from main() so that one reading of the config answers both "what
+    shall I compute" and "what entries does this study still want" -- the
+    second is `Step.expected_entries`, and a second implementation of the same
+    parsing is how a prune and a run come to disagree about a pair.
+
+    The key it becomes is `f"{type1}_vs_{type2}"`; see `_compute_pairs`.
+    """
+    raw = _config.as_list(config, 'include_crosswavelet', 'pairs of data types')
+    if raw and all(isinstance(item, (list, tuple)) and len(item) == 2
+                   for item in raw):
+        return [(t1, t2) for t1, t2 in raw]
+    # The legacy flat list of data types, expanded to all unique pairs.
+    flat = [t for t in raw if isinstance(t, str)]
+    return [(flat[i], flat[j])
+            for i in range(len(flat)) for j in range(i + 1, len(flat))]
+
+
+# This step's id, and the owner recorded against every entry it writes. It is
+# named here rather than read off the Step class below because `python -m
+# dims_analysis.steps.crosswavelet` runs main() at the `__main__` block above
+# that class, where the name does not exist yet.
+STEP_ID = "crosswavelet"
+
+
 def main():
     parser = argparse.ArgumentParser(description='Generate Cross-Wavelet data for DIMS Dashboard')
     parser.add_argument('--config', default='config.json', help='Path to config.json')
@@ -1192,20 +1219,13 @@ def main():
     else:
         print("coherence null: skipped -- nothing in this config reads it. "
               "Set analysis.crosswavelet.mcCount to compute it anyway.")
-    if all(isinstance(item, (list, tuple)) and len(item) == 2 for item in raw_cwt):
-        base_pairs = [(t1, t2) for t1, t2 in raw_cwt]
-    else:
-        flat_types = [t for t in raw_cwt if isinstance(t, str)]
-        if len(flat_types) < 2:
-            print("Error: Need at least 2 data types for cross-wavelet analysis")
-            return
-        base_pairs = []
-        for i in range(len(flat_types)):
-            for j in range(i + 1, len(flat_types)):
-                base_pairs.append((flat_types[i], flat_types[j]))
-
+    base_pairs = _requested_pairs(config)
     if not base_pairs:
-        print("Error: No valid cross-wavelet pairs found")
+        explicit = any(isinstance(item, (list, tuple)) for item in raw_cwt)
+        if not explicit and len([t for t in raw_cwt if isinstance(t, str)]) < 2:
+            print("Error: Need at least 2 data types for cross-wavelet analysis")
+        else:
+            print("Error: No valid cross-wavelet pairs found")
         return
     
     # Create output directory
@@ -1290,9 +1310,16 @@ def main():
             }
             # Merge rather than clobber: this file is keyed by video, so a
             # second analysis writing pairs into it must survive a re-run.
+            # Owned, so that the pairs *this* step wrote for a config that has
+            # since changed do not: a study that dropped a pair -- or removed
+            # the person a measure was placed on -- kept the old answer in the
+            # file and the dashboard drew it as a person who was not there.
             # write_payload uses compact separators -- the whitespace of
             # indent=2 is a quarter of the file and nobody reads it by eye.
-            kept = _results.write_payload(output_path, round_payload(output_data))
+            expected = {'crosswavelet_pairs':
+                        {f"{a}_vs_{b}" for a, b in base_pairs}}
+            kept = _results.write_payload(output_path, round_payload(output_data),
+                                          owner=STEP_ID, expected=expected)
             print(f"\nSaved cross-wavelet data to {output_path}")
 
             # The same schema at the resolution the analysis ran at, written
@@ -1308,7 +1335,7 @@ def main():
                                            for k, v in full_blocks.items()},
                     'provenance': _payload_provenance(config),
                     'precision': precision_note(),
-                }))
+                }), owner=STEP_ID, expected=expected)
                 grid = next(iter(full_blocks.values()))
                 print(f"Full resolution ({len(grid['period'])} periods x "
                       f"{len(grid['time'])} times) -> {full_path}")
@@ -1363,11 +1390,19 @@ from dims_analysis.base import Step as _Step
 
 
 class Step(_Step):
-    id = "crosswavelet"
+    id = STEP_ID
     config_key = "include_crosswavelet"
     output_dir = "assets/crosswavelet"
     output_name = "{video_id}_crosswavelet_data.json"
+    extra_output_names = ("{video_id}_crosswavelet_full.json",)
     description = "Cross-wavelet transform and coherence, with an AR(1) coherence null"
+
+    def expected_entries(self, config):
+        try:
+            pairs = _requested_pairs(config)
+        except Exception:
+            return {}          # a config this step will refuse anyway
+        return {'crosswavelet_pairs': {f"{a}_vs_{b}" for a, b in pairs}}
 
     def run(self, config, ctx):
         import os as _os

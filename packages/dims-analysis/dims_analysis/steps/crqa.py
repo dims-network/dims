@@ -327,7 +327,7 @@ def process_crqa_for_pair(video_id, type1, type2, input_dir=INPUT_DIR,
     return pair_key, entry
 
 
-def valid_pairs(config):
+def valid_pairs(config, report=True):
     """The `[type1, type2]` entries of include_cRQA, with the rest reported.
 
     Unlike include_crosswavelet, a flat list of data types is NOT expanded to
@@ -339,7 +339,7 @@ def valid_pairs(config):
     for item in _config.as_list(config, 'include_cRQA', 'pairs of data types'):
         if isinstance(item, list) and len(item) == 2:
             out.append(item)
-        else:
+        elif report:
             print(f"Warning: Skipping invalid include_cRQA entry: {item}. "
                   f"Expected [type1, type2].")
     return out
@@ -415,7 +415,9 @@ def main(argv=None):
     input_dir, output_dir = _step_io.resolve_io(INPUT_DIR, args.output_dir)
 
     analyse(config, input_dir=input_dir,
-            write=_step_io.payload_writer(output_dir, Step.output_name, "cRQA data"),
+            write=_step_io.payload_writer(output_dir, Step.output_name, "cRQA data",
+                                          owner=Step.id,
+                                          expected=Step().expected_entries(config)),
             window_sec=window_sec, step_sec=step_sec,
             target_recurrence=target_recurrence)
 
@@ -433,6 +435,15 @@ class Step(_Step):
     #: What `analysis.crqa` in the study's config overrides, key by key.
     defaults = {"window": 20.0, "step": 1.0,
                 "targetRecurrence": TARGET_RECURRENCE}
+
+    def expected_entries(self, config):
+        # `report=False`: this is asked on every write, and the warning about a
+        # malformed entry belongs to the run, printed once.
+        try:
+            pairs = valid_pairs(config, report=False)
+        except Exception:
+            return {}          # a config this step will refuse anyway
+        return {'crqa_data': {f"{t1}_vs_{t2}" for t1, t2 in pairs}}
 
     def run(self, config, ctx):
         """No sys.argv, no chdir, no globals -- see steps/rqa.py for the whole

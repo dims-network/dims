@@ -73,7 +73,7 @@ function boot({ routes = {}, quiet = true } = {}) {
       addPerson, removePerson, place, unplace, toggleEdge, pairKey,
       placedPositions, unplacedTypes, wireDiagram, pairKeysToList,
       renderAlign, renderAnalysisTypes, syncAnalysisDefaults, allPairs,
-      cancelLink, closeSpotMenu,
+      cancelLink, closeSpotMenu, duplicatePersonLabels, defaultPersonLabel,
     };`);
   return { window: w, page: w.__page, calls };
 }

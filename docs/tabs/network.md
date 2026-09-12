@@ -322,6 +322,13 @@ lands in one undifferentiated column.
 When `effectors` is given, a group needs no `match` — it is referenced by label.
 When it is absent, nothing changes: the inference above is exactly what it was.
 
+**Two groups must not share a `label`.** It is the only thing an effector has to
+name its group by, so a duplicate is not a cosmetic problem: the tab resolves a
+label to one group, and the other one keeps no members and is not drawn — its
+measures appear on the survivor's figure. The wizard refuses to write such a
+config, naming the label, and its own default names cannot collide. A config
+written by hand can still do it.
+
 **`series` must stay a real data type name**, not a display name. A node is
 matched to its cross-wavelet pairs by that name, so a label here resolves against
 no pair: the node is drawn with no edges, and the measure you meant turns up

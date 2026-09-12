@@ -4,6 +4,91 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## v1.5.0
+
+**A rebuild no longer keeps the analyses a study stopped asking for.** The
+payload writer merged and never removed, so dropping a pair from
+`include_crosswavelet` — or removing the person a measure was placed on in the
+wizard — left the old answer in the file, and every reader drew it. Measured on
+the reference study: the config asked for four pairs,
+`processing_info.pairs_computed` said four, and the file held seven. Two of the
+extras named a series no effector declared any more, which the network tab
+rendered as an entire extra person.
+
+The merge itself stays, because it exists for a real case: ORTHO writes a
+study-owned categorical gaze RQA into the same `{video}_rqa_data.json` as the
+shipped RQA step, and a clobbering write destroyed it once. What was missing was
+any way to tell *another analysis's entry* from *my own entry for a question
+nobody is asking*.
+
+- Each entry now records the step that wrote it, in a new top-level
+  `entry_owners`. A step removes the entries it owns and the config no longer
+  asks for; an entry owned by another step, or by nobody, survives.
+- Removal needs the config to agree, not just the run. A step that skips a data
+  type whose CSV is unreadable warns and carries on, so pruning on absence
+  alone would delete a good result because somebody renamed a file.
+- `Step.expected_entries(config)` is what a step answers to opt in, and
+  `Step.extra_output_names` lists its further files — cross-wavelet's
+  full-resolution payload is keyed by the same pairs and is cleaned with it.
+- `PAYLOAD_VERSION` is untouched. `entry_owners` is additive and no reader
+  inspects unknown top-level keys, so a study takes this by bumping its pin.
+- A kept entry is no longer announced as "from another analysis". It might be
+  one, and it might be this step's own from before any of this was recorded;
+  the old wording sent people looking for a second analysis that did not exist.
+
+**Two people could end up with one name, and it cost a measure.** The wizard
+numbered a new person by how many there were, so removing Person 2 of three and
+adding another produced a second "Person 3". A measure named its person by
+*label*, which made the two indistinguishable: both their nodes resolved onto
+whichever figure came last and were drawn on top of each other, removing either
+person stripped both of their measures, and renaming one renamed the other's
+measures too. The config then carried two groups with one name for the network
+tab to collapse.
+
+- A person is identified by an id now. A label is a display name, and the only
+  place it identifies anything is the config format — `effectors[].group` names
+  a group by label, which is unchanged.
+- Default names are the lowest unused number, so removing Person 2 and adding
+  one gives a Person 2 back rather than a duplicate of somebody else. Default
+  colours are the first unused one, for the same reason: two identical figures
+  on a diagram whose job is telling bodies apart is the wrong answer.
+- A duplicate label is **refused** on the way out of step 4, with the name in
+  the message. Nothing is renamed on the researcher's behalf.
+- Renaming a person no longer rewrites any effector, so it cannot reach a
+  namesake's measures.
+- A `group` naming none of the study's own people is still carried through
+  verbatim — the tab draws such a node in a trailing `Other` on purpose — but
+  it now counts as *not placed*, which is what the diagram was already showing.
+
+**New: `dims-analysis prune`.** A study built before this release records no
+owners, and an unstamped entry is never removed on a guess, so its orphans
+survive any number of rebuilds. This removes them without recomputing anything.
+It reports and exits unless `--apply` is given, and shows the owner of each
+entry as `unknown` where there is none — in one real study, two entries absent
+from `include_RQA` are not orphans at all but a study-owned analysis's results.
+
+**The network tab drew a body for its leftovers.** Measures that turn up in a
+pair and that no effector declares go into a trailing group, and in a figure
+layout that group was drawn as a person: a study whose wizard had a third person
+removed rendered as two people plus a grey third figure with the orphaned
+measure parked at its side. There was never a third person.
+
+- A group the study named gets a figure; the synthesized bucket gets a column.
+  Deliberately not keyed on whether any member resolved to a body part — a
+  named group whose measures the vocabulary cannot place is still that group.
+- A bucket that holds everything because the study defined no groups is the
+  network itself, not its leftovers, and keeps its figure.
+- Its nodes and their edges stay. Dropping a measure the study computed would
+  be worse than the bug being fixed.
+- A part-less measure on a real person is clamped inside the picture. A flat
+  `cx + 150` left the node, and its label, past the right edge from five groups
+  on.
+
+**No group heading in a figure layout has ever been readable.** They were drawn
+at `FOOT_Y + 35`, which is 580 in a viewBox 560 tall. The tests did not catch it
+because a clipped element is still in the DOM, so the assertion is on the
+coordinate now.
+
 ## v1.4.3
 
 **The network tab's co-activity figure is gone.** Every edge used to report what

@@ -86,37 +86,57 @@ def resolve_io(input_dir: str, output_dir: str, project_dir: str = '.') -> tuple
     return resolved_in, resolved_out
 
 
-def payload_writer(output_dir: str, output_name: str, label: str):
+def payload_writer(output_dir: str, output_name: str, label: str,
+                   owner: str | None = None, expected: dict | None = None):
     """A `write(video_id, payload) -> report` for `main()`.
 
     `Step.run()` passes `ctx.write_result` instead. One function is handed to
     the analysis either way, so the two entry points cannot drift into writing
     two different files -- which is what the adapter's "INTERIM: replacing this
     means giving run() the real parameters" was deferring.
+
+    `owner` is that step's id, and both entry points must pass the same one:
+    a step that owns its entries under `run()` and not under `main()` would
+    prune on one path and accumulate on the other.
     """
     def write(video_id: str, payload: dict) -> dict:
         path = os.path.join(output_dir, output_name.format(video_id=video_id))
         body = {"video_id": video_id}
         body.update(payload)
-        report = _results.write_payload(path, body)
+        report = _results.write_payload(path, body, owner=owner,
+                                        expected=expected)
         print(f"\nSaved {label} to {path}")
         return report
     return write
 
 
 def report_merge(report: dict) -> None:
-    """Print what a write kept from another analysis, and what it replaced.
+    """Print what a write kept, what it replaced, and what it removed.
 
-    Both halves are worth saying. A silent keep leaves stale results in a file
+    Every part is worth saying. A silent keep leaves stale results in a file
     that looks freshly written; a silent replace is how a study loses the
-    results of an analysis it owns. `results.compare_entries` computes it, three
-    steps printed it identically, and it belongs in one place.
+    results of an analysis it owns; and a silent removal would be that same
+    failure once more. `results.compare_entries` computes it, three steps
+    printed it identically, and it belongs in one place.
+
+    A kept entry is **not** announced as being "from another analysis" any
+    more. It might be, and that is the case the merge exists for -- but it can
+    equally be this step's own entry in a file written before ownership was
+    recorded, and a study chasing a result it did not ask for was sent looking
+    for a second analysis that does not exist.
     """
     report = report or {}
     for key, names in report.get('kept', {}).items():
         print(f"  kept {len(names)} existing {key} entr"
-              f"{'y' if len(names) == 1 else 'ies'} from another "
-              f"analysis: {', '.join(names)}")
+              f"{'y' if len(names) == 1 else 'ies'} this run did not write: "
+              f"{', '.join(names)}")
+        print(f"       they belong to another analysis, or to a run from before "
+              f"this file recorded who wrote what. `dims-analysis prune` "
+              f"removes the ones the config no longer asks for.")
     for key, names in report.get('replaced', {}).items():
         print(f"  replaced {len(names)} existing {key} entr"
               f"{'y' if len(names) == 1 else 'ies'}: {', '.join(names)}")
+    for key, names in report.get('pruned', {}).items():
+        print(f"  removed {len(names)} {key} entr"
+              f"{'y' if len(names) == 1 else 'ies'} this analysis wrote before "
+              f"and no longer produces: {', '.join(names)}")

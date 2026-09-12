@@ -91,9 +91,13 @@ class StepContext:
         its own copy of a whole step purely because the shared version
         overwrote the output that a second, complementary analysis had written.
 
-        Returns the {"kept": ..., "replaced": ...} report, so the caller can say
-        what happened -- a silent keep leaves stale results in a file that looks
-        freshly written. Use `step_io.report_merge` to print it.
+        The step's id goes down as the owner of every entry it writes, which is
+        what lets the next run of this same step remove the entries it no
+        longer produces without touching that second analysis's.
+
+        Returns the {"kept": ..., "replaced": ..., "pruned": ...} report, so the
+        caller can say what happened -- a silent keep leaves stale results in a
+        file that looks freshly written. Use `step_io.report_merge` to print it.
 
         It writes compactly, as the steps' own `main()` does. It did not, and
         that mattered the moment anything called it: two entry points into one
@@ -103,7 +107,8 @@ class StepContext:
         p = self.output_path(step, video_id)
         body = {"video_id": video_id}
         body.update(payload)
-        return results.write_payload(p, body)
+        return results.write_payload(p, body, owner=step.id or None,
+                                     expected=step.expected_entries(self.config))
 
     def params(self, step: "Step", defaults: dict) -> dict:
         """Per-step tuning from config.json, falling back to the step's defaults.
@@ -131,6 +136,28 @@ class Step:
     output_name: str = "{video_id}_data.json"
     #: one line, shown by `dims-analysis list`
     description: str = ""
+    #: further files this step writes, same `{video_id}` shape as output_name.
+    #: `dims-analysis prune` walks these too -- cross-wavelet's second,
+    #: full-resolution file is keyed by the same pairs as the first, and a
+    #: prune that cleaned one and not the other would leave the two disagreeing
+    #: about which pairs the study has.
+    extra_output_names: tuple = ()
+
+    def expected_entries(self, config: dict) -> dict:
+        """{payload key: the entry names this config asks for}, or {}.
+
+        Two things read this. `write_result` passes it to the writer, which is
+        what lets a re-run remove the entries this step wrote for a question
+        the config no longer asks -- the cross-wavelet pairs of a person who
+        was removed in the wizard, say. And `dims-analysis prune` uses it to
+        clear the same entries out of a study built before any of this existed.
+
+        The default is {}, which means "cannot say": such a step's entries are
+        stamped with nobody and removed by nothing, which is the safe end of
+        the trade -- a study-owned analysis sharing a file with a shipped step
+        must not lose its results to a guess. Answer it to opt in.
+        """
+        return {}
 
     def gate(self, config: dict) -> bool:
         """Whether to run at all. Default: the config key is present and truthy.

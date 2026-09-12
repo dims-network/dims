@@ -228,15 +228,30 @@ function applyOpenedConfig(cfg, vis) {
   state.effectorExtras = {};
   state.placedByName = false;
   if (net && typeof net === "object") {
+    // The config keys an effector to its group by label; everything in here
+    // keys it by person id. This is the one place the two meet on the way in,
+    // and `collectNetwork` is the one place they meet on the way out.
+    const idFor = new Map();
     (Array.isArray(net.groups) ? net.groups : []).forEach((g, i) => {
-      addPerson(g.label || "Person " + (i + 1), g.color, g.match);
+      const label = g.label || "Person " + (i + 1);
+      const id = addPerson(label, g.color, g.match);
+      // First wins. A config written before labels were kept unique can name
+      // two groups the same, and which of them an effector meant is not
+      // knowable here -- the duplicate is reported on Next instead of being
+      // resolved by a guess.
+      if (!idFor.has(label)) idFor.set(label, id);
     });
     if (Array.isArray(net.band)) $("#network_band").value = net.band.join(", ");
 
     (Array.isArray(net.effectors) ? net.effectors : []).forEach((eff) => {
       if (!eff || !eff.series) return;
       const row = {};
-      if (eff.group) row.group = eff.group;
+      // A group naming none of this study's own is a typo, and the dashboard
+      // draws such a node in a trailing `Other`. Carried through verbatim
+      // rather than dropped: losing what somebody wrote is worse than
+      // round-tripping something they can see and correct.
+      if (eff.group && idFor.has(eff.group)) row.person = idFor.get(eff.group);
+      else if (eff.group) row.group = eff.group;
       if (eff.label) row.label = eff.label;
       if (eff.part) row.part = eff.part;
       state.effectors[eff.series] = row;
@@ -274,7 +289,7 @@ function placeByName(cfg) {
     const rest = name.replace(new RegExp(person.match, "i"), "").replace(/^[_\-\s]+/, "");
     const token = FIG.bodyPart(rest) || FIG.bodyPart(name);
     if (!token) return;
-    state.effectors[name] = { group: person.label, part: spotOf(token) };
+    state.effectors[name] = { person: person.id, part: spotOf(token) };
     if (rest) state.effectors[name].label = rest;
     placed++;
   });
@@ -831,7 +846,7 @@ function placedPositions() {
   const total = state.people.length;
   state.people.forEach((person, i) => {
     Object.entries(state.effectors).forEach(([dt, eff]) => {
-      if (eff.group !== person.label || !eff.part) return;
+      if (eff.person !== person.id || !eff.part) return;
       const spot = SPOTS.find((sp) => sp.part === spotOf(eff.part));
       if (spot) out[dt] = { x: personCx(i, total) + spot.dx, y: spot.y, person };
     });
@@ -839,10 +854,13 @@ function placedPositions() {
   return out;
 }
 
+// Placed means "on one of these figures". A measure carrying a group label
+// that names nobody here cannot be drawn, so it belongs in this list rather
+// than being counted as placed and then missing from the picture.
 function unplacedTypes() {
   return allDataTypes().filter((dt) => {
     const eff = state.effectors[dt];
-    return !(eff && eff.group && eff.part);
+    return !(eff && eff.person && eff.part);
   });
 }
 
@@ -1022,12 +1040,54 @@ function pairKey(a, b) {
   return order.indexOf(a) <= order.indexOf(b) ? a + "|" + b : b + "|" + a;
 }
 
+// Ids identify a person; labels only name one. Both were once the same thing
+// and it cost a measure: `addPerson` numbered by `people.length + 1`, so
+// removing Person 2 of three and adding another produced a second "Person 3",
+// and `state.effectors[dt].group` held the *label* -- so the new namesake's
+// node was drawn on top of the old one's, and removing either stripped both.
+//
+// The lowest unused number, so removing Person 2 and adding one gives a
+// Person 2 back rather than a duplicate of somebody else.
+function defaultPersonLabel() {
+  const taken = new Set(state.people.map((p) => p.label));
+  let n = 1;
+  while (taken.has("Person " + n)) n++;
+  return "Person " + n;
+}
+
+// Labels the study has more than one of. Empty unless somebody typed one.
+function duplicatePersonLabels() {
+  const seen = new Set();
+  const twice = new Set();
+  state.people.forEach((p) => {
+    if (seen.has(p.label)) twice.add(p.label);
+    seen.add(p.label);
+  });
+  return Array.from(twice);
+}
+
+// The first colour nobody is using. Picked by `people.length` before, which
+// collided the same way the labels did: remove the middle of three and the next
+// person added takes the colour of the one after it. Not destructive -- nothing
+// is identified by colour -- but on a diagram whose whole job is telling two
+// bodies apart, two identical figures is the wrong answer.
+function defaultPersonColor() {
+  const taken = new Set(state.people.map((p) => p.color));
+  return PERSON_COLORS.find((c) => !taken.has(c))
+    || PERSON_COLORS[state.people.length % PERSON_COLORS.length];
+}
+
+// Monotonic, not derived from the array's length: a counter cannot collide,
+// and nothing outside this session ever sees one -- `collectNetwork` writes
+// labels, which is what the config format keys a group by.
+let personSeq = 0;
+
 function addPerson(label, color, match) {
-  const id = "p" + (state.people.length + 1) + "-" + Math.random().toString(36).slice(2, 7);
+  const id = "p" + (++personSeq) + "-" + Math.random().toString(36).slice(2, 7);
   const person = {
     id,
-    label: label || "Person " + (state.people.length + 1),
-    color: color || PERSON_COLORS[state.people.length % PERSON_COLORS.length],
+    label: label || defaultPersonLabel(),
+    color: color || defaultPersonColor(),
   };
   if (match) person.match = match;
   state.people.push(person);
@@ -1039,8 +1099,10 @@ function removePerson(id) {
   if (!person) return;
   state.people = state.people.filter((p) => p.id !== id);
   // Their measures come off the diagram rather than moving to somebody else.
+  // By id: two people can share a label, and by label this removed the other
+  // one's measures as well.
   Object.keys(state.effectors).forEach((dt) => {
-    if (state.effectors[dt].group === person.label) unplace(dt);
+    if (state.effectors[dt].person === person.id) unplace(dt);
   });
 }
 
@@ -1069,8 +1131,9 @@ function place(dt, personId, part) {
   // cross-wavelet pairs by it, and a display name there would cost it its edges.
   const spot = SPOTS.find((sp) => sp.part === spotOf(part));
   const label = spot ? spot.label.replace(/^./, (c) => c.toUpperCase()) : undefined;
+  const { group: _carried, ...rest } = state.effectors[dt] || {};
   state.effectors[dt] = {
-    ...(state.effectors[dt] || {}), group: person.label, part,
+    ...rest, person: person.id, part,
     label: (state.effectors[dt] || {}).label || label,
   };
 }
@@ -1292,12 +1355,10 @@ function wireDiagram() {
     const person = state.people.find((p) => p.id === (labelId || colorId));
     if (!person) return;
     if (labelId) {
-      // The effectors reference a person by label, so renaming has to follow.
-      const was = person.label;
+      // Nothing to chase: an effector names its person by id. This used to
+      // rewrite every effector whose group matched the old label, which also
+      // caught anybody else who happened to share it.
       person.label = e.target.value;
-      Object.values(state.effectors).forEach((eff) => {
-        if (eff.group === was) eff.group = person.label;
-      });
     } else {
       person.color = e.target.value;
     }
@@ -1483,14 +1544,21 @@ function collectNetwork() {
     return g;
   });
 
+  const labelFor = new Map(state.people.map((p) => [p.id, p.label]));
+
   const effectors = allDataTypes().map((dt) => {
     const cur = state.effectors[dt] || {};
     const extra = state.effectorExtras[dt] || {};
-    const said = cur.group || cur.label || cur.part
+    // A person id resolves to their label as it stands now; a group label
+    // carried in from a config that names nobody here goes back out as it
+    // came. An id that resolves to nobody is a person who has been removed,
+    // and says nothing.
+    const group = cur.person ? labelFor.get(cur.person) : cur.group;
+    const said = group || cur.label || cur.part
       || extra.x !== undefined || extra.y !== undefined;
     if (!said) return null;
     const out = { series: dt };
-    if (cur.group) out.group = cur.group;
+    if (group) out.group = group;
     if (cur.label) out.label = cur.label;
     if (cur.part) out.part = cur.part;
     // Carried through, not rebuilt: the diagram has no coordinate handles, and
@@ -1527,6 +1595,21 @@ $("#next-4").addEventListener("click", async () => {
     setMsg(4, "The network draws cross-wavelet coherence as its edges, so it " +
               "needs at least one cross-wavelet pair.", "error");
     return;
+  }
+  // The config names a measure's group by label, and the dashboard looks a
+  // group up by it, so two people with one label is not a cosmetic problem:
+  // one of the two collapses into the other and its measures go with it.
+  // The wizard's own default labels cannot collide, so this is somebody
+  // having typed one -- said plainly, with the name in it, rather than
+  // renaming their person for them.
+  if ($("#t_network").checked) {
+    const dupes = duplicatePersonLabels();
+    if (dupes.length) {
+      setMsg(4, `Two people are called ${dupes.map((d) => `"${d}"`).join(" and ")}` +
+                ". A measure says which person it belongs to by that name, so " +
+                "give them different ones.", "error");
+      return;
+    }
   }
   for (const [id, label] of [["cw_band", "the cross-wavelet averaging band"],
                              ["network_band", "the network's period band"]]) {
