@@ -4,6 +4,14 @@ Releases are tagged `vX.Y.Z` and the whole core moves together: a study pins one
 version in its `dims-case.json` and takes a fix by bumping it, never by editing
 `vendor/`.
 
+## Unreleased
+
+- Builder: a CSV is grouped with the session its video names, and the whole
+  rest of the name is the measure. `s1_sub141_corr.csv` beside `s1.mp4` used to
+  become session `s1_sub141`, measure `corr`, and the build stopped on a session
+  with no data. Drop order no longer matters; a row set by hand is left alone.
+  Reopening a study reads its files back the same way, against `videoIDs`.
+
 ## v1.5.0
 
 **A rebuild no longer keeps the analyses a study stopped asking for.** The

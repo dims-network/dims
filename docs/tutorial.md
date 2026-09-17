@@ -130,8 +130,12 @@
               (any casing) in <b>seconds</b>, ascending — not milliseconds, not frame
               numbers — plus that one measurement. The part of the filename after the
               session ID is what the measurement gets called, so it is worth naming
-              them the way you want to read them. One wide spreadsheet works too; see
-              below.</td></tr>
+              them the way you want to read them. That part may have underscores of
+              its own — <code>session1_sub141_corr.csv</code> is the measure
+              <code>sub141_corr</code> — as long as the video (or transcript, or ELAN
+              file) named <code>session1</code> is in the same drop, because that is
+              how the builder knows where the session ID ends. One wide spreadsheet
+              works too; see below.</td></tr>
         <tr><td><b>A transcript</b><br><span class="muted">optional</span></td>
             <td><code>session1_transcript.json</code></td>
             <td><code>{ "segments": [ {start, end, speaker, text} ] }</code>, times in

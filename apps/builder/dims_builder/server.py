@@ -40,8 +40,14 @@ def infer_role(filename: str) -> str:
     return "unknown"
 
 
-def _suggest_ids(filename: str, role: str):
-    """Suggest (videoID, dataType) from a filename following template conventions."""
+def _suggest_ids(filename: str, role: str, known=()):
+    """Suggest (videoID, dataType) from a filename following template conventions.
+
+    `known` is the session IDs the other files have named. A time-series name
+    that starts with one of them belongs to it, and the rest of the name is the
+    measure -- the split that `docs/tutorial.md` promises ("by that first part
+    of the name"). Without a match the last underscore is the best guess left.
+    """
     base = os.path.splitext(os.path.basename(filename))[0]
     if role == "video":
         return base, ""
@@ -50,7 +56,9 @@ def _suggest_ids(filename: str, role: str):
     if role == "elan":
         return base, ""
     if role == "timeseries":
-        # {videoID}_{dataType}; if no underscore, leave dataType blank
+        hit = project.split_session(base, known)
+        if hit:
+            return hit
         if "_" in base:
             vid, dt = base.rsplit("_", 1)
             return vid, dt
@@ -188,19 +196,28 @@ def create_app():
                 paths.append(os.path.join(cur, name))
         if not paths:
             return jsonify(error="The example study came out empty."), 500
-        added = []
+        added, updated = [], {}
         for path in paths:
             with open(path, "rb") as fh:
-                added.extend(_stage_stream(fh, os.path.basename(path)))
-        return jsonify(files=added, count=len(added))
+                rows, changed = _stage_stream(fh, os.path.basename(path))
+            added.extend(rows)
+            updated.update((r["id"], r) for r in changed)
+        # A row re-read after a later file named its session is reported once,
+        # in its final state -- and not at all if it is also among the added.
+        added_ids = {r["id"] for r in added}
+        for r in added:
+            if r["id"] in updated:
+                r.update(updated[r["id"]])
+        updated = [r for fid, r in updated.items() if fid not in added_ids]
+        return jsonify(files=added, updated=updated, count=len(added))
 
     @app.post("/api/upload")
     def api_upload():
         if "file" not in request.files:
             return jsonify(error="No file in request."), 400
         f = request.files["file"]
-        added = _stage_stream(f, os.path.basename(f.filename or "file"))
-        return jsonify(files=added, file=added[0] if added else None)
+        added, updated = _stage_stream(f, os.path.basename(f.filename or "file"))
+        return jsonify(files=added, file=added[0] if added else None, updated=updated)
 
     @app.post("/api/assign")
     def api_assign():
@@ -212,6 +229,10 @@ def create_app():
         for k in ("role", "videoID", "dataType"):
             if k in data:
                 entry[k] = data[k]
+        # What a person typed is theirs: a video arriving later must not
+        # re-guess a session or measure somebody has already corrected.
+        if "videoID" in data or "dataType" in data:
+            entry["pinned"] = True
         # re-validate with the (possibly new) role
         entry["issues"] = validate.validate_file(entry["role"], entry["path"])
         return jsonify(ok=True, file=_public(entry))
@@ -382,8 +403,37 @@ def create_app():
     def _public(entry):
         return {k: entry.get(k) for k in PUBLIC_FIELDS}
 
+    def _known_sessions():
+        """The session IDs the files that carry one whole have named.
+
+        A video, transcript or ELAN file *is* its session; a time-series name
+        only guesses at one, so it is not a source -- otherwise one wrong guess
+        would confirm the next.
+        """
+        return [e["videoID"] for e in state["staged"].values()
+                if e["role"] != "timeseries" and e.get("videoID")]
+
+    def _reread_series(session_id):
+        """Re-assign the guessed time-series rows a newly named session claims.
+
+        Files arrive in whatever order the finder hands them over, so the CSVs
+        often land before the video that names their session. Each was read
+        against nothing and guessed at; once the session is known the guess is
+        replaced -- unless a person has already set the row by hand.
+        """
+        changed = []
+        for e in state["staged"].values():
+            if e["role"] != "timeseries" or e.get("pinned"):
+                continue
+            base = os.path.splitext(e["name"])[0]
+            hit = project.split_session(base, [session_id])
+            if hit and (e["videoID"], e["dataType"]) != hit:
+                e["videoID"], e["dataType"] = hit
+                changed.append(_public(e))
+        return changed
+
     def _stage_stream(stream, safe_name):
-        """Stage one incoming file and return the rows the wizard should show.
+        """Stage one incoming file; return (rows to show, rows re-read because of it).
 
         One path for an upload and for the sample data, so the button that loads
         the samples exercises what a real file goes through rather than a
@@ -399,7 +449,8 @@ def create_app():
                 shutil.copyfileobj(stream, out)
 
         role = infer_role(safe_name)
-        vid, dt = _suggest_ids(safe_name, role)
+        known = _known_sessions()
+        vid, dt = _suggest_ids(safe_name, role, known)
 
         # A CSV with Time plus several value columns becomes one single-column
         # CSV per measure, which is the layout every analysis reads.
@@ -407,12 +458,15 @@ def create_app():
             base = os.path.splitext(safe_name)[0]
             splits = media.split_timeseries_csv(staged_path, STAGING_DIR, fid, base)
             if splits:
+                # The file is named for its session, or for its session plus a
+                # part every column shares (`s1_sub141.csv` -> `sub141_x`).
+                session, stem = project.split_session(base, known) or (base, "")
                 rows = []
                 for sp in splits:
                     entry = {
                         "id": sp["id"], "name": sp["name"], "path": sp["path"],
-                        "role": "timeseries", "videoID": base,
-                        "dataType": sp["dataType"],
+                        "role": "timeseries", "videoID": session,
+                        "dataType": f"{stem}_{sp['dataType']}" if stem else sp["dataType"],
                         "columns": ["Time", sp["column"]],
                     }
                     entry["issues"] = validate.validate_file("timeseries", sp["path"])
@@ -422,7 +476,7 @@ def create_app():
                     os.remove(staged_path)      # only the splits are kept
                 except OSError:
                     pass
-                return rows
+                return rows, []
 
         entry = {
             "id": fid, "name": safe_name, "path": staged_path,
@@ -431,7 +485,8 @@ def create_app():
         }
         entry["issues"] = validate.validate_file(role, staged_path)
         state["staged"][fid] = entry
-        return [_public(entry)]
+        updated = _reread_series(vid) if role != "timeseries" and vid else []
+        return [_public(entry)], updated
 
     def _session_summary():
         """Per-session video & time-series geometry for the align step.

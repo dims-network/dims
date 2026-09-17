@@ -56,8 +56,9 @@ Your browser opens to the wizard. Follow the 7 steps:
    ELAN phases ([EXAMPLE-STUDY.md](EXAMPLE-STUDY.md)). Nothing ships — it is
    generated on first use, which takes a few seconds once. The builder
    works out what each file is (`.mp4`, `.csv`, `_transcript.json`, `.eaf`),
-   which session it belongs to, and splits a multi-column CSV into one file per
-   measure. If a session was filmed from several angles, name them here and the
+   which session it belongs to — the video names the session, and a CSV whose
+   name starts with it is that session's, whatever follows — and splits a
+   multi-column CSV into one file per measure. If a session was filmed from several angles, name them here and the
    dashboard gets a camera selector.
 > The body the step 4 diagram is drawn on — its coordinates, its six places and
 > the aliases for their names — is

@@ -101,6 +101,69 @@ def test_a_multi_column_csv_is_split_on_upload(client, tmp_path):
     assert all(f["columns"][0] == "Time" and len(f["columns"]) == 2 for f in rows)
 
 
+NARROW = b"Time,value\n0.0,1\n0.5,2\n1.0,3\n"
+
+
+def upload(client, name, data):
+    r = client.post("/api/upload", data={"file": (io.BytesIO(data), name)},
+                    content_type="multipart/form-data")
+    assert r.status_code == 200, r.get_json()
+    return r.get_json()
+
+
+def ids(client, name):
+    e = next(e for e in client.state["staged"].values() if e["name"] == name)
+    return e["videoID"], e["dataType"]
+
+
+# --- which session a CSV belongs to ------------------------------------------
+# `{videoID}_{dataType}.csv` cannot be read on its own once either half has an
+# underscore, and both usually do. The video names the session whole, so the
+# CSV is read against it -- in whichever order the finder hands the files over.
+
+def test_a_csv_is_grouped_with_the_video_that_names_its_session(client, tmp_path):
+    start(client, tmp_path)
+    upload(client, "N1_3_ElevatorAd.mp4", b"")
+    upload(client, "N1_3_ElevatorAd_LowAttitudeSub141_corr.csv", NARROW)
+    assert ids(client, "N1_3_ElevatorAd_LowAttitudeSub141_corr.csv") == \
+        ("N1_3_ElevatorAd", "LowAttitudeSub141_corr")
+
+
+def test_the_video_may_arrive_after_its_csvs(client, tmp_path):
+    start(client, tmp_path)
+    upload(client, "s1_a_b.csv", NARROW)
+    assert ids(client, "s1_a_b.csv") == ("s1_a", "b")   # the best guess alone
+    r = upload(client, "s1.mp4", b"")
+    assert ids(client, "s1_a_b.csv") == ("s1", "a_b")
+    # ...and the screen is told, so the row it shows is the row the build uses.
+    assert [(u["videoID"], u["dataType"]) for u in r["updated"]] == [("s1", "a_b")]
+
+
+def test_a_row_set_by_hand_is_not_reguessed(client, tmp_path):
+    start(client, tmp_path)
+    fid = upload(client, "s1_a_b.csv", NARROW)["file"]["id"]
+    client.post("/api/assign", json={"id": fid, "videoID": "mine", "dataType": "x"})
+    r = upload(client, "s1.mp4", b"")
+    assert r["updated"] == []
+    assert ids(client, "s1_a_b.csv") == ("mine", "x")
+
+
+def test_a_wide_csv_keeps_its_own_stem_in_each_measure(client, tmp_path):
+    start(client, tmp_path)
+    upload(client, "s1.mp4", b"")
+    rows = upload(client, "s1_sub.csv", b"Time,x,y\n0.0,1,2\n0.5,3,4\n1.0,5,6\n")["files"]
+    assert sorted((f["videoID"], f["dataType"]) for f in rows) == \
+        [("s1", "sub_x"), ("s1", "sub_y")]
+
+
+def test_the_longest_session_id_wins(client, tmp_path):
+    start(client, tmp_path)
+    upload(client, "s1.mp4", b"")
+    upload(client, "s1_b.mp4", b"")
+    upload(client, "s1_b_speed.csv", NARROW)
+    assert ids(client, "s1_b_speed.csv") == ("s1_b", "speed")
+
+
 def test_the_example_study_builds_and_its_config_is_valid(client, tmp_path):
     out, _ = start(client, tmp_path)
     client.post("/api/samples")

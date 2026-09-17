@@ -125,6 +125,29 @@ def test_a_built_study_reopens_as_what_it_was(tmp_path):
     assert (alpha["videoID"], alpha["dataType"]) == ("s1", "alpha")
 
 
+def test_a_reopened_csv_is_read_against_the_studys_sessions(tmp_path):
+    """`s1_a_b.csv` is only readable once `videoIDs` says where `s1` ends."""
+    out = str(tmp_path / "study")
+    project.create_project(out, "private")
+    ts = os.path.join(out, "assets", "timeseries")
+    os.makedirs(ts, exist_ok=True)
+    with open(os.path.join(ts, "s1_a_b.csv"), "w") as fh:
+        fh.write("Time,value\n0,1\n0.05,2\n")
+    project.write_config(out, {
+        "title": "T", "videoIDs": ["s1"], "dataTypes": {"s1": ["a_b"]}})
+    row = project.read_project(out)["assets"][0]
+    assert (row["videoID"], row["dataType"]) == ("s1", "a_b")
+
+
+def test_split_session_prefers_the_longest_known_id():
+    known = ["dyad01", "dyad01b"]
+    assert project.split_session("dyad01b_speed", known) == ("dyad01b", "speed")
+    assert project.split_session("dyad01_speed", known) == ("dyad01", "speed")
+    assert project.split_session("dyad01", known) == ("dyad01", "")
+    assert project.split_session("dyad01bspeed", known) is None
+    assert project.split_session("other_x", known) is None
+
+
 def test_reopening_something_that_is_not_a_study_says_so(tmp_path):
     plain = tmp_path / "plain"
     plain.mkdir()

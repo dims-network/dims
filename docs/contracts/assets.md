@@ -14,8 +14,10 @@ assets/
   crosswavelet/{videoID}_crosswavelet_data.json
 ```
 
-`videoID` and `dataType` come from `config.json`. Neither may contain `_`
-beyond the separator shown, because the name is split on it.
+`videoID` and `dataType` come from `config.json`, and either may contain `_`
+of its own. A time-series name is therefore never split on an underscore: it is
+read against the `videoIDs` list, and what follows the matching ID is the
+`dataType`. The builder does the same, against the videos in the same drop.
 
 ## Time series CSV
 

@@ -322,6 +322,7 @@ $("#btn-samples").addEventListener("click", async () => {
     const r = await api("/api/samples", { method: "POST" });
     const added = r.files || [];
     added.forEach((f) => state.files.push(f));
+    mergeUpdated(r.updated);
     const sessions = new Set(added.map((f) => f.videoID).filter(Boolean));
     // Only claim the split when one happened. A message that describes what
     // usually happens rather than what just did is how someone learns to stop
@@ -349,12 +350,22 @@ async function uploadFiles(fileList) {
       // A multi-column CSV comes back as several files (one per value column).
       const got = r.files || (r.file ? [r.file] : []);
       got.forEach((file) => state.files.push(file));
+      mergeUpdated(r.updated);
     } catch (e) {
       setMsg(2, `${f.name}: ${e.message}`, "error");
     }
   }
   setMsg(2, "");
   renderFiles();
+}
+
+// A video that arrives after its CSVs names their session, and the server
+// re-reads the rows it had to guess at. They come back beside the new file.
+function mergeUpdated(rows) {
+  (rows || []).forEach((u) => {
+    const f = state.files.find((x) => x.id === u.id);
+    if (f) Object.assign(f, u);
+  });
 }
 
 function renderFiles() {

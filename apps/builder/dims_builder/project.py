@@ -80,6 +80,26 @@ ASSET_LAYOUT = {
 }
 
 
+def split_session(base: str, known) -> "tuple[str, str] | None":
+    """Which known session `base` belongs to, and what is left of the name.
+
+    `assets/timeseries/{videoID}_{dataType}.csv` cannot be read back on its own
+    once either half contains an underscore -- and a session ID such as
+    `N1_3_143_ElevatorAd` or a measure such as `Sub141_corr` is the ordinary
+    case, not the exception. The videos, transcripts and ELAN files carry the
+    session ID whole, so the name is read against those: the longest known ID
+    that is `base` itself or its `_`-separated prefix wins, and everything after
+    it is the measure. Returns None when no known ID fits, and the caller falls
+    back to guessing.
+    """
+    for sid in sorted((s for s in known if s), key=len, reverse=True):
+        if base == sid:
+            return sid, ""
+        if base.startswith(sid + "_"):
+            return sid, base[len(sid) + 1:]
+    return None
+
+
 class ProjectError(Exception):
     """Raised for user-facing project setup failures."""
 
@@ -287,18 +307,22 @@ def read_project(output_dir: str) -> dict:
         "config": config,
         "visibility": case.get("visibility") or "private",
         "dims_core": case.get("dimsCore"),
-        "assets": _existing_assets(output_dir),
+        "assets": _existing_assets(output_dir, config.get("videoIDs") or []),
     }
 
 
-def _existing_assets(output_dir: str) -> list:
+def _existing_assets(output_dir: str, known=()) -> list:
     """What is already in assets/, as the wizard's own file rows.
 
     Named by the conventions in `docs/contracts/assets.md`, read back: the name
     *is* the interface, so it is also what says which session and measure a file
-    belongs to.
+    belongs to. A time-series name is read against `known` -- the study's
+    `videoIDs`, plus every video found here, for a config that lacks the list --
+    because `{videoID}_{dataType}` is ambiguous the moment either side has an
+    underscore of its own (`split_session`).
     """
     found = []
+    known = list(known)
     for role, (subdir, _name) in ASSET_LAYOUT.items():
         directory = os.path.join(output_dir, "assets", subdir)
         if not os.path.isdir(directory):
@@ -311,10 +335,16 @@ def _existing_assets(output_dir: str) -> list:
                 continue
             base = os.path.splitext(name)[0]
             video_id, data_type = base, ""
-            if role == "timeseries" and "_" in base:
-                video_id, data_type = base.rsplit("_", 1)
+            if role == "timeseries":
+                hit = split_session(base, known)
+                if hit:
+                    video_id, data_type = hit
+                elif "_" in base:
+                    video_id, data_type = base.rsplit("_", 1)
             elif role == "transcript" and base.endswith("_transcript"):
                 video_id = base[: -len("_transcript")]
+            elif role == "video" and base not in known:
+                known.append(base)
             found.append({"role": role, "name": name, "path": path,
                           "videoID": video_id, "dataType": data_type})
     return found
