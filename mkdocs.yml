@@ -1,8 +1,12 @@
 # MkDocs Material + mike, over the markdown in docs/.
 #
-# The groups and page order below are the ones already curated in the website's
-# tools/SOURCE.json, so the two renderers present the same documentation in the
-# same shape. Nothing here edits docs/ -- the markdown stays the single source.
+# The groups below are organized by audience (Welcome, Overview of existing
+# analysis modules, Extending DIMS) rather than by page type. builder/index.md
+# is intentionally not in the nav -- it's reachable by direct link only, not
+# from the sidebar. The website's tools/SOURCE.json renders the same markdown
+# separately and re-renders from a pinned release, so it picks up this
+# grouping on its next cut. Nothing here edits docs/ -- the markdown stays the
+# single source.
 #
 #   pip install -r requirements-docs.txt
 #   mkdocs serve                 # live preview on :8000
@@ -44,7 +48,7 @@ theme:
   icon:
     repo: fontawesome/brands/github
   features:
-    - navigation.sections      # the six groups stay open in the sidebar
+    - navigation.sections      # the three groups stay open in the sidebar
     - navigation.top
     - navigation.tracking
     - navigation.indexes
@@ -117,41 +121,46 @@ plugins:
   - search
 
 nav:
-  - Start here:
-      - Documentation: index.md
-      - The tutorial: tutorial.md
+  - Welcome:
+      - DIMS intro & Demo: index.md
+      - Purpose of this site: index.md
       - Getting started: getting-started.md
-      - The no-code builder: builder/index.md
-  - Analyses:
-      - Overview: analyses/index.md
-      - Cross-wavelet analysis: analyses/crosswavelet.md
-      - Recurrence (RQA): analyses/rqa.md
-      - Cross-recurrence (cRQA): analyses/crqa.md
-  - Tabs:
-      - Time series: tabs/timeseries.md
-      - RQA: tabs/rqa.md
-      - Cross-RQA: tabs/crqa.md
-      - Cross-wavelet: tabs/crosswavelet.md
-      - Cross-effector network: tabs/network.md
-      - ELAN annotations: tabs/elan.md
-  - Reference:
-      - config.json: reference/config.md
-      - Asset layout: contracts/assets.md
-      - Analysis output: contracts/analysis-output.md
-      - Public and private data: contracts/data-visibility.md
-      - dims-analysis: reference/cli/dims-analysis.md
-      - dims-case: reference/cli/dims-case.md
-      - dims-builder: reference/cli/dims-builder.md
-      - Testing: reference/testing.md
+      - Tutorial (no-code): tutorial.md
+      - References: citing.md
+  - Overview of existing analysis modules:
+      - Analyses:
+          - Overview: analyses/index.md
+          - Cross-wavelet analysis: analyses/crosswavelet.md
+          - Recurrence (RQA): analyses/rqa.md
+          - Cross-recurrence (cRQA): analyses/crqa.md
+      - Tabs:
+          - Time series: tabs/timeseries.md
+          - RQA: tabs/rqa.md
+          - Cross-RQA: tabs/crqa.md
+          - Cross-wavelet: tabs/crosswavelet.md
+          - Cross-effector network: tabs/network.md
+          - ELAN annotations: tabs/elan.md
   - Extending DIMS:
-      - Writing a tab: contracts/tab.md
-      - Writing an analysis: contracts/step.md
-      - A study repository: contracts/case.md
-      - window.DIMS: reference/dims-api.md
-      - The host runtime: reference/host-runtime.md
-      - figure-geometry.js: reference/figure-geometry.md
-      - dims_analysis.common: reference/analysis-common.md
-      - The builder's HTTP API: builder/api.md
-  - Explanation:
-      - Architecture: architecture.md
-      - Versions, vendoring and the pin: versioning.md
+      - Overview: extending/index.md
+      - Contracts:
+          - Writing a tab: contracts/tab.md
+          - Writing an analysis: contracts/step.md
+          - A study repository: contracts/case.md
+          - config.json: reference/config.md
+          - Asset layout: contracts/assets.md
+          - Analysis output: contracts/analysis-output.md
+          - Public and private data: contracts/data-visibility.md
+      - APIs:
+          - window.DIMS: reference/dims-api.md
+          - The host runtime: reference/host-runtime.md
+          - figure-geometry.js: reference/figure-geometry.md
+          - dims_analysis.common: reference/analysis-common.md
+          - The builder's HTTP API: builder/api.md
+      - CLI & testing:
+          - dims-analysis: reference/cli/dims-analysis.md
+          - dims-case: reference/cli/dims-case.md
+          - dims-builder: reference/cli/dims-builder.md
+          - Testing: reference/testing.md
+      - Explanation:
+          - Architecture: architecture.md
+          - Versions, vendoring and the pin: versioning.md
