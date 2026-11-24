@@ -126,7 +126,7 @@ nav:
       - Purpose of this site: index.md
       - Getting started: getting-started.md
       - Tutorial (no-code): tutorial.md
-      - References: citing.md
+      - Citing DIMS: citing.md
   - Overview of existing analysis modules:
       - Analyses:
           - Overview: analyses/index.md
