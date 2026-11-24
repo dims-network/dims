@@ -20,7 +20,7 @@ The **DIMS Dashboard** is an open-source, interactive platform for exploring, vi
 
 ## Why DIMS?
 
-Human experiences and interactions unfold moment by moment, across multiple modalities and timescales. Yet conventional analytical approaches often reduce these rich dynamics to averages, summary statistics, or isolated signals. In doing so, we risk overlooking the very processes we seek to understand.
+Human experiences and interactions unfold moment by moment, across multiple modalities and timescales. Yet traditional analytical approaches often reduce these rich dynamics to averages, summary statistics, or isolated signals. In doing so, we risk overlooking the very processes we seek to understand.
 
 Even when sophisticated computational methods identify meaningful patterns, researchers are often left with a fundamental question: **What was actually happening at that moment?**
 
